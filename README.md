@@ -63,7 +63,7 @@ VoiceType 是一款開源的語音轉文字工具，讓你用「說」的方式�
 
 ```bash
 # 1. 取得原始碼
-git clone https://github.com/YOUR_USERNAME/VoiceType.git
+git clone https://github.com/domyweb666/VoiceType.git
 cd VoiceType
 
 # 2. 安裝相依套件
@@ -243,6 +243,6 @@ flutter build ios --release --no-codesign
 
 如果這個專案對你有幫助，請給個 Star 支持一下！
 
-<!-- 取得 GitHub URL 後替換 YOUR_USERNAME
-[![Star History Chart](https://api.star-history.com/svg?repos=YOUR_USERNAME/VoiceType&type=Date)](https://star-history.com/#YOUR_USERNAME/VoiceType&Date)
+<!-- 取得 GitHub URL 後替換 domyweb666
+[![Star History Chart](https://api.star-history.com/svg?repos=domyweb666/VoiceType&type=Date)](https://star-history.com/#domyweb666/VoiceType&Date)
 -->
