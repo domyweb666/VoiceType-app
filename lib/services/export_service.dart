@@ -37,13 +37,23 @@ class ExportService {
             : record.rawText);
     final name = organizedOnly ? '${stem}_文字稿.txt' : '$stem.txt';
     final f = await _writeTemp(name, body);
-    await Share.shareXFiles([XFile(f.path)], text: record.title);
+    try {
+      await Share.shareXFiles([XFile(f.path)], text: record.title);
+    } finally {
+      // 分享結束後刪除暫存明文檔，避免桌面平台殘留逐字稿副本。
+      await _deleteQuietly(f);
+    }
   }
 
   static Future<void> shareRecordRawTxt(TranscriptRecord record) async {
     final stem = _safeFileStem(record.title);
     final f = await _writeTemp('${stem}_口語稿.txt', record.rawText);
-    await Share.shareXFiles([XFile(f.path)], text: '${record.title}（口語稿）');
+    try {
+      await Share.shareXFiles([XFile(f.path)], text: '${record.title}（口語稿）');
+    } finally {
+      // 分享結束後刪除暫存明文檔，避免桌面平台殘留逐字稿副本。
+      await _deleteQuietly(f);
+    }
   }
 
   static Future<void> shareRecordMarkdown(TranscriptRecord record) async {
@@ -59,7 +69,12 @@ class ExportService {
     buf.writeln();
     buf.writeln(record.rawText);
     final f = await _writeTemp('$stem.md', buf.toString());
-    await Share.shareXFiles([XFile(f.path)], text: record.title);
+    try {
+      await Share.shareXFiles([XFile(f.path)], text: record.title);
+    } finally {
+      // 分享結束後刪除暫存明文檔，避免桌面平台殘留逐字稿副本。
+      await _deleteQuietly(f);
+    }
   }
 
   static Future<void> shareRecordsZip({
@@ -91,6 +106,20 @@ class ExportService {
       '${dir.path}/voicetype_export_${DateTime.now().millisecondsSinceEpoch}.zip',
     );
     await out.writeAsBytes(zipBytes);
-    await Share.shareXFiles([XFile(out.path)], text: 'VoiceType 批次匯出');
+    try {
+      await Share.shareXFiles([XFile(out.path)], text: 'VoiceType 批次匯出');
+    } finally {
+      // 分享結束後刪除暫存 ZIP，避免桌面平台殘留逐字稿副本。
+      await _deleteQuietly(out);
+    }
+  }
+
+  /// 靜默刪除暫存檔：即使檔案已不存在或刪除失敗也不拋錯。
+  static Future<void> _deleteQuietly(File f) async {
+    try {
+      if (await f.exists()) await f.delete();
+    } catch (_) {
+      // 刪除失敗（例如檔案被佔用）不影響分享結果，忽略即可。
+    }
   }
 }

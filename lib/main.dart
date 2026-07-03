@@ -24,6 +24,10 @@ void main() async {
   await initVoiceTypeHive();
   Hive.registerAdapter(TranscriptRecordAdapter());
 
+  // 一次性把明文 transcripts 盒遷移成加密盒；防禦式設計，失敗時維持明文不遺失資料。
+  // 必須在 registerAdapter 之後（遷移會反序列化 TranscriptRecord）、runApp 之前執行。
+  await migratePlaintextTranscriptsIfNeeded();
+
   if (Platform.isWindows) {
     await DesktopIntegration.initIfWindows();
   }

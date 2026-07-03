@@ -15,13 +15,26 @@ class SecureStorageService {
   );
 
   Future<String?> getApiKey() async {
-    final v = await _secure.read(key: _secureKey);
+    // 安全儲存讀取可能拋錯（例如 Windows Credential Manager
+    // 在 useBackwardCompatibility:false 下），此時視為「尚無金鑰」，
+    // 讓 App 顯示「請輸入金鑰」而非卡住。
+    String? v;
+    try {
+      v = await _secure.read(key: _secureKey);
+    } catch (_) {
+      return null;
+    }
     if (v != null && v.isNotEmpty) return v;
 
     final prefs = await SharedPreferences.getInstance();
     final legacy = prefs.getString(_legacyPrefsKey);
     if (legacy != null && legacy.isNotEmpty) {
-      await _secure.write(key: _secureKey, value: legacy);
+      try {
+        await _secure.write(key: _secureKey, value: legacy);
+      } catch (_) {
+        // 遷移寫入失敗時仍回傳舊值，不刪除舊鍵，留待下次再試遷移。
+        return legacy;
+      }
       await prefs.remove(_legacyPrefsKey);
       return legacy;
     }
@@ -29,13 +42,23 @@ class SecureStorageService {
   }
 
   Future<void> setApiKey(String key) async {
-    await _secure.write(key: _secureKey, value: key);
+    // 寫入失敗必須讓使用者知道（否則會誤以為金鑰已存），改拋清楚的例外。
+    try {
+      await _secure.write(key: _secureKey, value: key);
+    } catch (e) {
+      throw Exception('無法儲存 API 金鑰到安全儲存區：$e');
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_legacyPrefsKey);
   }
 
   Future<void> deleteApiKey() async {
-    await _secure.delete(key: _secureKey);
+    // 刪除失敗同樣需讓使用者知道，避免以為已清除實際仍存在。
+    try {
+      await _secure.delete(key: _secureKey);
+    } catch (e) {
+      throw Exception('無法從安全儲存區刪除 API 金鑰：$e');
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_legacyPrefsKey);
   }

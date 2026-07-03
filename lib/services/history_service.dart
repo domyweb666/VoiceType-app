@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../models/transcript_record.dart';
+import 'hive_encryption_service.dart';
 
 class HistoryService {
   /// 與 [main.dart] 註冊的 adapter 一致；勿隨意改名以免舊檔路徑不一致。
@@ -37,7 +38,11 @@ class HistoryService {
       return Hive.box<TranscriptRecord>(hiveBoxName);
     }
     try {
-      return await Hive.openBox<TranscriptRecord>(hiveBoxName);
+      // 加密開啟：與遷移後的加密盒一致（金鑰取自 secure storage）。
+      return await Hive.openBox<TranscriptRecord>(
+        hiveBoxName,
+        encryptionCipher: await HiveEncryptionService.cipher(),
+      );
     } catch (e, st) {
       debugPrint('Hive.openBox($hiveBoxName) failed: $e\n$st');
       // 檔案被同步軟體／第二個程序占用時，刪除只會再失敗並留下未處理的 async 錯誤。
@@ -51,7 +56,11 @@ class HistoryService {
         debugPrint('Hive.deleteBoxFromDisk failed: $e2');
       }
       try {
-        return await Hive.openBox<TranscriptRecord>(hiveBoxName);
+        // 重建的空盒也用加密開啟，維持磁碟格式一致。
+        return await Hive.openBox<TranscriptRecord>(
+          hiveBoxName,
+          encryptionCipher: await HiveEncryptionService.cipher(),
+        );
       } catch (e3, st3) {
         debugPrint('Hive.openBox retry failed: $e3\n$st3');
         rethrow;
