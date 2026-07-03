@@ -1,0 +1,16 @@
+# VoiceType Android 正式簽章設定範例
+#
+# 使用方式：
+#   1. 把這個檔案複製成 android/key.properties（同一層目錄）。
+#   2. 填入你自己的 keystore 路徑與密碼。
+#   3. key.properties、*.jks、*.keystore 都已被 .gitignore 排除，
+#      絕對不要把真實密碼或 keystore commit 進版控。
+#
+# 產生 keystore 的指令（範例）：
+#   keytool -genkey -v -keystore ~/voicetype-release.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias voicetype
+
+storeFile=/path/to/your/voicetype-release.jks
+storePassword=請填入你的_keystore_密碼
+keyAlias=voicetype
+keyPassword=請填入你的_key_密碼

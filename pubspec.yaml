@@ -63,6 +63,20 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+  # 從單一來源圖檔產生 Android / iOS / macOS 的 App icon。
+  flutter_launcher_icons: ^0.14.4
+
+# App icon 產生設定。放好 1024x1024 的來源圖後，執行：
+#   dart run flutter_launcher_icons
+# 這個區塊只有工具執行時才會被讀取，不會影響一般 build。
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: true
+  ios: true
+  macos:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
