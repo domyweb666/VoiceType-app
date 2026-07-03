@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../config/constants.dart';
@@ -42,40 +43,105 @@ class WavSplitService {
   }
 
   /// 回傳待上傳的 WAV 檔列表。若僅一段，回傳 `[original]`（不複製）。
+  ///
+  /// 位元組解析與各段 WAV 組裝屬 CPU 密集，長錄音時會卡住 UI isolate（掉幀）。
+  /// 因此把純運算搬到背景 isolate（[compute]），只在主 isolate 做檔案 IO。
   static Future<List<File>> splitToTempParts(File originalWav) async {
     final bytes = await originalWav.readAsBytes();
-    if (bytes.length < 44) {
-      throw const FormatException('音訊檔過短或損毀');
-    }
-    final header = String.fromCharCodes(bytes.sublist(0, 4));
-    if (header != 'RIFF') {
-      throw const FormatException('非 WAV 格式');
+
+    // 背景 isolate 做位元組驗證與切段組裝（無任何 Flutter/UI 依賴）。
+    final result = await compute(
+      _splitWavBytesInIsolate,
+      _WavSplitInput(bytes: bytes, maxPcmPerSlice: _maxPcmPerSlice),
+    );
+
+    if (result.errorMessage != null) {
+      throw FormatException(result.errorMessage!);
     }
 
-    final pcm = bytes.sublist(44);
-    if (pcm.isEmpty) {
+    // 空音訊。
+    if (result.sliceWavBytes == null) {
       return [];
     }
 
-    if (pcm.length <= _maxPcmPerSlice) {
+    // 未超過單段上限：回傳原檔（不複製）。
+    if (result.useOriginal) {
       return [originalWav];
     }
 
+    final slices = result.sliceWavBytes!;
     final tempDir = await getTemporaryDirectory();
     final stamp = DateTime.now().millisecondsSinceEpoch;
     final parts = <File>[];
-
-    for (var offset = 0, i = 0; offset < pcm.length; offset += _maxPcmPerSlice, i++) {
-      final end = offset + _maxPcmPerSlice > pcm.length
-          ? pcm.length
-          : offset + _maxPcmPerSlice;
-      final slice = pcm.sublist(offset, end);
-      final wavBytes = AudioRecorderService.buildWav(slice);
+    for (var i = 0; i < slices.length; i++) {
       final f = File('${tempDir.path}/slice_${stamp}_$i.wav');
-      await f.writeAsBytes(wavBytes);
+      await f.writeAsBytes(slices[i]);
       parts.add(f);
     }
-
     return parts;
   }
+}
+
+/// [compute] 的輸入：原始 WAV 位元組與每段 PCM 上限（打包成單一參數）。
+class _WavSplitInput {
+  const _WavSplitInput({
+    required this.bytes,
+    required this.maxPcmPerSlice,
+  });
+
+  final Uint8List bytes;
+  final int maxPcmPerSlice;
+}
+
+/// [compute] 的輸出：驗證錯誤、是否沿用原檔、或各段 WAV 位元組。
+class _WavSplitResult {
+  const _WavSplitResult({
+    this.errorMessage,
+    this.useOriginal = false,
+    this.sliceWavBytes,
+  });
+
+  /// 非 null 表示驗證失敗，主 isolate 應丟出對應 [FormatException]。
+  final String? errorMessage;
+
+  /// true 表示未超過單段上限，主 isolate 沿用原檔。
+  final bool useOriginal;
+
+  /// 各段組裝好的 WAV 位元組；為 null 且未沿用原檔時代表空音訊（回傳空清單）。
+  final List<Uint8List>? sliceWavBytes;
+}
+
+/// 背景 isolate 執行的純運算：驗證 WAV 標頭、切 PCM、組裝各段 WAV。
+/// 不得依賴 Flutter/UI；僅使用 [AudioRecorderService.buildWav] 與純位元組操作。
+_WavSplitResult _splitWavBytesInIsolate(_WavSplitInput input) {
+  final bytes = input.bytes;
+  final maxPcmPerSlice = input.maxPcmPerSlice;
+
+  if (bytes.length < 44) {
+    return const _WavSplitResult(errorMessage: '音訊檔過短或損毀');
+  }
+  final header = String.fromCharCodes(bytes.sublist(0, 4));
+  if (header != 'RIFF') {
+    return const _WavSplitResult(errorMessage: '非 WAV 格式');
+  }
+
+  final pcm = bytes.sublist(44);
+  if (pcm.isEmpty) {
+    // 空音訊：主 isolate 回傳空清單。
+    return const _WavSplitResult();
+  }
+
+  if (pcm.length <= maxPcmPerSlice) {
+    return const _WavSplitResult(useOriginal: true);
+  }
+
+  final slices = <Uint8List>[];
+  for (var offset = 0; offset < pcm.length; offset += maxPcmPerSlice) {
+    final end = offset + maxPcmPerSlice > pcm.length
+        ? pcm.length
+        : offset + maxPcmPerSlice;
+    final slice = pcm.sublist(offset, end);
+    slices.add(AudioRecorderService.buildWav(slice));
+  }
+  return _WavSplitResult(sliceWavBytes: slices);
 }

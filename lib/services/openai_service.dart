@@ -60,7 +60,11 @@ class OpenAIService {
       data: formData,
     );
 
-    return (response.data as String).trim();
+    final data = response.data;
+    if (data is! String) {
+      throw const FormatException('轉錄回應格式異常（預期為文字內容）');
+    }
+    return data.trim();
   }
 
   Future<ChatOrganizeResult> organizeText(
@@ -82,9 +86,30 @@ class OpenAIService {
       ),
     );
 
-    final data = response.data as Map<String, dynamic>;
-    final choices = data['choices'] as List;
-    final text = choices[0]['message']['content'] as String;
+    final rawData = response.data;
+    if (rawData is! Map) {
+      throw const FormatException('潤飾回應格式異常（預期為物件）');
+    }
+    final data = Map<String, dynamic>.from(rawData);
+
+    final choices = data['choices'];
+    if (choices is! List || choices.isEmpty) {
+      throw const FormatException('潤飾回應缺少 choices 內容');
+    }
+    final firstChoice = choices.first;
+    if (firstChoice is! Map) {
+      throw const FormatException('潤飾回應 choices 格式異常');
+    }
+    final message = firstChoice['message'];
+    if (message is! Map) {
+      throw const FormatException('潤飾回應缺少 message 內容');
+    }
+    final content = message['content'];
+    if (content is! String) {
+      throw const FormatException('潤飾回應缺少文字內容');
+    }
+    final text = content;
+
     int? promptTokens;
     int? completionTokens;
     final usage = data['usage'];

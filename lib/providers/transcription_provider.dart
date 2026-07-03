@@ -15,6 +15,8 @@ class TranscriptionProvider extends ChangeNotifier {
   OpenAIService? _openAIService;
 
   final List<TranscriptionSegment> _segments = [];
+  /// 快取的口語稿（逐字合併）；僅在 [_segments] 變動時失效，避免每次讀取都重算。
+  String? _rawTranscriptCache;
   String _organizedText = '';
   /// 由轉錄／潤飾／清除等流程遞增；UI 依此同步文字稿欄位，避免蓋過使用者正在編輯的內容。
   int _organizedTextVersion = 0;
@@ -34,7 +36,8 @@ class TranscriptionProvider extends ChangeNotifier {
   int? _resumeFromPartIndex;
 
   List<TranscriptionSegment> get segments => List.unmodifiable(_segments);
-  String get rawTranscript => _segments.map((s) => s.text).join('');
+  String get rawTranscript =>
+      _rawTranscriptCache ??= _segments.map((s) => s.text).join('');
   String get organizedText => _organizedText;
 
   int get organizedTextVersion => _organizedTextVersion;
@@ -159,6 +162,7 @@ class TranscriptionProvider extends ChangeNotifier {
     _transcribePartTotal = 0;
     if (!resumeHere) {
       _segments.clear();
+      _rawTranscriptCache = null;
     }
     _organizedText = '';
     _organizedTextVersion++;
@@ -231,7 +235,7 @@ class TranscriptionProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
-      _error = '無法處理錄音檔：$e';
+      _error = '無法處理錄音檔：${_safeErrorText(e)}';
       _errorDebugLine = _debugLineForException(e);
       allSucceeded = false;
       _resumeFromPartIndex = null;
@@ -281,6 +285,7 @@ class TranscriptionProvider extends ChangeNotifier {
             text: text,
             timestamp: DateTime.now(),
           ));
+          _rawTranscriptCache = null;
         }
         _error = null;
         _errorDebugLine = null;
@@ -339,7 +344,17 @@ class TranscriptionProvider extends ChangeNotifier {
         return AppConstants.oversizedTranscribeFileUserHint;
       }
     }
-    return '轉錄失敗（已自動重試）：$e';
+    return '轉錄失敗（已自動重試）：${_safeErrorText(e)}';
+  }
+
+  /// 供使用者可複製的錯誤字串：DioException 只保留「類型 (HTTP 狀態)」，
+  /// 不外洩伺服器回應內容（response body）；其餘例外照原樣。
+  static String _safeErrorText(Object e) {
+    if (e is DioException) {
+      final c = e.response?.statusCode;
+      return '${e.type.name}${c != null ? ' (HTTP $c)' : ''}';
+    }
+    return e.toString();
   }
 
   /// 第二階段：口語稿 → 文字稿（潤飾）。
@@ -413,7 +428,7 @@ class TranscriptionProvider extends ChangeNotifier {
       }
 
       if (lastError != null) {
-        _error = '產生文字稿失敗（已重試）：$lastError';
+        _error = '產生文字稿失敗（已重試）：${_safeErrorText(lastError)}';
         _errorDebugLine = _debugLineForException(lastError);
       }
     } finally {
@@ -470,7 +485,7 @@ class TranscriptionProvider extends ChangeNotifier {
         }
       }
       return PolishRawResult.failure(
-        '潤飾失敗（已重試）：${lastError ?? '未知錯誤'}',
+        '潤飾失敗（已重試）：${lastError != null ? _safeErrorText(lastError) : '未知錯誤'}',
       );
     } finally {
       _isOrganizing = false;
@@ -486,6 +501,7 @@ class TranscriptionProvider extends ChangeNotifier {
 
   void clear() {
     _segments.clear();
+    _rawTranscriptCache = null;
     _organizedText = '';
     _organizedTextVersion++;
     _error = null;

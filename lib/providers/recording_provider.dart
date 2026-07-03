@@ -23,12 +23,52 @@ class RecordingProvider extends ChangeNotifier {
   DateTime? _lastLevelNotify;
   int _pcmBytesWritten = 0;
   static const int _maxWaveformSamples = 80;
-  final List<double> _waveformSamples = <double>[];
+  // 固定容量環狀緩衝：避免 removeAt(0) 的 O(n) 搬移。_ringHead 指向最舊樣本；
+  // 未滿時 _ringCount < 容量，_ringHead 固定為 0。
+  final List<double> _waveformRing =
+      List<double>.filled(_maxWaveformSamples, 0);
+  int _ringHead = 0;
+  int _ringCount = 0;
+  // 快取的不可變視圖：僅在樣本變動時重建，避免每次 build 讀取都重新配置 List。
+  List<double>? _waveformCache;
 
   bool get isRecording => _isRecording;
   Duration get elapsed => _elapsed;
   double get inputLevel => _inputLevel;
-  List<double> get waveformSamples => List<double>.unmodifiable(_waveformSamples);
+
+  /// 由舊到新的波形樣本（不可變）。快取結果，樣本未變動時回傳同一份。
+  List<double> get waveformSamples {
+    final cache = _waveformCache;
+    if (cache != null) return cache;
+    final ordered = List<double>.generate(
+      _ringCount,
+      (i) => _waveformRing[(_ringHead + i) % _maxWaveformSamples],
+      growable: false,
+    );
+    final view = List<double>.unmodifiable(ordered);
+    _waveformCache = view;
+    return view;
+  }
+
+  /// 加入一筆波形樣本（超過容量時覆蓋最舊者），並使快取失效。
+  void _pushWaveformSample(double value) {
+    if (_ringCount < _maxWaveformSamples) {
+      _waveformRing[(_ringHead + _ringCount) % _maxWaveformSamples] = value;
+      _ringCount++;
+    } else {
+      _waveformRing[_ringHead] = value;
+      _ringHead = (_ringHead + 1) % _maxWaveformSamples;
+    }
+    _waveformCache = null;
+  }
+
+  /// 清空波形環狀緩衝並使快取失效。
+  void _clearWaveform() {
+    _ringHead = 0;
+    _ringCount = 0;
+    _waveformCache = null;
+  }
+
   int get estimatedRecordingPcmBytes => _pcmBytesWritten;
 
   String get elapsedFormatted {
@@ -50,7 +90,7 @@ class RecordingProvider extends ChangeNotifier {
     _elapsed = Duration.zero;
     _inputLevel = 0;
     _pcmBytesWritten = 0;
-    _waveformSamples.clear();
+    _clearWaveform();
     notifyListeners();
 
     final tempDir = await getTemporaryDirectory();
@@ -109,10 +149,7 @@ class RecordingProvider extends ChangeNotifier {
     if (count == 0) return;
     final rms = math.sqrt(sum / count) / 32768.0;
     _inputLevel = math.min(1.0, rms * 10);
-    _waveformSamples.add(_inputLevel);
-    while (_waveformSamples.length > _maxWaveformSamples) {
-      _waveformSamples.removeAt(0);
-    }
+    _pushWaveformSample(_inputLevel);
     final now = DateTime.now();
     if (_lastLevelNotify == null ||
         now.difference(_lastLevelNotify!).inMilliseconds > 90) {
@@ -127,7 +164,7 @@ class RecordingProvider extends ChangeNotifier {
 
     _isRecording = false;
     _inputLevel = 0;
-    _waveformSamples.clear();
+    _clearWaveform();
     _lastLevelNotify = null;
     _elapsedTimer?.cancel();
     _elapsedTimer = null;
