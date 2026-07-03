@@ -24,7 +24,9 @@ class RecordingForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureChannel()
-        val notification = buildNotification()
+        // 每次 start 都重建通知並重新 startForeground，讓重複的 start / update
+        // intent 直接原地更新同一則通知 4711（例如刷新已錄時長）。
+        val notification = buildNotification(intent?.getStringExtra("elapsed"))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
                 NOTIFICATION_ID,
@@ -62,7 +64,13 @@ class RecordingForegroundService : Service() {
         nm.createNotificationChannel(channel)
     }
 
-    private fun buildNotification(): Notification {
+    private fun buildNotification(elapsed: String?): Notification {
+        // 有帶 elapsed 就顯示已錄時長，否則回退成預設保護提示。
+        val contentText = if (elapsed.isNullOrBlank()) {
+            "背景錄音保護中・點此返回 App"
+        } else {
+            elapsed
+        }
         val openIntent = packageManager.getLaunchIntentForPackage(packageName)
         val pi = if (openIntent != null) {
             PendingIntent.getActivity(
@@ -76,7 +84,7 @@ class RecordingForegroundService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle("VoiceType 錄音中")
-            .setContentText("背景錄音保護中・點此返回 App")
+            .setContentText(contentText)
             .setOngoing(true)
             .setSilent(true)
             .setOnlyAlertOnce(true)

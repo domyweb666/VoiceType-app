@@ -7,8 +7,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// 手機背景錄音保護：
-/// - Android：常駐通知 + 啟動 native ForegroundService
-/// - iOS：啟用 audio_session（搭配 Info.plist 的 UIBackgroundModes: audio）
+/// - Android：通知完全由 native ForegroundService（通知 4711）獨占，
+///   本類只透過 MethodChannel 下 start / update / stop 指令並申請通知權限。
+/// - iOS：啟用 audio_session + flutter_local_notifications 顯示常駐通知
+///   （搭配 Info.plist 的 UIBackgroundModes: audio）
 /// - 桌面：no-op
 class RecordingNotificationService {
   RecordingNotificationService._();
@@ -16,8 +18,7 @@ class RecordingNotificationService {
       RecordingNotificationService._();
 
   static const _channel = MethodChannel('com.voicetype/recording_fg');
-  static const _notificationId = 4711;
-  static const _androidChannelId = 'voicetype_recording_active';
+  static const _notificationId = 4711; // 僅 iOS 使用
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -32,27 +33,16 @@ class RecordingNotificationService {
     if (_initialized || !_enabledPlatform) return;
     _initialized = true;
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
-    await _plugin.initialize(
-      const InitializationSettings(android: androidInit, iOS: iosInit),
-    );
-
-    if (Platform.isAndroid) {
-      final androidImpl = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      await androidImpl?.createNotificationChannel(
-        const AndroidNotificationChannel(
-          _androidChannelId,
-          '錄音中',
-          description: '顯示錄音進行中與已錄時長',
-          importance: Importance.low,
-          showBadge: false,
-        ),
+    // Android 的錄音通知完全交給 native ForegroundService（通知 4711），
+    // 這裡不再初始化 flutter_local_notifications，避免兩邊搶同一個 id 打架。
+    if (Platform.isIOS) {
+      const iosInit = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+      await _plugin.initialize(
+        const InitializationSettings(iOS: iosInit),
       );
     }
 
@@ -73,8 +63,10 @@ class RecordingNotificationService {
   Future<void> startRecording({required String elapsedText}) async {
     if (!_enabledPlatform) return;
     await initialize();
+    _isActive = true;
 
     if (Platform.isAndroid) {
+      // 先申請通知權限，通知本體由 native ForegroundService 顯示。
       try {
         final status = await Permission.notification.status;
         if (!status.isGranted) {
@@ -82,7 +74,7 @@ class RecordingNotificationService {
         }
       } catch (_) {}
       try {
-        await _channel.invokeMethod('start');
+        await _channel.invokeMethod('start', {'elapsed': elapsedText});
       } catch (_) {}
     }
 
@@ -90,26 +82,30 @@ class RecordingNotificationService {
       try {
         await _audioSession?.setActive(true);
       } catch (_) {}
+      await _showNotification(elapsedText: elapsedText);
     }
-
-    _isActive = true;
-    await _showNotification(elapsedText: elapsedText);
   }
 
   /// 每秒由 RecordingProvider 計時器呼叫，刷新通知文字。
   Future<void> updateElapsed(String elapsedText) async {
     if (!_enabledPlatform || !_isActive) return;
-    await _showNotification(elapsedText: elapsedText);
+
+    if (Platform.isAndroid) {
+      // 交給 native 服務原地更新同一則通知 4711。
+      try {
+        await _channel.invokeMethod('update', {'elapsed': elapsedText});
+      } catch (_) {}
+    }
+
+    if (Platform.isIOS) {
+      await _showNotification(elapsedText: elapsedText);
+    }
   }
 
   /// 結束錄音時呼叫：關通知、關 ForegroundService、釋放 audio session。
   Future<void> stopRecording() async {
     if (!_enabledPlatform) return;
     _isActive = false;
-
-    try {
-      await _plugin.cancel(_notificationId);
-    } catch (_) {}
 
     if (Platform.isAndroid) {
       try {
@@ -119,26 +115,16 @@ class RecordingNotificationService {
 
     if (Platform.isIOS) {
       try {
+        await _plugin.cancel(_notificationId);
+      } catch (_) {}
+      try {
         await _audioSession?.setActive(false);
       } catch (_) {}
     }
   }
 
+  /// 僅 iOS 使用：透過 flutter_local_notifications 顯示 / 更新錄音通知。
   Future<void> _showNotification({required String elapsedText}) async {
-    final androidDetails = AndroidNotificationDetails(
-      _androidChannelId,
-      '錄音中',
-      channelDescription: '顯示錄音進行中與已錄時長',
-      importance: Importance.low,
-      priority: Priority.low,
-      ongoing: true,
-      autoCancel: false,
-      showWhen: false,
-      onlyAlertOnce: true,
-      silent: true,
-      category: AndroidNotificationCategory.service,
-      visibility: NotificationVisibility.public,
-    );
     const iosDetails = DarwinNotificationDetails(
       presentAlert: false,
       presentBadge: false,
@@ -150,7 +136,7 @@ class RecordingNotificationService {
         _notificationId,
         'VoiceType 錄音中',
         elapsedText,
-        NotificationDetails(android: androidDetails, iOS: iosDetails),
+        const NotificationDetails(iOS: iosDetails),
       );
     } catch (_) {}
   }

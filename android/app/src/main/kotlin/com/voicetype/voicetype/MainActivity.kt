@@ -27,8 +27,14 @@ class MainActivity : FlutterActivity() {
             "com.voicetype/recording_fg",
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "start" -> {
+                "start", "update" -> {
+                    // start 與 update 行為相同：帶上 elapsed extra 後 startForegroundService，
+                    // 重複呼叫會重用執行中的服務並原地更新同一則通知 4711。
                     val intent = Intent(this, RecordingForegroundService::class.java)
+                    val elapsed = call.argument<String>("elapsed")
+                    if (elapsed != null) {
+                        intent.putExtra("elapsed", elapsed)
+                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         startForegroundService(intent)
                     } else {
