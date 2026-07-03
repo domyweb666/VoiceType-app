@@ -10,6 +10,11 @@ class SettingsProvider extends ChangeNotifier {
   static const _textScaleKey = 'ui_text_scale_v1';
   static const _themeModeKey = 'ui_theme_mode_v1';
 
+  /// 設定頁提供的字級選項（與 SegmentedButton 的四個選項一致）。
+  /// 舊版本可能存過落在此清單外的原始倍率（例如 0.85／1.35），
+  /// 載入時會就近吸附到這幾個值，讓 UI 一定能標示到某個選項。
+  static const List<double> textScaleChips = [0.9, 1.0, 1.15, 1.3];
+
   final SecureStorageService _storage = SecureStorageService();
   String? _apiKey;
   bool _hasSeenPrivacyDisclosure = false;
@@ -47,7 +52,16 @@ class SettingsProvider extends ChangeNotifier {
         prefs.getString(_polishPromptKey) ?? AppConstants.oralDraftSystemPrompt;
     _customGlossary = prefs.getString(_customGlossaryKey) ?? '';
     final scale = prefs.getDouble(_textScaleKey);
-    _uiTextScale = scale != null ? scale.clamp(0.85, 1.35) : 1.0;
+    if (scale != null) {
+      // 把舊值就近吸附到某個選項；若原值不在選項上，回寫吸附後的值。
+      final snapped = _snapToChip(scale.clamp(0.85, 1.35));
+      _uiTextScale = snapped;
+      if ((snapped - scale).abs() > 0.001) {
+        await prefs.setDouble(_textScaleKey, snapped);
+      }
+    } else {
+      _uiTextScale = 1.0;
+    }
     final modeStr = prefs.getString(_themeModeKey) ?? 'system';
     _themeMode = modeStr == 'light'
         ? ThemeMode.light
@@ -124,6 +138,20 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_privacyDisclosureKey, true);
+  }
+
+  /// 將任意倍率就近吸附到 [textScaleChips] 之一。
+  static double _snapToChip(double scale) {
+    var best = textScaleChips.first;
+    var bestD = (scale - best).abs();
+    for (final c in textScaleChips.skip(1)) {
+      final d = (scale - c).abs();
+      if (d < bestD) {
+        best = c;
+        bestD = d;
+      }
+    }
+    return best;
   }
 
   Future<void> setUiTextScale(double value) async {

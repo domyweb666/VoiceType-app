@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
@@ -36,6 +38,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool _didScrollToTarget = false;
   bool _scrollTargetPostFrameScheduled = false;
 
+  /// 已套用的搜尋關鍵字（去頭尾空白並轉小寫）；輸入防抖後才更新。
+  String _activeQuery = '';
+  Timer? _searchDebounce;
+
+  /// 依 record id 快取的「可搜尋文字」（標題＋原文＋潤飾稿，全部小寫）。
+  /// 只在 records 清單本身改變時重建，避免每次按鍵重複 toLowerCase。
+  final Map<String, String> _searchIndex = {};
+  List<TranscriptRecord>? _indexedRecords;
+
+  /// 使用者已手動關閉的重新載入錯誤橫幅（同一則錯誤只提示一次）。
+  String? _dismissedLoadError;
+
   @override
   void initState() {
     super.initState();
@@ -47,9 +61,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// 搜尋框輸入變更：延遲約 250ms 才套用，避免每次按鍵都重掃全清單。
+  void _onSearchChanged() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      final q = _searchController.text.trim().toLowerCase();
+      if (q == _activeQuery) return;
+      setState(() => _activeQuery = q);
+    });
+  }
+
+  /// 確保 [_searchIndex] 與目前 records 同步（清單身分改變時才重建）。
+  void _ensureSearchIndex(List<TranscriptRecord> records) {
+    if (identical(_indexedRecords, records)) return;
+    _searchIndex.clear();
+    for (final r in records) {
+      _searchIndex[r.id] =
+          '${r.title}\n${r.rawText}\n${r.organizedText}'.toLowerCase();
+    }
+    _indexedRecords = records;
   }
 
   bool _sameDay(DateTime a, DateTime b) =>
@@ -66,12 +103,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   List<TranscriptRecord> _filtered(List<TranscriptRecord> all) {
     var list = List<TranscriptRecord>.from(all);
-    final q = _searchController.text.trim().toLowerCase();
+    final q = _activeQuery;
     if (q.isNotEmpty) {
+      // 以預先建好的小寫索引比對；語意與原本三欄位 OR 相同。
       list = list.where((r) {
-        return r.title.toLowerCase().contains(q) ||
-            r.rawText.toLowerCase().contains(q) ||
-            r.organizedText.toLowerCase().contains(q);
+        final indexed = _searchIndex[r.id];
+        return indexed != null && indexed.contains(q);
       }).toList();
     }
     final now = DateTime.now();
@@ -159,8 +196,91 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final history = context.watch<HistoryProvider>();
     final t = context.tokens;
+    _ensureSearchIndex(history.records);
     final visible = _filtered(history.records);
     _tryScrollToTarget(visible);
+
+    // 是否需顯示「重新載入失敗但仍有舊資料」的橫幅。
+    final reloadError =
+        (history.loadError != null && history.records.isNotEmpty)
+            ? history.loadError
+            : null;
+    final showReloadBanner =
+        reloadError != null && reloadError != _dismissedLoadError;
+
+    // 攤平成一維清單，供 ListView.builder 惰性建立列（不再一次建好整棵 Column）。
+    final content = <Widget>[
+      // Hero
+      _Hero(
+        totalCount: history.records.length,
+        onExport: () => _exportFilteredZip(visible),
+        onBack: widget.onBack,
+        embedded: widget.embedded,
+      ),
+      const SizedBox(height: 22),
+      // Search
+      _SearchBox(
+        controller: _searchController,
+        onChanged: _onSearchChanged,
+      ),
+      const SizedBox(height: 14),
+      // filter pills
+      Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          _FilterPill(
+            label: '全部',
+            on: _dateFilter == _HistoryDateFilter.all,
+            onTap: () =>
+                setState(() => _dateFilter = _HistoryDateFilter.all),
+          ),
+          _FilterPill(
+            label: '今天',
+            on: _dateFilter == _HistoryDateFilter.today,
+            onTap: () =>
+                setState(() => _dateFilter = _HistoryDateFilter.today),
+          ),
+          _FilterPill(
+            label: '本週',
+            on: _dateFilter == _HistoryDateFilter.week,
+            onTap: () =>
+                setState(() => _dateFilter = _HistoryDateFilter.week),
+          ),
+          _FilterPill(
+            label: '本月',
+            on: _dateFilter == _HistoryDateFilter.month,
+            onTap: () =>
+                setState(() => _dateFilter = _HistoryDateFilter.month),
+          ),
+        ],
+      ),
+      if (showReloadBanner) ...[
+        const SizedBox(height: 14),
+        _ReloadErrorBanner(
+          message: reloadError,
+          onRetry: () => context.read<HistoryProvider>().loadRecords(),
+          onDismiss: () =>
+              setState(() => _dismissedLoadError = reloadError),
+        ),
+      ],
+      const SizedBox(height: 24),
+    ];
+
+    if (visible.isEmpty) {
+      content.add(_EmptyHistory());
+    } else {
+      for (final g in _groupByDay(visible).entries) {
+        content.add(_DayGroupTitle(label: g.key));
+        for (final rec in g.value) {
+          content.add(_RecRow(
+            record: rec,
+            highlight: widget.scrollToRecordId == rec.id,
+          ));
+        }
+        content.add(const SizedBox(height: 22));
+      }
+    }
 
     final body = history.isLoading && history.records.isEmpty
         ? Center(
@@ -173,84 +293,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 message: history.loadError!,
                 onRetry: () => context.read<HistoryProvider>().loadRecords(),
               )
-            : SingleChildScrollView(
-                controller: _scrollController,
-                padding: EdgeInsets.fromLTRB(
-                  widget.embedded ? 48 : 24,
-                  24,
-                  widget.embedded ? 48 : 24,
-                  120,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 960),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Hero
-                        _Hero(
-                          totalCount: history.records.length,
-                          onExport: () => _exportFilteredZip(visible),
-                          onBack: widget.onBack,
-                          embedded: widget.embedded,
-                        ),
-                        const SizedBox(height: 22),
-                        // Search
-                        _SearchBox(
-                          controller: _searchController,
-                          onChanged: () => setState(() {}),
-                        ),
-                        const SizedBox(height: 14),
-                        // filter pills
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            _FilterPill(
-                              label: '全部',
-                              on: _dateFilter == _HistoryDateFilter.all,
-                              onTap: () => setState(() =>
-                                  _dateFilter = _HistoryDateFilter.all),
-                            ),
-                            _FilterPill(
-                              label: '今天',
-                              on: _dateFilter == _HistoryDateFilter.today,
-                              onTap: () => setState(() =>
-                                  _dateFilter = _HistoryDateFilter.today),
-                            ),
-                            _FilterPill(
-                              label: '本週',
-                              on: _dateFilter == _HistoryDateFilter.week,
-                              onTap: () => setState(() =>
-                                  _dateFilter = _HistoryDateFilter.week),
-                            ),
-                            _FilterPill(
-                              label: '本月',
-                              on: _dateFilter == _HistoryDateFilter.month,
-                              onTap: () => setState(() =>
-                                  _dateFilter = _HistoryDateFilter.month),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        // groups
-                        if (visible.isEmpty)
-                          _EmptyHistory()
-                        else
-                          ..._groupByDay(visible).entries.expand((g) sync* {
-                            yield _DayGroupTitle(label: g.key);
-                            yield Column(
-                              children: g.value.map((rec) {
-                                return _RecRow(
-                                  record: rec,
-                                  highlight: widget.scrollToRecordId == rec.id,
-                                );
-                              }).toList(),
-                            );
-                            yield const SizedBox(height: 22);
-                          }),
-                      ],
+            : Center(
+                child: ConstrainedBox(
+                  // 置中並限制最大寬度，維持原本 960px 的版面。
+                  constraints: const BoxConstraints(maxWidth: 960),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: EdgeInsets.fromLTRB(
+                      widget.embedded ? 48 : 24,
+                      24,
+                      widget.embedded ? 48 : 24,
+                      120,
                     ),
+                    itemCount: content.length,
+                    // 惰性建列：ListView 本身寬度已受 960 約束，
+                    // 各列在此寬度下自然填滿，等同原本 stretch 版面。
+                    itemBuilder: (context, i) => content[i],
                   ),
                 ),
               );
@@ -576,6 +634,71 @@ class _ErrorRetry extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 重新載入失敗、但仍有舊資料時顯示的可關閉橫幅。
+/// 讓使用者知道「這次刷新沒成功、看到的是舊清單」，但不擋住既有內容。
+class _ReloadErrorBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onDismiss;
+
+  const _ReloadErrorBanner({
+    required this.message,
+    required this.onRetry,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: t.danger.withValues(alpha: 0.10),
+        border: Border.all(color: t.danger.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline_rounded, size: 18, color: t.danger),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '重新載入失敗，顯示的是先前的紀錄。',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    color: t.fg,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  message,
+                  style: TextStyle(fontSize: 12.5, color: t.fgDim, height: 1.5),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('重試'),
+          ),
+          IconButton(
+            onPressed: onDismiss,
+            icon: const Icon(Icons.close_rounded, size: 18),
+            tooltip: '關閉',
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
       ),
     );
   }

@@ -44,7 +44,8 @@ class RecordHUDPill extends StatelessWidget {
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
       constraints: const BoxConstraints(minWidth: 320, maxWidth: 520),
-      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      // 左內距 10（原 14）補償 stop 鈕 48 觸控框左側多出的 4px，維持圓點視覺位置。
+      padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
       decoration: BoxDecoration(
         color: t.bgElev.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(999),
@@ -66,9 +67,10 @@ class RecordHUDPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 紅色脈動 stop 鈕 (40)
+          // 紅色脈動 stop 鈕 (40 視覺 / 48 觸控框)
           _StopMicDot(onTap: onToggle),
-          const SizedBox(width: 10),
+          // 6（原 10）補償 stop 鈕觸控框右側多出的 4px。
+          const SizedBox(width: 6),
           // 計時器（mono tabular）
           Text(
             elapsed,
@@ -134,34 +136,47 @@ class _StopMicDotState extends State<_StopMicDot>
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return GestureDetector(
-      onTap: widget.onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (context, _) {
-          final spread = 4 + 8 * _ctrl.value;
-          return Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: t.danger,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: t.dangerGlow.withValues(alpha: 0.6 - 0.4 * _ctrl.value),
-                  blurRadius: 0,
-                  spreadRadius: spread,
-                ),
-              ],
+    // Semantics 標記為按鈕，並用 48x48 的透明點擊區包住 40 的視覺圓點，
+    // 滿足最小觸控目標，但不改變圓點本身的視覺大小。
+    return Semantics(
+      button: true,
+      label: '停止錄音',
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Center(
+            child: AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, _) {
+                final spread = 4 + 8 * _ctrl.value;
+                return Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: t.danger,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: t.dangerGlow
+                            .withValues(alpha: 0.6 - 0.4 * _ctrl.value),
+                        blurRadius: 0,
+                        spreadRadius: spread,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.stop_rounded,
+                    color: Color(0xFF2A0808),
+                    size: 18,
+                  ),
+                );
+              },
             ),
-            child: const Icon(
-              Icons.stop_rounded,
-              color: Color(0xFF2A0808),
-              size: 18,
-            ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -174,25 +189,56 @@ class _LiveWaveform extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, c) {
-        final h = c.maxHeight;
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: samples.map((v) {
-            final clamped = v.clamp(0.08, 1.0);
-            return Container(
-              width: 3,
-              height: h * clamped,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            );
-          }).toList(),
-        );
-      },
+    // 用單一 CustomPaint 一次畫完所有 bar，避免每個動畫 tick 重建 34 個 Container。
+    return CustomPaint(
+      size: Size.infinite,
+      painter: _LiveWaveformPainter(samples: samples, color: color),
     );
+  }
+}
+
+/// 一次 paint 畫完所有波形 bar，視覺結果與原本的 Row-of-Containers 相同
+/// （同樣寬 3、圓角 2、spaceBetween 排列、高度由 sample 值驅動）。
+class _LiveWaveformPainter extends CustomPainter {
+  final List<double> samples;
+  final Color color;
+
+  _LiveWaveformPainter({required this.samples, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (samples.isEmpty || size.width <= 0 || size.height <= 0) return;
+
+    const barW = 3.0;
+    final n = samples.length;
+    final h = size.height;
+
+    // 對應原本 Row 的 spaceBetween：頭尾各一根 bar 貼齊左右緣，中間均分間距。
+    final step = n > 1 ? (size.width - barW) / (n - 1) : 0.0;
+
+    final paint = Paint()..color = color.withValues(alpha: 0.85);
+
+    for (var i = 0; i < n; i++) {
+      final clamped = samples[i].clamp(0.08, 1.0);
+      final barH = h * clamped;
+      final left = n > 1 ? i * step : (size.width - barW) / 2;
+      final top = (h - barH) / 2; // crossAxisAlignment.center：垂直置中
+      final rect = Rect.fromLTWH(left, top, barW, barH);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(2)),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LiveWaveformPainter oldDelegate) {
+    if (oldDelegate.color != color) return true;
+    if (oldDelegate.samples.length != samples.length) return true;
+    if (identical(oldDelegate.samples, samples)) return false;
+    for (var i = 0; i < samples.length; i++) {
+      if (oldDelegate.samples[i] != samples[i]) return true;
+    }
+    return false;
   }
 }

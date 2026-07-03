@@ -55,7 +55,7 @@ class _TranscriptViewState extends State<TranscriptView> {
     if (widget.segments.isEmpty &&
         !widget.isTranscribing &&
         !widget.isRecording) {
-      return _EmptyHint(
+      return const _EmptyHint(
         icon: Icons.graphic_eq_outlined,
         title: '尚無口語稿',
         subtitle: '錄音結束後會自動產生逐段口語稿。',
@@ -65,7 +65,7 @@ class _TranscriptViewState extends State<TranscriptView> {
     if (widget.segments.isEmpty &&
         widget.isRecording &&
         !widget.isTranscribing) {
-      return _EmptyHint(
+      return const _EmptyHint(
         icon: Icons.fiber_manual_record_outlined,
         title: '錄音進行中',
         subtitle: '結束錄音後才會開始轉錄。',

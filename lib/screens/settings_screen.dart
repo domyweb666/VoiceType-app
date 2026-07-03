@@ -6,6 +6,18 @@ import '../providers/settings_provider.dart';
 import '../services/cost_estimate_service.dart';
 
 
+/// 費用粗估區塊的顯示幣別與匯率標示。
+///
+/// 這只是「App 端的粗估」，並非即時匯率：實際金額以 OpenAI 帳單為準，
+/// 當模型定價或匯率變動時，此處與 [SessionCostEstimateService] 的常數都會失準，
+/// 需一併手動更新。此處只負責 UI 標籤，實際換算數字仍取自估算服務。
+const String kCostEstimateCurrencyLabel = '新台幣';
+
+/// 匯率假設（1 美元約等於多少 [kCostEstimateCurrencyLabel]）；僅供標示，
+/// 真正參與換算的是 [SessionCostEstimateService.twdPerUsd]，兩者須同步。
+const double kCostEstimateAssumedFxRate =
+    SessionCostEstimateService.twdPerUsd;
+
 class SettingsScreen extends StatefulWidget {
   /// 嵌入在 HomeScreen 的桌面三欄佈局時為 true。
   final bool embedded;
@@ -153,7 +165,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
 
                     _Section(
-                      title: '費用粗估（新台幣）',
+                      title: '費用粗估（$kCostEstimateCurrencyLabel）',
                       desc: SessionCostEstimateService.buildSettingsEstimateText(),
                       child: const SizedBox.shrink(),
                     ),
