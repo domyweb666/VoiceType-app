@@ -8,6 +8,7 @@ import 'desktop/desktop_integration.dart';
 import 'models/transcript_record.dart';
 import 'providers/history_provider.dart';
 import 'services/hive_storage_init.dart';
+import 'services/recording_notification_service.dart';
 import 'providers/pending_queue_provider.dart';
 import 'providers/recording_provider.dart';
 import 'providers/settings_provider.dart';
@@ -25,6 +26,10 @@ void main() async {
 
   if (Platform.isWindows) {
     await DesktopIntegration.initIfWindows();
+  }
+
+  if (Platform.isAndroid || Platform.isIOS) {
+    await RecordingNotificationService.instance.initialize();
   }
 
   runApp(

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../services/audio_recorder_service.dart';
+import '../services/recording_notification_service.dart';
 
 /// 連續寫入 PCM，停止時組成單一 WAV（與轉錄／待轉錄佇列相容）。
 class RecordingProvider extends ChangeNotifier {
@@ -61,7 +62,16 @@ class RecordingProvider extends ChangeNotifier {
     _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _elapsed += const Duration(seconds: 1);
       notifyListeners();
+      unawaited(
+        RecordingNotificationService.instance
+            .updateElapsed(elapsedFormatted),
+      );
     });
+
+    unawaited(
+      RecordingNotificationService.instance
+          .startRecording(elapsedText: elapsedFormatted),
+    );
 
     final stream = await _recorderService.startRecording();
     _pcmStreamEnded = Completer<void>();
@@ -122,6 +132,8 @@ class RecordingProvider extends ChangeNotifier {
     _elapsedTimer?.cancel();
     _elapsedTimer = null;
     notifyListeners();
+
+    unawaited(RecordingNotificationService.instance.stopRecording());
 
     final ended = _pcmStreamEnded;
     await _recorderService.stopRecording();

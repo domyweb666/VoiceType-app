@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 
+/// 圓形麥克風／停止按鈕。可變尺寸；錄音中會脈動 + 紅色。
 class RecordButton extends StatefulWidget {
   final bool isRecording;
   final VoidCallback onTap;
   final bool enabled;
+  final double size;
 
   const RecordButton({
     super.key,
     required this.isRecording,
     required this.onTap,
     this.enabled = true,
+    this.size = 72,
   });
 
   @override
@@ -26,11 +30,12 @@ class _RecordButtonState extends State<RecordButton>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1400),
     );
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.06).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
+    if (widget.isRecording) _controller.repeat(reverse: true);
   }
 
   @override
@@ -52,9 +57,8 @@ class _RecordButtonState extends State<RecordButton>
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final recordColor = scheme.error;
-    final idleColor = scheme.primary;
+    final t = context.tokens;
+    final iconSize = widget.size * 0.42;
 
     return Tooltip(
       message: widget.isRecording ? '停止錄音' : '開始錄音',
@@ -72,27 +76,31 @@ class _RecordButtonState extends State<RecordButton>
                   onTap: widget.enabled ? widget.onTap : null,
                   customBorder: const CircleBorder(),
                   child: Ink(
-                    width: 88,
-                    height: 88,
+                    width: widget.size,
+                    height: widget.size,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: widget.isRecording ? recordColor : idleColor,
+                      color: widget.isRecording ? t.danger : t.accent,
                       boxShadow: [
                         BoxShadow(
-                          color: (widget.isRecording ? recordColor : idleColor)
-                              .withValues(alpha: 0.45),
-                          blurRadius: widget.isRecording ? 22 : 14,
-                          spreadRadius: widget.isRecording ? 4 : 1,
-                          offset: const Offset(0, 4),
+                          color: widget.isRecording
+                              ? t.dangerGlow
+                              : t.accentGlow,
+                          blurRadius: widget.isRecording ? 24 : 18,
+                          spreadRadius: widget.isRecording ? 4 : 0,
+                          offset: const Offset(0, 6),
                         ),
                       ],
+                      border: Border.all(color: t.lineStrong, width: 1),
                     ),
                     child: Icon(
-                      widget.isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                      widget.isRecording
+                          ? Icons.stop_rounded
+                          : Icons.mic_rounded,
                       color: widget.isRecording
-                          ? scheme.onError
-                          : scheme.onPrimary,
-                      size: 40,
+                          ? const Color(0xFF2A0808)
+                          : t.accentInk,
+                      size: iconSize,
                     ),
                   ),
                 ),

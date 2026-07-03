@@ -446,6 +446,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                   childrenPadding: const EdgeInsets.only(bottom: 8),
                   shape: const Border(),
                   collapsedShape: const Border(),
+                  expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
                   title: Text(
                     '口語稿（語音轉錄）',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -456,14 +457,18 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                   children: [
                     Card(
                       margin: EdgeInsets.zero,
+                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         child: SelectableText(
                           _record.rawText,
                           style: TextStyle(
-                            fontSize: 15,
-                            height: 1.65,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 16,
+                            height: 1.85,
+                            color: scheme.onSurface,
                           ),
                         ),
                       ),

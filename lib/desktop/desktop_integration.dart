@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -10,14 +9,11 @@ import 'package:window_manager/window_manager.dart';
 
 import '../services/recording_hotkey_bus.dart';
 
-/// Windows：關閉視窗收到系統匣、全域快捷鍵、匣選單。
+/// Windows：全域快捷鍵、系統匣（關閉視窗直接結束，不收到匣）。
 class DesktopIntegration {
   DesktopIntegration._();
 
   static bool get isSupported => Platform.isWindows || Platform.isMacOS;
-
-  static final _VoiceWindowListener _winListener = _VoiceWindowListener();
-  static final _VoiceTrayListener _trayListener = _VoiceTrayListener();
 
   static Future<void> initIfWindows() async {
     if (!isSupported) return;
@@ -27,21 +23,17 @@ class DesktopIntegration {
 
     const opts = WindowOptions(
       size: Size(920, 740),
+      minimumSize: Size(600, 500),
       center: true,
-      // 全透明在部分顯示環境下會變成整片白／閃爍，改為不透明底色。
-      backgroundColor: Color(0xFFF8FAFA),
+      backgroundColor: Color(0xFF0B0F10),
       skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.normal,
+      titleBarStyle: TitleBarStyle.hidden,
     );
 
     await windowManager.waitUntilReadyToShow(opts, () async {
       await windowManager.show();
       await windowManager.focus();
     });
-
-    await windowManager.setPreventClose(true);
-    windowManager.removeListener(_winListener);
-    windowManager.addListener(_winListener);
 
     try {
       final data = await rootBundle.load('assets/tray_icon.png');
@@ -54,19 +46,9 @@ class DesktopIntegration {
     }
 
     await trayManager.setToolTip('VoiceType');
-    trayManager.removeListener(_trayListener);
-    trayManager.addListener(_trayListener);
 
     final menu = Menu(
       items: [
-        MenuItem(
-          key: 'show',
-          label: '顯示主視窗',
-          onClick: (_) async {
-            await windowManager.show();
-            await windowManager.focus();
-          },
-        ),
         MenuItem(
           key: 'toggle',
           label: '開始／停止錄音',
@@ -100,22 +82,5 @@ class DesktopIntegration {
         RecordingHotkeyBus.instance.requestToggle();
       },
     );
-  }
-}
-
-class _VoiceWindowListener with WindowListener {
-  @override
-  void onWindowClose() {
-    unawaited(windowManager.hide());
-  }
-}
-
-class _VoiceTrayListener with TrayListener {
-  @override
-  void onTrayIconMouseDown() {
-    unawaited(() async {
-      await windowManager.show();
-      await windowManager.focus();
-    }());
   }
 }

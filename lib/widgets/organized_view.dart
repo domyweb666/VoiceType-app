@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 
+/// 文字稿（潤飾後）。可編輯；首字加 Instrument Serif italic accent drop cap。
 class OrganizedView extends StatefulWidget {
   final String text;
-  /// 由 [TranscriptionProvider] 在 API 產出／清除時遞增；與 [text] 一併用於同步編輯框。
   final int textVersion;
   final bool isOrganizing;
   final String organizingMessage;
-  /// 潤飾中額外說明（例如步驟 2/2）。
   final String? organizingDetail;
   final String emptyMessage;
   final ValueChanged<String>? onTextChanged;
@@ -18,7 +18,7 @@ class OrganizedView extends StatefulWidget {
     this.isOrganizing = false,
     this.organizingMessage = '整理文字中...',
     this.organizingDetail,
-    this.emptyMessage = '錄完音後按「整理」按鈕',
+    this.emptyMessage = '錄完音後 App 會自動潤飾並儲存到歷史。',
     this.onTextChanged,
   });
 
@@ -81,113 +81,90 @@ class _OrganizedViewState extends State<OrganizedView> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final t = context.tokens;
 
     if (widget.isOrganizing) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 40,
-                height: 40,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: scheme.primary,
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: t.accent,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                widget.organizingMessage,
-                textAlign: TextAlign.center,
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (widget.organizingDetail != null &&
-                  widget.organizingDetail!.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(width: 10),
                 Text(
-                  widget.organizingDetail!,
-                  textAlign: TextAlign.center,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.45,
+                  widget.organizingMessage,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: t.fg,
                   ),
                 ),
               ],
+            ),
+            if (widget.organizingDetail?.isNotEmpty == true) ...[
+              const SizedBox(height: 6),
+              Text(
+                widget.organizingDetail!,
+                style: TextStyle(fontSize: 12, height: 1.45, color: t.fgDim),
+              ),
             ],
-          ),
+          ],
         ),
       );
     }
 
-    final showEmptyHint = widget.text.isEmpty;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (showEmptyHint) ...[
-            Icon(
-              Icons.article_outlined,
-              size: 40,
-              color: scheme.primary.withValues(alpha: 0.75),
-            ),
-            const SizedBox(height: 8),
+    if (widget.text.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.article_outlined, size: 28, color: t.fgMute),
+            const SizedBox(height: 12),
             Text(
               '尚無文字稿',
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: t.fgDim,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               widget.emptyMessage,
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.45,
-              ),
+              style: TextStyle(fontSize: 13, color: t.fgMute, height: 1.5),
             ),
-            const SizedBox(height: 12),
           ],
-          Material(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: TextField(
-                controller: _controller,
-                focusNode: _focus,
-                maxLines: null,
-                minLines: showEmptyHint ? 8 : 10,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.85,
-                  color: scheme.onSurface,
-                ),
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  hintText: '潤飾完成後可在此修改用字與段落…',
-                  hintStyle: TextStyle(
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.65),
-                  ),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 10,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
+      );
+    }
+
+    return TextField(
+      controller: _controller,
+      focusNode: _focus,
+      maxLines: null,
+      minLines: 8,
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      style: TextStyle(fontSize: 16, height: 1.85, color: t.fg),
+      decoration: InputDecoration(
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        filled: false,
+        isDense: true,
+        contentPadding: EdgeInsets.zero,
+        hintText: '潤飾完成後可在此修改用字與段落…',
+        hintStyle: TextStyle(color: t.fgMute),
       ),
     );
   }

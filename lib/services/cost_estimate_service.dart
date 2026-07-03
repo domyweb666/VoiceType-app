@@ -120,7 +120,7 @@ class SessionCostEstimateService {
     final b10 = estimateSessionTwd(recordingMinutes: 10);
     final b20 = estimateSessionTwd(recordingMinutes: 20);
     final b30 = estimateSessionTwd(recordingMinutes: 30);
-    return '以下為「轉錄 + 自動潤飾一次」合計之粗估，**金額皆為新台幣**：\n\n'
+    return '以下為「轉錄 + 自動潤飾一次」合計之粗估，金額皆為新台幣：\n\n'
         '內部依 OpenAI 美金計價換算（匯率假設 1 美元 ≈ ${twdPerUsd.toStringAsFixed(0)} 新台幣，可自行改程式常數）。\n'
         '模型：轉錄 ${AppConstants.whisperModel}；潤飾 ${AppConstants.gptModel}。\n\n'
         '• 錄 10 分鐘：約新台幣 ${b10.toStringAsFixed(2)} 元\n'

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/constants.dart';
 import '../services/secure_storage_service.dart';
@@ -8,6 +8,7 @@ class SettingsProvider extends ChangeNotifier {
   static const _polishPromptKey = 'polish_system_prompt_v1';
   static const _customGlossaryKey = 'custom_glossary_v1';
   static const _textScaleKey = 'ui_text_scale_v1';
+  static const _themeModeKey = 'ui_theme_mode_v1';
 
   final SecureStorageService _storage = SecureStorageService();
   String? _apiKey;
@@ -17,11 +18,13 @@ class SettingsProvider extends ChangeNotifier {
   /// 自訂詞彙（每行一筆，或以逗號／分號分隔）；潤飾與轉錄 prompt 會參考。
   String _customGlossary = '';
   double _uiTextScale = 1.0;
+  ThemeMode _themeMode = ThemeMode.system;
 
   String? get apiKey => _apiKey;
   bool get hasApiKey => _apiKey != null && _apiKey!.isNotEmpty;
   bool get isLoading => _isLoading;
   bool get hasSeenPrivacyDisclosure => _hasSeenPrivacyDisclosure;
+  ThemeMode get themeMode => _themeMode;
 
   /// 文字稿潤飾用 system 提示詞（可於設定頁編輯；預設與 [AppConstants.oralDraftSystemPrompt] 相同）。
   String get polishSystemPrompt => _polishSystemPrompt;
@@ -45,6 +48,12 @@ class SettingsProvider extends ChangeNotifier {
     _customGlossary = prefs.getString(_customGlossaryKey) ?? '';
     final scale = prefs.getDouble(_textScaleKey);
     _uiTextScale = scale != null ? scale.clamp(0.85, 1.35) : 1.0;
+    final modeStr = prefs.getString(_themeModeKey) ?? 'system';
+    _themeMode = modeStr == 'light'
+        ? ThemeMode.light
+        : modeStr == 'dark'
+            ? ThemeMode.dark
+            : ThemeMode.system;
     _isLoading = false;
     notifyListeners();
   }
@@ -122,6 +131,18 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_textScaleKey, _uiTextScale);
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    final modeStr = mode == ThemeMode.light
+        ? 'light'
+        : mode == ThemeMode.dark
+            ? 'dark'
+            : 'system';
+    await prefs.setString(_themeModeKey, modeStr);
   }
 
 }
