@@ -11,6 +11,7 @@ class PendingQueueCard extends StatelessWidget {
   final List<File> files;
   final bool online;
   final Future<void> Function(File) onRetryFile;
+  final Future<void> Function() onRetryAll;
   final bool isTranscribing;
 
   const PendingQueueCard({
@@ -18,8 +19,34 @@ class PendingQueueCard extends StatelessWidget {
     required this.files,
     required this.online,
     required this.onRetryFile,
+    required this.onRetryAll,
     required this.isTranscribing,
   });
+
+  /// 刪除是永久的（錄音檔就沒了），先確認再動手。
+  Future<void> _confirmDelete(BuildContext context, File f) async {
+    final name =
+        f.uri.pathSegments.isNotEmpty ? f.uri.pathSegments.last : f.path;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('刪除這個錄音檔？'),
+        content: Text('「$name」還沒轉錄，刪掉後就找不回來了。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('刪除'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    await context.read<PendingQueueProvider>().deletePending(f);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,14 +65,23 @@ class PendingQueueCard extends StatelessWidget {
             children: [
               Icon(Icons.pending_actions_outlined, size: 16, color: t.accent),
               const SizedBox(width: 8),
-              Text(
-                '待轉錄（${files.length}）',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: t.fg,
+              Expanded(
+                child: Text(
+                  '待轉錄（${files.length}）',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: t.fg,
+                  ),
                 ),
               ),
+              if (files.length > 1)
+                TextButton.icon(
+                  onPressed:
+                      isTranscribing || !online ? null : () => onRetryAll(),
+                  icon: const Icon(Icons.playlist_play_rounded, size: 18),
+                  label: const Text('全部轉錄'),
+                ),
             ],
           ),
           if (!online)
@@ -90,11 +126,7 @@ class PendingQueueCard extends StatelessWidget {
                       tooltip: '刪除此待轉錄檔',
                       onPressed: isTranscribing
                           ? null
-                          : () async {
-                              await context
-                                  .read<PendingQueueProvider>()
-                                  .deletePending(f);
-                            },
+                          : () => _confirmDelete(context, f),
                     ),
                   ],
                 ),

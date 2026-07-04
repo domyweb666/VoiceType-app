@@ -9,12 +9,14 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
+import '../config/constants.dart';
 import '../config/user_disclosure.dart';
 import '../providers/history_provider.dart';
 import '../providers/pending_queue_provider.dart';
 import '../providers/recording_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/transcription_provider.dart';
+import '../services/desktop_notify_service.dart';
 import '../services/pending_session_service.dart';
 import '../services/recording_hotkey_bus.dart';
 import '../widgets/home/home_nav.dart';
@@ -47,14 +49,12 @@ class _HomeScreenState extends State<HomeScreen>
   bool _online = true;
   final FocusNode _homeShortcutFocus = FocusNode();
   late final SettingsProvider _settingsRef;
-  late final VoidCallback _syncTranscriptionApiKey;
 
   NavView _view = NavView.home;
   // Mobile: 0 = raw 口語, 1 = polished 文字 (預設文字稿)。
   int _mobileTranscriptTab = 1;
 
   bool _autoResumeFired = false;
-  bool _autoResumeSettingsListenerAttached = false;
 
   static bool _isOnlineResult(List<ConnectivityResult> results) {
     if (results.isEmpty) return true;
@@ -89,13 +89,9 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _settingsRef = context.read<SettingsProvider>();
-    _syncTranscriptionApiKey = () {
-      if (!mounted) return;
-      context.read<TranscriptionProvider>().updateApiKey(_settingsRef.apiKey);
-    };
-    _settingsRef.addListener(_syncTranscriptionApiKey);
+    _settingsRef.addListener(_onSettingsChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _syncTranscriptionApiKey();
+      if (mounted) _syncTranscriptionConfig();
     });
     WidgetsBinding.instance.addObserver(this);
     _connectivitySub = Connectivity().onConnectivityChanged.listen((r) {
@@ -116,7 +112,6 @@ class _HomeScreenState extends State<HomeScreen>
       await context.read<PendingQueueProvider>().refresh();
       if (!mounted) return;
       _consumeAndroidRecordIntent();
-      _attachAutoResumeSettingsListener();
       unawaited(_autoResumePendingIfPossible());
     });
 
@@ -141,15 +136,20 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void _attachAutoResumeSettingsListener() {
-    if (_autoResumeSettingsListenerAttached) return;
-    _autoResumeSettingsListenerAttached = true;
-    _settingsRef.addListener(_onSettingsChangedForAutoResume);
+  /// 把設定同步到 TranscriptionProvider（引擎、兩把金鑰）。
+  void _syncTranscriptionConfig() {
+    if (!mounted) return;
+    final t = context.read<TranscriptionProvider>();
+    t.setEngine(_settingsRef.asrEngine);
+    t.updateApiKey(_settingsRef.apiKey);
+    t.updateBytePlusKey(_settingsRef.bytePlusApiKey);
   }
 
-  void _onSettingsChangedForAutoResume() {
+  /// 設定變更：同步金鑰／引擎，並在條件齊備時觸發待轉錄自動續轉。
+  void _onSettingsChanged() {
     if (!mounted) return;
-    if (!_settingsRef.hasApiKey) return;
+    _syncTranscriptionConfig();
+    if (!_settingsRef.canTranscribe) return;
     if (!_settingsRef.hasSeenPrivacyDisclosure) return;
     if (_autoResumeFired) return;
     unawaited(_autoResumePendingIfPossible());
@@ -165,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     if (settings.isLoading) return;
     if (!settings.hasSeenPrivacyDisclosure) return;
-    if (!settings.hasApiKey) return;
+    if (!settings.canTranscribe) return;
     if (!_online) return;
     if (recording.isRecording) return;
     if (transcription.isTranscribing || transcription.isOrganizing) return;
@@ -261,10 +261,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
-    _settingsRef.removeListener(_syncTranscriptionApiKey);
-    if (_autoResumeSettingsListenerAttached) {
-      _settingsRef.removeListener(_onSettingsChangedForAutoResume);
-    }
+    _settingsRef.removeListener(_onSettingsChanged);
     WidgetsBinding.instance.removeObserver(this);
     _connectivitySub?.cancel();
     _desktopRecordHotkeySub?.cancel();
@@ -275,13 +272,8 @@ class _HomeScreenState extends State<HomeScreen>
   void _onSpaceShortcut() {
     if (!mounted) return;
     if (ModalRoute.of(context)?.isCurrent != true) return;
-    final settings = context.read<SettingsProvider>();
     final transcription = context.read<TranscriptionProvider>();
     final recording = context.read<RecordingProvider>();
-    if (!settings.hasApiKey) {
-      _showSettingsPrompt();
-      return;
-    }
     if (!recording.isRecording &&
         (transcription.isTranscribing || transcription.isOrganizing)) {
       return;
@@ -303,7 +295,32 @@ class _HomeScreenState extends State<HomeScreen>
       }
       return;
     }
-    if (t.error != null) return;
+    if (t.error != null) {
+      unawaited(DesktopNotifyService.showIfUnfocused(
+        body: '轉錄失敗，點一下回到 VoiceType 查看詳情。',
+      ));
+      return;
+    }
+
+    // BytePlus 引擎可能沒有 OpenAI 金鑰：跳過潤飾，先把口語稿存進歷史。
+    final settings = context.read<SettingsProvider>();
+    if (!settings.hasApiKey) {
+      final history = context.read<HistoryProvider>();
+      final recording = context.read<RecordingProvider>();
+      await history.saveRecord(
+        rawText: t.rawTranscript,
+        organizedText: '',
+        durationSeconds: recording.elapsed.inSeconds,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('已轉錄並儲存口語稿（潤飾需要 OpenAI 金鑰，可至設定補上）'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
 
     await _polishAndSaveToHistory(
       doneMessage: '已完成轉錄、潤飾並儲存至歷史',
@@ -325,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _pickAudioFromFiles() async {
     final settings = context.read<SettingsProvider>();
-    if (!settings.hasApiKey) {
+    if (!settings.canTranscribe) {
       _showSettingsPrompt();
       return;
     }
@@ -385,10 +402,8 @@ class _HomeScreenState extends State<HomeScreen>
       setState(() => _view = NavView.home);
     }
 
-    if (!settings.hasApiKey) {
-      _showSettingsPrompt();
-      return;
-    }
+    // 沒金鑰也照樣能錄：錄音不需要 API，錄完存進「待轉錄」，
+    // 設定金鑰後由自動續轉接手，不讓設定問題吃掉當下的靈感。
 
     if (!recording.isRecording &&
         (transcription.isTranscribing || transcription.isOrganizing)) {
@@ -413,6 +428,21 @@ class _HomeScreenState extends State<HomeScreen>
         }
         if (!mounted) return;
         await context.read<PendingQueueProvider>().refresh();
+        if (!settings.canTranscribe) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('錄音已存入「待轉錄」。設定轉錄金鑰後會自動幫你轉成文字。'),
+                duration: const Duration(seconds: 5),
+                action: SnackBarAction(
+                  label: '去設定',
+                  onPressed: () => setState(() => _view = NavView.settings),
+                ),
+              ),
+            );
+          }
+          return;
+        }
         if (!_online) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -463,13 +493,19 @@ class _HomeScreenState extends State<HomeScreen>
   void _showSettingsPrompt() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('請先至設定輸入 OpenAI API 金鑰'),
+        content: const Text('請先至設定輸入轉錄金鑰'),
         action: SnackBarAction(
           label: '設定',
           onPressed: () => setState(() => _view = NavView.settings),
         ),
       ),
     );
+  }
+
+  /// 待轉錄卡「全部轉錄」：重置旗標後交給自動續轉依序處理。
+  Future<void> _retryAllPending() async {
+    _autoResumeFired = false;
+    await _autoResumePendingIfPossible();
   }
 
   String? _whisperVocabularyHint(SettingsProvider settings) {
@@ -488,10 +524,17 @@ class _HomeScreenState extends State<HomeScreen>
 
     await transcription.organizeTranscript(
       systemPrompt: settings.buildOrganizeSystemPrompt(),
-      fullRoundTripCost: fullRoundTripCost,
+      // BytePlus 引擎的轉錄費不走 OpenAI 計價，費用提示只算潤飾段。
+      fullRoundTripCost:
+          fullRoundTripCost && settings.asrEngine == AsrEngine.openai,
     );
     if (!mounted) return;
     if (transcription.error != null || transcription.organizedText.isEmpty) {
+      if (transcription.error != null) {
+        unawaited(DesktopNotifyService.showIfUnfocused(
+          body: '潤飾失敗，點一下回到 VoiceType 查看詳情。',
+        ));
+      }
       return;
     }
 
@@ -501,9 +544,26 @@ class _HomeScreenState extends State<HomeScreen>
       durationSeconds: recording.elapsed.inSeconds,
     );
     if (!mounted) return;
+
+    // 懶人流：完成即複製，錄完直接去別的視窗貼上。
+    var message = doneMessage;
+    if (settings.autoCopyPolished) {
+      await Clipboard.setData(
+        ClipboardData(text: transcription.organizedText),
+      );
+      message = '$doneMessage，文字稿已複製';
+    }
+    if (!mounted) return;
+
+    unawaited(DesktopNotifyService.showIfUnfocused(
+      body: settings.autoCopyPolished
+          ? '轉錄完成，文字稿已複製到剪貼簿，可直接貼上。'
+          : '轉錄完成，文字稿已儲存到歷史。',
+    ));
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(doneMessage),
+        content: Text(message),
         duration: const Duration(milliseconds: 2800),
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
@@ -602,6 +662,7 @@ class _HomeScreenState extends State<HomeScreen>
           onPickFile: _pickAudioFromFiles,
           onToggleRecord: _toggleRecording,
           onRetryFile: _retryTranscribeFile,
+          onRetryAll: _retryAllPending,
           onRetryLast: _retryLastTranscribeSession,
           onGoToSettings: () => setState(() => _view = NavView.settings),
           onGoToHistory: () => setState(() => _view = NavView.history),

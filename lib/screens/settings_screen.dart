@@ -1,9 +1,14 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../config/app_theme.dart';
+import '../config/constants.dart';
 import '../config/user_disclosure.dart';
 import '../providers/settings_provider.dart';
+import '../services/byteplus_asr_service.dart';
 import '../services/cost_estimate_service.dart';
+import '../services/openai_service.dart';
 
 
 /// 費用粗估區塊的顯示幣別與匯率標示。
@@ -45,28 +50,95 @@ double _nearestTextScaleChip(double scale) {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _apiKeyController = TextEditingController();
+  final _bytePlusKeyController = TextEditingController();
   final _polishController = TextEditingController();
   final _glossaryController = TextEditingController();
-  bool _obscureText = true;
+  bool _obscureOpenAI = true;
+  bool _obscureBytePlus = true;
+  bool _testingOpenAI = false;
+  bool _testingBytePlus = false;
   bool _seededFromProvider = false;
 
   @override
   void dispose() {
     _apiKeyController.dispose();
+    _bytePlusKeyController.dispose();
     _polishController.dispose();
     _glossaryController.dispose();
     super.dispose();
   }
 
-  Future<void> _savePolishPrompt() async {
-    await context
-        .read<SettingsProvider>()
-        .setPolishSystemPrompt(_polishController.text);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已儲存潤飾提示詞')),
-      );
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  /// 儲存並驗證 OpenAI 金鑰：先存（離線也不擋），再打免費的 /models 驗證。
+  Future<void> _saveAndTestOpenAIKey() async {
+    final key = _apiKeyController.text.trim();
+    if (key.isEmpty) {
+      _snack('請先貼上 OpenAI API 金鑰');
+      return;
     }
+    setState(() => _testingOpenAI = true);
+    try {
+      await context.read<SettingsProvider>().setApiKey(key);
+      try {
+        await OpenAIService.verifyApiKey(key);
+        _snack('OpenAI 金鑰有效，已儲存 ✓');
+      } on DioException catch (e) {
+        final code = e.response?.statusCode;
+        _snack(code == 401 || code == 403
+            ? '金鑰已儲存，但 OpenAI 回報無效（HTTP $code），請確認有沒有貼錯。'
+            : '金鑰已儲存，但目前無法驗證（網路問題？），稍後轉錄時會再試。');
+      }
+    } catch (e) {
+      _snack('儲存失敗：$e');
+    } finally {
+      if (mounted) setState(() => _testingOpenAI = false);
+    }
+  }
+
+  /// 儲存並驗證 BytePlus 金鑰：提交 0.2 秒靜音檔，submit 被接受即有效。
+  Future<void> _saveAndTestBytePlusKey() async {
+    final key = _bytePlusKeyController.text.trim();
+    if (key.isEmpty) {
+      _snack('請先貼上 BytePlus API 金鑰');
+      return;
+    }
+    setState(() => _testingBytePlus = true);
+    try {
+      await context.read<SettingsProvider>().setBytePlusApiKey(key);
+      try {
+        await BytePlusAsrService(apiKey: key).verifyKey();
+        _snack('BytePlus 金鑰有效，已儲存 ✓');
+      } on BytePlusAsrException catch (e) {
+        _snack('金鑰已儲存，但驗證失敗：${e.message}');
+      } on DioException {
+        _snack('金鑰已儲存，但目前無法驗證（網路問題？），稍後轉錄時會再試。');
+      }
+    } catch (e) {
+      _snack('儲存失敗：$e');
+    } finally {
+      if (mounted) setState(() => _testingBytePlus = false);
+    }
+  }
+
+  Future<void> _savePolishPrompt() async {
+    final settings = context.read<SettingsProvider>();
+    final wasEmpty = _polishController.text.trim().isEmpty;
+    await settings.setPolishSystemPrompt(_polishController.text);
+    if (!mounted) return;
+    if (wasEmpty) {
+      // 空白視為還原預設（防呆），把還原後的內容帶回輸入框。
+      _polishController.text = settings.polishSystemPrompt;
+      setState(() {});
+      _snack('提示詞不能是空的，已還原為 App 預設');
+      return;
+    }
+    _snack('已儲存潤飾提示詞');
   }
 
   Future<void> _resetPolishPrompt() async {
@@ -75,9 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _polishController.text =
         context.read<SettingsProvider>().polishSystemPrompt;
     setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已還原為 App 預設提示詞')),
-    );
+    _snack('已還原為 App 預設提示詞');
   }
 
   Future<void> _saveGlossary() async {
@@ -85,10 +155,155 @@ class _SettingsScreenState extends State<SettingsScreen> {
         .read<SettingsProvider>()
         .setCustomGlossary(_glossaryController.text);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已儲存自訂詞彙')),
-      );
+      _snack('已儲存自訂詞彙');
     }
+  }
+
+  static void _openHelpUrl(String url) {
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  Widget _keyField({
+    required TextEditingController controller,
+    required bool obscure,
+    required VoidCallback onToggleObscure,
+    required String hint,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        hintText: hint,
+        suffixIcon: IconButton(
+          icon: Icon(
+            obscure ? Icons.visibility_off : Icons.visibility,
+            size: 18,
+          ),
+          onPressed: onToggleObscure,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEngineAndKeys(SettingsProvider settings) {
+    final t = context.tokens;
+    final isBytePlus = settings.asrEngine == AsrEngine.byteplus;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SegmentedButton<AsrEngine>(
+          segments: const [
+            ButtonSegment(
+              value: AsrEngine.openai,
+              label: Text('OpenAI Whisper'),
+            ),
+            ButtonSegment(
+              value: AsrEngine.byteplus,
+              label: Text('BytePlus（中文較準）'),
+            ),
+          ],
+          selected: {settings.asrEngine},
+          onSelectionChanged: (s) {
+            context.read<SettingsProvider>().setAsrEngine(s.first);
+          },
+        ),
+        const SizedBox(height: 10),
+        Text(
+          isBytePlus
+              ? 'BytePlus Seed ASR（字節跳動海外站）中文辨識較準。需要 BytePlus 的 API 金鑰；'
+                  '轉錄結果可能是簡體，潤飾階段會統一轉成臺灣繁體（潤飾需要 OpenAI 金鑰）。'
+              : '轉錄與潤飾都用同一把 OpenAI 金鑰，設定一把就能用。',
+          style: TextStyle(fontSize: 13, color: t.fgDim, height: 1.6),
+        ),
+        const SizedBox(height: 20),
+
+        // OpenAI 金鑰（潤飾一定用得到，永遠顯示）
+        Text(
+          isBytePlus ? 'OpenAI API Key（潤飾用）' : 'OpenAI API Key',
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w600,
+            color: t.fg,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _keyField(
+          controller: _apiKeyController,
+          obscure: _obscureOpenAI,
+          onToggleObscure: () =>
+              setState(() => _obscureOpenAI = !_obscureOpenAI),
+          hint: 'sk-...',
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            FilledButton.icon(
+              onPressed: _testingOpenAI ? null : _saveAndTestOpenAIKey,
+              icon: _testingOpenAI
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_outline, size: 16),
+              label: Text(_testingOpenAI ? '驗證中…' : '儲存並測試'),
+            ),
+            TextButton.icon(
+              onPressed: () => _openHelpUrl(AppConstants.openaiKeyHelpUrl),
+              icon: const Icon(Icons.open_in_new_rounded, size: 14),
+              label: const Text('如何取得金鑰？'),
+            ),
+          ],
+        ),
+
+        if (isBytePlus) ...[
+          const SizedBox(height: 24),
+          Text(
+            'BytePlus API Key（轉錄用）',
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: t.fg,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _keyField(
+            controller: _bytePlusKeyController,
+            obscure: _obscureBytePlus,
+            onToggleObscure: () =>
+                setState(() => _obscureBytePlus = !_obscureBytePlus),
+            hint: 'BytePlus x-api-key',
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilledButton.icon(
+                onPressed: _testingBytePlus ? null : _saveAndTestBytePlusKey,
+                icon: _testingBytePlus
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_circle_outline, size: 16),
+                label: Text(_testingBytePlus ? '驗證中…' : '儲存並測試'),
+              ),
+              TextButton.icon(
+                onPressed: () => _openHelpUrl(AppConstants.bytePlusKeyHelpUrl),
+                icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                label: const Text('如何取得金鑰？'),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -99,6 +314,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!settings.isLoading && !_seededFromProvider) {
       _seededFromProvider = true;
       _apiKeyController.text = settings.apiKey ?? '';
+      _bytePlusKeyController.text = settings.bytePlusApiKey ?? '';
       _polishController.text = settings.polishSystemPrompt;
       _glossaryController.text = settings.customGlossary;
     }
@@ -157,81 +373,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }),
                     const SizedBox(height: 30),
 
-                    // Section: 隱私與費用
+                    // Section: 轉錄引擎與金鑰（最常用，放最上面）
                     _Section(
-                      title: '隱私與費用',
-                      desc: UserDisclosure.privacyAndCostBody,
-                      child: const SizedBox.shrink(),
+                      title: '轉錄引擎與金鑰',
+                      desc: '金鑰只存在這台裝置的系統安全儲存區'
+                          '（Windows 認證管理員／iOS Keychain／Android Keystore），'
+                          '僅用於呼叫對應服務。請勿在共用裝置上儲存正式金鑰。',
+                      child: _buildEngineAndKeys(settings),
                     ),
 
+                    // Section: 完成後動作
                     _Section(
-                      title: '費用粗估（$kCostEstimateCurrencyLabel）',
-                      desc: SessionCostEstimateService.buildSettingsEstimateText(),
-                      child: const SizedBox.shrink(),
-                    ),
-
-                    // Section: 潤飾提示詞
-                    _Section(
-                      title: '文字稿潤飾提示詞',
-                      desc:
-                          '會作為潤飾 API 的 system 提示詞：規則與 App 預設一致（最小化干預、刪贅字、斷句、標點、臺灣繁體、禁止標題與小標）。',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextField(
-                            controller: _polishController,
-                            maxLines: 14,
-                            minLines: 8,
-                            decoration: const InputDecoration(
-                              alignLabelWithHint: true,
-                              hintText: '潤飾用 system 提示詞…',
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              FilledButton(
-                                onPressed: _savePolishPrompt,
-                                child: const Text('儲存潤飾提示詞'),
-                              ),
-                              OutlinedButton(
-                                onPressed: _resetPolishPrompt,
-                                child: const Text('還原預設'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Section: 自訂詞彙
-                    _Section(
-                      title: '自訂詞彙',
-                      desc:
-                          '每行一個詞或片語。會併入轉錄與潤飾請求：轉錄時作為專有名詞提示，潤飾時請模型盡量維持您指定的寫法。',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextField(
-                            controller: _glossaryController,
-                            maxLines: 8,
-                            minLines: 4,
-                            decoration: const InputDecoration(
-                              hintText: '例如：\n臺積電\nTSMC\nVoiceType',
-                              alignLabelWithHint: true,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: FilledButton(
-                              onPressed: _saveGlossary,
-                              child: const Text('儲存自訂詞彙'),
-                            ),
-                          ),
-                        ],
+                      title: '完成後動作',
+                      desc: null,
+                      child: SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('完成後自動複製文字稿'),
+                        subtitle: const Text(
+                          '轉錄潤飾一結束就把文字稿放進剪貼簿，切過去直接貼上。',
+                        ),
+                        value: settings.autoCopyPolished,
+                        onChanged: (v) => context
+                            .read<SettingsProvider>()
+                            .setAutoCopyPolished(v),
                       ),
                     ),
 
@@ -279,58 +443,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
 
-                    // Section: API Key
-                    _Section(
-                      title: 'OpenAI API Key',
-                      desc:
-                          'API 金鑰由 flutter_secure_storage 儲存（Android Keystore／iOS Keychain／Windows 認證管理員），僅用於呼叫 OpenAI。請勿在共用裝置上儲存正式金鑰。',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextField(
-                            controller: _apiKeyController,
-                            obscureText: _obscureText,
-                            decoration: InputDecoration(
-                              hintText: 'sk-...',
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscureText
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  size: 18,
-                                ),
-                                onPressed: () {
-                                  setState(() => _obscureText = !_obscureText);
-                                },
+                    // Section: 進階（一般使用者不需要碰，預設收合）
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 36),
+                      child: Theme(
+                        data: Theme.of(context)
+                            .copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          childrenPadding: const EdgeInsets.only(top: 8),
+                          title: Text('進階設定',
+                              style: serifItalic(size: 26, color: t.fg)),
+                          subtitle: Text(
+                            '潤飾提示詞與自訂詞彙。預設就能用，想微調 AI 行為再打開。',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              color: t.fgDim,
+                              height: 1.6,
+                            ),
+                          ),
+                          children: [
+                            _Section(
+                              title: '文字稿潤飾提示詞',
+                              desc:
+                                  '會作為潤飾 API 的 system 提示詞：規則與 App 預設一致（最小化干預、刪贅字、斷句、標點、臺灣繁體、禁止標題與小標）。',
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
+                                children: [
+                                  TextField(
+                                    controller: _polishController,
+                                    maxLines: 14,
+                                    minLines: 8,
+                                    decoration: const InputDecoration(
+                                      alignLabelWithHint: true,
+                                      hintText: '潤飾用 system 提示詞…',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      FilledButton(
+                                        onPressed: _savePolishPrompt,
+                                        child: const Text('儲存潤飾提示詞'),
+                                      ),
+                                      OutlinedButton(
+                                        onPressed: _resetPolishPrompt,
+                                        child: const Text('還原預設'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: FilledButton(
-                              onPressed: () async {
-                                final key = _apiKeyController.text.trim();
-                                if (key.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('請輸入 API 金鑰')),
-                                  );
-                                  return;
-                                }
-                                await context
-                                    .read<SettingsProvider>()
-                                    .setApiKey(key);
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('已儲存 API 金鑰')),
-                                  );
-                                }
-                              },
-                              child: const Text('儲存金鑰'),
+                            _Section(
+                              title: '自訂詞彙',
+                              desc:
+                                  '每行一個詞或片語。會併入轉錄與潤飾請求：轉錄時作為專有名詞提示（限 OpenAI 引擎），潤飾時請模型盡量維持您指定的寫法。',
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
+                                children: [
+                                  TextField(
+                                    controller: _glossaryController,
+                                    maxLines: 8,
+                                    minLines: 4,
+                                    decoration: const InputDecoration(
+                                      hintText: '例如：\n臺積電\nTSMC\nVoiceType',
+                                      alignLabelWithHint: true,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: FilledButton(
+                                      onPressed: _saveGlossary,
+                                      child: const Text('儲存自訂詞彙'),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                    ),
+
+                    // Section: 隱私與費用（說明文字，放最後）
+                    _Section(
+                      title: '隱私與費用',
+                      desc: UserDisclosure.privacyAndCostBody,
+                      child: const SizedBox.shrink(),
+                    ),
+
+                    _Section(
+                      title: '費用粗估（$kCostEstimateCurrencyLabel）',
+                      desc: SessionCostEstimateService.buildSettingsEstimateText(),
+                      child: const SizedBox.shrink(),
                     ),
                   ],
                 ),

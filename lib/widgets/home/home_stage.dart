@@ -1,12 +1,17 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_theme.dart';
+import '../../config/constants.dart';
 import '../../providers/pending_queue_provider.dart';
 import '../../providers/recording_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/transcription_provider.dart';
 import '../organized_view.dart';
 import '../record_button.dart';
@@ -26,6 +31,7 @@ class HomeStage extends StatelessWidget {
   final Future<void> Function() onPickFile;
   final Future<void> Function() onToggleRecord;
   final Future<void> Function(File) onRetryFile;
+  final Future<void> Function() onRetryAll;
   final Future<void> Function() onRetryLast;
   final VoidCallback onGoToSettings;
   final VoidCallback onGoToHistory;
@@ -40,6 +46,7 @@ class HomeStage extends StatelessWidget {
     required this.onPickFile,
     required this.onToggleRecord,
     required this.onRetryFile,
+    required this.onRetryAll,
     required this.onRetryLast,
     required this.onGoToSettings,
     required this.onGoToHistory,
@@ -55,6 +62,10 @@ class HomeStage extends StatelessWidget {
     );
     final transcription = context.watch<TranscriptionProvider>();
     final pendingQueue = context.watch<PendingQueueProvider>();
+    // 首次啟動引導：金鑰還沒備妥時，idle hero 改顯示「第一步：設定金鑰」。
+    final needsKeySetup = context.select<SettingsProvider, bool>(
+      (s) => !s.isLoading && !s.canTranscribe,
+    );
 
     final hasContent =
         transcription.hasTranscript || transcription.organizedText.isNotEmpty;
@@ -104,7 +115,15 @@ class HomeStage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           if (isIdle)
-                            _IdleHero(isMobile: isMobile, showDesktopSpaceHint: showDesktopSpaceHint, onTapMic: onToggleRecord, recordEnabled: recordEnabled, isRecording: isRecording)
+                            _IdleHero(
+                              isMobile: isMobile,
+                              showDesktopSpaceHint: showDesktopSpaceHint,
+                              onTapMic: onToggleRecord,
+                              recordEnabled: recordEnabled,
+                              isRecording: isRecording,
+                              needsKeySetup: needsKeySetup,
+                              onGoToSettings: onGoToSettings,
+                            )
                           else
                             _DocBody(
                               isMobile: isMobile,
@@ -130,6 +149,7 @@ class HomeStage extends StatelessWidget {
                                 files: pendingQueue.files,
                                 online: online,
                                 onRetryFile: onRetryFile,
+                                onRetryAll: onRetryAll,
                                 isTranscribing: transcription.isTranscribing,
                               ),
                             ),
@@ -307,6 +327,8 @@ class _IdleHero extends StatelessWidget {
   final Future<void> Function() onTapMic;
   final bool recordEnabled;
   final bool isRecording;
+  final bool needsKeySetup;
+  final VoidCallback onGoToSettings;
 
   const _IdleHero({
     required this.isMobile,
@@ -314,6 +336,8 @@ class _IdleHero extends StatelessWidget {
     required this.onTapMic,
     required this.recordEnabled,
     required this.isRecording,
+    required this.needsKeySetup,
+    required this.onGoToSettings,
   });
 
   @override
@@ -349,13 +373,15 @@ class _IdleHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  '準備好了，按下開始錄音',
+                  needsKeySetup ? '第一步：設定轉錄金鑰' : '準備好了，按下開始錄音',
                   textAlign: TextAlign.center,
                   style: serifItalic(size: isMobile ? 22 : 26, color: t.fg),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '錄音結束後會自動轉成口語稿、再潤飾並儲存到歷史。',
+                  needsKeySetup
+                      ? '現在也可以直接錄，錄好的檔會先存進「待轉錄」；\n設定金鑰後會自動轉成文字。'
+                      : '錄音結束後會自動轉成口語稿、再潤飾並儲存到歷史。',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13.5,
@@ -363,7 +389,30 @@ class _IdleHero extends StatelessWidget {
                     height: 1.6,
                   ),
                 ),
-                if (showDesktopSpaceHint) ...[
+                if (needsKeySetup) ...[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: onGoToSettings,
+                        icon: const Icon(Icons.vpn_key_outlined, size: 16),
+                        label: const Text('前往設定金鑰'),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => launchUrl(
+                          Uri.parse(AppConstants.openaiKeyHelpUrl),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                        icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                        label: const Text('如何取得金鑰？'),
+                      ),
+                    ],
+                  ),
+                ],
+                if (showDesktopSpaceHint && !needsKeySetup) ...[
                   const SizedBox(height: 14),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -686,7 +735,7 @@ class _RecDot extends StatelessWidget {
   }
 }
 
-// ── Action bar (簡化：只剩 口語 / 文字 複製) ──
+// ── Action bar: 複製口語稿 / 複製文字稿 / 分享（手機） ──
 class _ActionBar extends StatelessWidget {
   final bool hasRaw;
   final bool hasPolished;
@@ -699,6 +748,9 @@ class _ActionBar extends StatelessWidget {
     required this.rawText,
     required this.polishedText,
   });
+
+  static bool get _showShare =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
   void _copy(BuildContext context, String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
@@ -713,6 +765,7 @@ class _ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final shareText = hasPolished ? polishedText : rawText;
     return Container(
       padding: const EdgeInsets.only(top: 18),
       decoration: BoxDecoration(
@@ -722,17 +775,23 @@ class _ActionBar extends StatelessWidget {
         spacing: 8,
         runSpacing: 8,
         children: [
-          if (hasRaw)
-            OutlinedButton.icon(
-              onPressed: () => _copy(context, rawText, '口語'),
-              icon: const Icon(Icons.copy_rounded, size: 16),
-              label: const Text('口語'),
-            ),
           if (hasPolished)
             FilledButton.icon(
-              onPressed: () => _copy(context, polishedText, '文字'),
-              icon: const Icon(Icons.article_outlined, size: 16),
-              label: const Text('文字'),
+              onPressed: () => _copy(context, polishedText, '文字稿'),
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('複製文字稿'),
+            ),
+          if (hasRaw)
+            OutlinedButton.icon(
+              onPressed: () => _copy(context, rawText, '口語稿'),
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('複製口語稿'),
+            ),
+          if (_showShare && shareText.isNotEmpty)
+            OutlinedButton.icon(
+              onPressed: () => Share.share(shareText),
+              icon: const Icon(Icons.ios_share_outlined, size: 16),
+              label: const Text('分享'),
             ),
         ],
       ),

@@ -48,6 +48,10 @@ dependencies:
   tray_manager: ^0.2.4
   hotkey_manager: ^0.2.3
   window_manager: ^0.4.3
+  # 桌面（Windows/macOS/Linux）系統通知：轉錄完成時視窗不在前景才發。
+  local_notifier: ^0.1.6
+  # 設定頁「如何取得金鑰」外部連結。
+  url_launcher: ^6.3.0
   google_fonts: ^6.2.1
   flutter_local_notifications: ^17.2.3
   audio_session: ^0.1.21
