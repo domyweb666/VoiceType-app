@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../config/constants.dart';
 import '../models/polish_raw_result.dart';
 import '../models/transcription_segment.dart';
+import '../services/byteplus_asr_service.dart';
 import '../services/cost_estimate_service.dart';
 import '../services/openai_service.dart';
 import '../services/wav_split_service.dart';
@@ -13,6 +14,10 @@ import '../utils/openai_retry.dart';
 
 class TranscriptionProvider extends ChangeNotifier {
   OpenAIService? _openAIService;
+  BytePlusAsrService? _bytePlusService;
+
+  /// 轉錄引擎；潤飾一律走 OpenAI。
+  AsrEngine _engine = AsrEngine.openai;
 
   final List<TranscriptionSegment> _segments = [];
   /// 快取的口語稿（逐字合併）；僅在 [_segments] 變動時失效，避免每次讀取都重算。
@@ -120,6 +125,27 @@ class TranscriptionProvider extends ChangeNotifier {
     }
   }
 
+  void updateBytePlusKey(String? apiKey) {
+    if (apiKey != null && apiKey.isNotEmpty) {
+      if (_bytePlusService == null) {
+        _bytePlusService = BytePlusAsrService(apiKey: apiKey);
+      } else {
+        _bytePlusService!.updateApiKey(apiKey);
+      }
+    } else {
+      _bytePlusService = null;
+    }
+  }
+
+  void setEngine(AsrEngine engine) {
+    _engine = engine;
+  }
+
+  /// 目前引擎是否已有可用的轉錄服務。
+  bool get _hasTranscribeService => _engine == AsrEngine.byteplus
+      ? _bytePlusService != null
+      : _openAIService != null;
+
   /// 錄音結束後：將整段音訊切成數段（必要時）並依序轉錄成口語稿（逐字合併）。
   /// 僅在**整段轉錄成功**後才刪除 [sessionWav]；失敗時保留檔案以便重試。
   /// 多段時若中段失敗，對**同一檔案**再呼叫會自失敗段繼續，已成功的口語稿段落保留。
@@ -147,8 +173,10 @@ class TranscriptionProvider extends ChangeNotifier {
       _lastSessionCostHint = null;
     }
 
-    if (_openAIService == null) {
-      _error = '尚未設定 API 金鑰';
+    if (!_hasTranscribeService) {
+      _error = _engine == AsrEngine.byteplus
+          ? '尚未設定 BytePlus 金鑰，請至設定輸入。'
+          : '尚未設定 API 金鑰';
       _errorDebugLine = null;
       _whisperVocabularyHint = null;
       notifyListeners();
@@ -178,7 +206,8 @@ class TranscriptionProvider extends ChangeNotifier {
         return;
       }
 
-      if (parts.length == 1) {
+      // 單檔上限為 OpenAI 端限制；BytePlus 以 base64 內嵌、上限寬鬆許多。
+      if (parts.length == 1 && _engine == AsrEngine.openai) {
         final sz = await parts[0].length();
         if (sz > AppConstants.maxOpenAITranscribeFileBytes) {
           _error = AppConstants.oversizedTranscribeFileUserHint;
@@ -274,12 +303,14 @@ class TranscriptionProvider extends ChangeNotifier {
     Object? lastError;
 
     for (var attempt = 0; attempt < AppConstants.transcriptionMaxAttempts; attempt++) {
-      if (_openAIService == null) break;
-
-      final prompt = _buildTranscriptionPrompt();
+      if (!_hasTranscribeService) break;
 
       try {
-        final text = await _openAIService!.transcribeAudio(wavFile, prompt: prompt);
+        // BytePlus 不支援 Whisper 式 prompt 銜接；詞彙表仍會在潤飾階段套用。
+        final text = _engine == AsrEngine.byteplus
+            ? await _bytePlusService!.transcribeAudio(wavFile)
+            : await _openAIService!
+                .transcribeAudio(wavFile, prompt: _buildTranscriptionPrompt());
         if (text.isNotEmpty) {
           _segments.add(TranscriptionSegment(
             text: text,
@@ -293,8 +324,10 @@ class TranscriptionProvider extends ChangeNotifier {
         break;
       } catch (e) {
         lastError = e;
-        final canRetry = attempt < AppConstants.transcriptionMaxAttempts - 1 &&
-            isRetryableOpenAIRequestError(e);
+        final retryable = isRetryableOpenAIRequestError(e) ||
+            (e is BytePlusAsrException && e.isRetryable);
+        final canRetry =
+            attempt < AppConstants.transcriptionMaxAttempts - 1 && retryable;
         if (canRetry) {
           final delay = AppConstants.transcriptionRetryBaseDelay * (1 << attempt);
           await Future<void>.delayed(delay);
@@ -324,10 +357,16 @@ class TranscriptionProvider extends ChangeNotifier {
       final c = e.response?.statusCode;
       return 'Dio ${e.type.name}${c != null ? ' HTTP $c' : ''}';
     }
+    if (e is BytePlusAsrException) {
+      return 'BytePlus ${e.statusCode ?? '?'}';
+    }
     return e.runtimeType.toString();
   }
 
   String _formatTranscriptionError(Object e) {
+    if (e is BytePlusAsrException) {
+      return e.message;
+    }
     if (e is DioException) {
       final code = e.response?.statusCode;
       if (code == 401) return 'API 金鑰無效或未授權，請至設定檢查。';
@@ -364,7 +403,7 @@ class TranscriptionProvider extends ChangeNotifier {
     bool fullRoundTripCost = true,
   }) async {
     if (_openAIService == null) {
-      _error = '尚未設定 API 金鑰';
+      _error = '尚未設定 OpenAI 金鑰（潤飾需要），請至設定輸入。';
       _errorDebugLine = null;
       notifyListeners();
       return;

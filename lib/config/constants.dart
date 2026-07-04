@@ -1,7 +1,31 @@
+/// 語音轉錄引擎（潤飾一律走 OpenAI GPT）。
+enum AsrEngine {
+  /// OpenAI Whisper（gpt-4o-mini-transcribe），與潤飾共用同一把金鑰。
+  openai,
+
+  /// BytePlus Seed Speech ASR（字節跳動海外站），中文辨識較準，需另一把金鑰。
+  byteplus,
+}
+
 class AppConstants {
   static const String whisperModel = 'gpt-4o-mini-transcribe';
   static const String gptModel = 'gpt-4o-mini';
   static const String openaiBaseUrl = 'https://api.openai.com/v1';
+
+  /// BytePlus Seed ASR（Audio File 2.0 / bigmodel）非同步轉錄端點。
+  static const String bytePlusAsrBaseUrl =
+      'https://voice.ap-southeast-1.bytepluses.com/api/v3/auc/bigmodel';
+  static const String bytePlusResourceId = 'volc.seedasr.auc';
+  static const String bytePlusModelName = 'bigmodel';
+
+  /// Seed ASR 的語言碼；輸出可能為簡體，由潤飾階段統一轉臺灣繁體。
+  static const String bytePlusLanguage = 'zh-CN';
+  static const Duration bytePlusPollInterval = Duration(seconds: 2);
+  static const Duration bytePlusMaxWait = Duration(minutes: 10);
+
+  /// 金鑰申請頁（設定頁「如何取得金鑰」連結）。
+  static const String openaiKeyHelpUrl = 'https://platform.openai.com/api-keys';
+  static const String bytePlusKeyHelpUrl = 'https://console.byteplus.com/';
   /// 錄音結束後轉錄時，每段 WAV 最長秒數（避免超過 API 單檔約 25MB 上限）。
   /// （OpenAI 語音轉錄端點對單一檔案大小有上限，官方文件目前為約 25MB。）
   static const int postRecordTranscribeSliceSeconds = 600;

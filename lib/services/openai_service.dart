@@ -23,6 +23,18 @@ class OpenAIService {
     _dio.options.headers['Authorization'] = 'Bearer $apiKey';
   }
 
+  /// 驗證金鑰是否可用：打免費的 GET /models。
+  /// 無效金鑰會擲出 DioException（HTTP 401），網路問題擲出對應連線錯誤。
+  static Future<void> verifyApiKey(String apiKey) async {
+    final dio = Dio(BaseOptions(
+      baseUrl: AppConstants.openaiBaseUrl,
+      headers: {'Authorization': 'Bearer $apiKey'},
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
+    await dio.get<dynamic>('/models');
+  }
+
   static String _filenameForUpload(File audioFile) {
     final name = p.basename(audioFile.path);
     return name.isNotEmpty ? name : 'audio.wav';

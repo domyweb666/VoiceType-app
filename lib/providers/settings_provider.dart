@@ -9,6 +9,8 @@ class SettingsProvider extends ChangeNotifier {
   static const _customGlossaryKey = 'custom_glossary_v1';
   static const _textScaleKey = 'ui_text_scale_v1';
   static const _themeModeKey = 'ui_theme_mode_v1';
+  static const _asrEngineKey = 'asr_engine_v1';
+  static const _autoCopyKey = 'auto_copy_polished_v1';
 
   /// 設定頁提供的字級選項（與 SegmentedButton 的四個選項一致）。
   /// 舊版本可能存過落在此清單外的原始倍率（例如 0.85／1.35），
@@ -17,6 +19,9 @@ class SettingsProvider extends ChangeNotifier {
 
   final SecureStorageService _storage = SecureStorageService();
   String? _apiKey;
+  String? _bytePlusApiKey;
+  AsrEngine _asrEngine = AsrEngine.openai;
+  bool _autoCopyPolished = true;
   bool _hasSeenPrivacyDisclosure = false;
   bool _isLoading = true;
   String _polishSystemPrompt = AppConstants.oralDraftSystemPrompt;
@@ -27,6 +32,18 @@ class SettingsProvider extends ChangeNotifier {
 
   String? get apiKey => _apiKey;
   bool get hasApiKey => _apiKey != null && _apiKey!.isNotEmpty;
+  String? get bytePlusApiKey => _bytePlusApiKey;
+  bool get hasBytePlusKey =>
+      _bytePlusApiKey != null && _bytePlusApiKey!.isNotEmpty;
+  AsrEngine get asrEngine => _asrEngine;
+
+  /// 目前選定的轉錄引擎是否已備妥金鑰（可開始轉錄）。
+  /// 潤飾另需 OpenAI 金鑰（見 [hasApiKey]）。
+  bool get canTranscribe =>
+      _asrEngine == AsrEngine.byteplus ? hasBytePlusKey : hasApiKey;
+
+  /// 轉錄＋潤飾完成後是否自動把文字稿複製到剪貼簿。
+  bool get autoCopyPolished => _autoCopyPolished;
   bool get isLoading => _isLoading;
   bool get hasSeenPrivacyDisclosure => _hasSeenPrivacyDisclosure;
   ThemeMode get themeMode => _themeMode;
@@ -46,8 +63,13 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> _loadAll() async {
     _apiKey = await _storage.getApiKey();
+    _bytePlusApiKey = await _storage.getBytePlusApiKey();
     final prefs = await SharedPreferences.getInstance();
     _hasSeenPrivacyDisclosure = prefs.getBool(_privacyDisclosureKey) ?? false;
+    _asrEngine = prefs.getString(_asrEngineKey) == 'byteplus'
+        ? AsrEngine.byteplus
+        : AsrEngine.openai;
+    _autoCopyPolished = prefs.getBool(_autoCopyKey) ?? true;
     _polishSystemPrompt =
         prefs.getString(_polishPromptKey) ?? AppConstants.oralDraftSystemPrompt;
     _customGlossary = prefs.getString(_customGlossaryKey) ?? '';
@@ -84,7 +106,41 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setBytePlusApiKey(String key) async {
+    await _storage.setBytePlusApiKey(key);
+    _bytePlusApiKey = key;
+    notifyListeners();
+  }
+
+  Future<void> clearBytePlusApiKey() async {
+    await _storage.deleteBytePlusApiKey();
+    _bytePlusApiKey = null;
+    notifyListeners();
+  }
+
+  Future<void> setAsrEngine(AsrEngine engine) async {
+    _asrEngine = engine;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _asrEngineKey,
+      engine == AsrEngine.byteplus ? 'byteplus' : 'openai',
+    );
+  }
+
+  Future<void> setAutoCopyPolished(bool value) async {
+    _autoCopyPolished = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_autoCopyKey, value);
+  }
+
   Future<void> setPolishSystemPrompt(String text) async {
+    // 防呆：存空白等同還原預設，避免之後潤飾拿空的 system prompt 去跑。
+    if (text.trim().isEmpty) {
+      await resetPolishSystemPromptToDefault();
+      return;
+    }
     _polishSystemPrompt = text;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
@@ -117,7 +173,10 @@ class SettingsProvider extends ChangeNotifier {
 
   /// 潤飾 API 用：在 system 提示詞末附加自訂詞彙說明。
   String buildOrganizeSystemPrompt() {
-    final base = _polishSystemPrompt;
+    // 舊版可能已把空字串存進偏好，這裡再兜底一次。
+    final base = _polishSystemPrompt.trim().isEmpty
+        ? AppConstants.oralDraftSystemPrompt
+        : _polishSystemPrompt;
     final terms = customGlossaryTerms;
     if (terms.isEmpty) return base;
     final block = terms.map((e) => '- $e').join('\n');
