@@ -13,6 +13,27 @@
 | `40da99a` | 歷史清單改 ListView.builder + 搜尋 debounce；字級 snap；a11y；刪死碼 record_calendar_screen（697 行） |
 | `9b65100` | 拆 home_screen（2077 → 621 行）→ lib/widgets/home/ 五檔；修每秒重建；離線守衛去重 |
 
+## 第二輪：懶人化 UX pass ＋ BytePlus 轉錄引擎（2026-07-05）
+
+| 項目 | 內容 |
+|------|------|
+| 無金鑰可錄音 | 錄音不再被金鑰擋下；錄完存「待轉錄」，設定金鑰後自動續轉接手 |
+| 完成自動複製 | 轉錄潤飾完成自動把文字稿放進剪貼簿（設定可關，預設開）；搭配 Ctrl+Alt+V 全程不用碰視窗 |
+| 首次啟動引導 | 沒金鑰時首頁 hero 變「第一步：設定轉錄金鑰」＋取得金鑰連結 |
+| 設定頁重組 | 金鑰置頂；「儲存並測試」當場驗證（OpenAI 打 /models、BytePlus 提交 0.2 秒靜音）；潤飾提示詞與詞彙表收進「進階設定」摺疊區 |
+| 桌面完成通知 | local_notifier：視窗非前景時發系統通知，點擊帶回視窗（成功／失敗都通知） |
+| 待轉錄防呆 | 刪除加確認框；多筆時有「全部轉錄」 |
+| 小防呆 | 空潤飾提示詞自動還原預設；複製鈕文案改「複製口語稿／文字稿」；手機結果區加「分享」；合併 home_screen 兩個 settings listener |
+| BytePlus 引擎 | 設定可切 OpenAI Whisper／BytePlus Seed ASR（submit base64 → query 輪詢，流程同 E:\自動剪輯 驗證腳本）。潤飾仍走 OpenAI；BytePlus 時費用提示只算潤飾段；口語稿可能為簡體、潤飾會轉臺灣繁體 |
+
+新依賴：`local_notifier`（桌面通知）、`url_launcher`（取得金鑰連結）。
+
+### BytePlus 使用前提（手動）
+
+1. 到 BytePlus console 開通 Seed Speech ASR（資源 `volc.seedasr.auc`），拿 API Key。
+2. 設定頁切到 BytePlus、貼上金鑰按「儲存並測試」——45 開頭狀態碼＝金鑰／權限問題或模型未開通。
+3. 實測一次完整流程（錄音 → 轉錄 → 潤飾），確認簡轉繁正常。
+
 ## 需要你手動做（上架前）
 
 1. **Release 簽章**：`keytool` 產一把 keystore（在 JDK / Android Studio 的 bin 底下），把 `android/key.properties.example` 複製成 `android/key.properties` 填入 4 個值。key.properties 與 .jks 都已在 .gitignore，別提交。
