@@ -51,7 +51,6 @@ double _nearestTextScaleChip(double scale) {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _apiKeyController = TextEditingController();
   final _bytePlusKeyController = TextEditingController();
-  final _polishController = TextEditingController();
   final _glossaryController = TextEditingController();
   bool _obscureOpenAI = true;
   bool _obscureBytePlus = true;
@@ -63,7 +62,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _apiKeyController.dispose();
     _bytePlusKeyController.dispose();
-    _polishController.dispose();
     _glossaryController.dispose();
     super.dispose();
   }
@@ -124,30 +122,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       if (mounted) setState(() => _testingBytePlus = false);
     }
-  }
-
-  Future<void> _savePolishPrompt() async {
-    final settings = context.read<SettingsProvider>();
-    final wasEmpty = _polishController.text.trim().isEmpty;
-    await settings.setPolishSystemPrompt(_polishController.text);
-    if (!mounted) return;
-    if (wasEmpty) {
-      // 空白視為還原預設（防呆），把還原後的內容帶回輸入框。
-      _polishController.text = settings.polishSystemPrompt;
-      setState(() {});
-      _snack('提示詞不能是空的，已還原為 App 預設');
-      return;
-    }
-    _snack('已儲存潤飾提示詞');
-  }
-
-  Future<void> _resetPolishPrompt() async {
-    await context.read<SettingsProvider>().resetPolishSystemPromptToDefault();
-    if (!mounted) return;
-    _polishController.text =
-        context.read<SettingsProvider>().polishSystemPrompt;
-    setState(() {});
-    _snack('已還原為 App 預設提示詞');
   }
 
   Future<void> _saveGlossary() async {
@@ -315,7 +289,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _seededFromProvider = true;
       _apiKeyController.text = settings.apiKey ?? '';
       _bytePlusKeyController.text = settings.bytePlusApiKey ?? '';
-      _polishController.text = settings.polishSystemPrompt;
       _glossaryController.text = settings.customGlossary;
     }
 
@@ -455,7 +428,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: Text('進階設定',
                               style: serifItalic(size: 26, color: t.fg)),
                           subtitle: Text(
-                            '潤飾提示詞與自訂詞彙。預設就能用，想微調 AI 行為再打開。',
+                            '自訂詞彙。預設就能用，想微調 AI 行為再打開。',
                             style: TextStyle(
                               fontSize: 13.5,
                               color: t.fgDim,
@@ -463,41 +436,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           children: [
-                            _Section(
-                              title: '文字稿潤飾提示詞',
-                              desc:
-                                  '會作為潤飾 API 的 system 提示詞：規則與 App 預設一致（最小化干預、刪贅字、斷句、標點、臺灣繁體、禁止標題與小標）。',
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
-                                children: [
-                                  TextField(
-                                    controller: _polishController,
-                                    maxLines: 14,
-                                    minLines: 8,
-                                    decoration: const InputDecoration(
-                                      alignLabelWithHint: true,
-                                      hintText: '潤飾用 system 提示詞…',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      FilledButton(
-                                        onPressed: _savePolishPrompt,
-                                        child: const Text('儲存潤飾提示詞'),
-                                      ),
-                                      OutlinedButton(
-                                        onPressed: _resetPolishPrompt,
-                                        child: const Text('還原預設'),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
                             _Section(
                               title: '自訂詞彙',
                               desc:
@@ -543,6 +481,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       desc: SessionCostEstimateService.buildSettingsEstimateText(),
                       child: const SizedBox.shrink(),
                     ),
+
+                    // Section: 聯絡作者
+                    _Section(
+                      title: '聯絡作者',
+                      desc: null,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _ContactCard(
+                            title: '聯絡作者多米',
+                            subtitle: 'VoiceType 是多米做的。有問題或想回報，來這裡找我。',
+                            onTap: () =>
+                                _openHelpUrl(AppConstants.authorContactUrl),
+                          ),
+                          const SizedBox(height: 10),
+                          _ContactCard(
+                            title: '請多米喝杯咖啡 ☕',
+                            subtitle:
+                                'VoiceType 免費開發。喜歡的話，請我喝杯咖啡，是我繼續做下去的動力。',
+                            onTap: () =>
+                                _openHelpUrl(AppConstants.authorCoffeeUrl),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -555,6 +518,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: t.bg,
       body: SafeArea(child: body),
+    );
+  }
+}
+
+class _ContactCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ContactCard({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: t.bgChip,
+            border: Border.all(color: t.line),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: t.fg,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: t.fgDim,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(Icons.open_in_new_rounded, size: 16, color: t.fgDim),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

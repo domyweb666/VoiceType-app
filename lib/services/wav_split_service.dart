@@ -59,14 +59,15 @@ class WavSplitService {
       throw FormatException(result.errorMessage!);
     }
 
+    // 未超過單段上限：回傳原檔（不複製）。
+    // 注意：此情況 sliceWavBytes 同為 null，必須先於「空音訊」判斷。
+    if (result.useOriginal) {
+      return [originalWav];
+    }
+
     // 空音訊。
     if (result.sliceWavBytes == null) {
       return [];
-    }
-
-    // 未超過單段上限：回傳原檔（不複製）。
-    if (result.useOriginal) {
-      return [originalWav];
     }
 
     final slices = result.sliceWavBytes!;

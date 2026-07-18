@@ -26,6 +26,12 @@ class AppConstants {
   /// 金鑰申請頁（設定頁「如何取得金鑰」連結）。
   static const String openaiKeyHelpUrl = 'https://platform.openai.com/api-keys';
   static const String bytePlusKeyHelpUrl = 'https://console.byteplus.com/';
+
+  /// 作者聯絡／工具介紹頁（設定頁「聯絡多米」連結）。
+  static const String authorContactUrl = 'https://domyweb.org/tools/voicetype/';
+
+  /// 贊助頁（設定頁「請多米喝杯咖啡」連結）。
+  static const String authorCoffeeUrl = 'https://portaly.cc/domyweb/support';
   /// 錄音結束後轉錄時，每段 WAV 最長秒數（避免超過 API 單檔約 25MB 上限）。
   /// （OpenAI 語音轉錄端點對單一檔案大小有上限，官方文件目前為約 25MB。）
   static const int postRecordTranscribeSliceSeconds = 600;

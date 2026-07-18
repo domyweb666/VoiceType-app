@@ -118,7 +118,18 @@ Future<void> migratePlaintextTranscriptsIfNeeded() async {
       rethrow; // 交給外層 fail-safe（不刪資料、不寫標記）
     }
 
-    final saved = Map<dynamic, TranscriptRecord>.from(plainBox.toMap());
+    // HiveObject 同一實例不可存進兩個盒子：先建立脫離原盒的複本再搬。
+    final saved = <dynamic, TranscriptRecord>{
+      for (final e in plainBox.toMap().entries)
+        e.key: TranscriptRecord(
+          id: e.value.id,
+          title: e.value.title,
+          rawText: e.value.rawText,
+          organizedText: e.value.organizedText,
+          createdAt: e.value.createdAt,
+          durationSeconds: e.value.durationSeconds,
+        ),
+    };
     final savedCount = saved.length;
     await plainBox.close();
 

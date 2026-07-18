@@ -194,7 +194,12 @@ class _HomeScreenState extends State<HomeScreen>
     if (!mounted) return;
     await context.read<PendingQueueProvider>().refresh();
     if (!mounted) return;
-    if (context.read<PendingQueueProvider>().files.isNotEmpty) {
+    // 只有在目標檔已被消化（轉錄成功刪檔）時才續轉下一個；
+    // 失敗的檔仍留在佇列時停止連鎖，避免無限重試與提示條閃爍，
+    // 改由使用者手動點「轉錄」重試。
+    final remaining = context.read<PendingQueueProvider>().files;
+    final targetConsumed = !remaining.any((f) => f.path == target.path);
+    if (remaining.isNotEmpty && targetConsumed) {
       _autoResumeFired = false;
       unawaited(_autoResumePendingIfPossible());
     }

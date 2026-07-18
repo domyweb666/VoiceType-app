@@ -243,6 +243,12 @@ flutter build ios --release --no-codesign
 
 ---
 
+## 聯絡作者
+
+使用問題、功能許願、合作邀約：<https://domyweb.org/tools/voicetype/>
+
+---
+
 ## Star History
 
 如果這個專案對你有幫助，請給個 Star 支持一下！
