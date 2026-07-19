@@ -1,0 +1,60 @@
+name: iOS Release
+
+# 觸發方式：推 v* tag，或手動觸發。
+# 簽章素材全部來自 GitHub secrets（見 docs/ios-release-setup.md）。
+# secrets 未設定時 build 會在簽章步驟失敗，不會產出未簽章的 IPA。
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.6"
+          channel: stable
+          cache: true
+
+      # 匯入 Apple Distribution 憑證到暫時 keychain
+      - uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+
+      # 安裝 App Store provisioning profile
+      - name: Install provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/voicetype-appstore.mobileprovision
+
+      - name: Build IPA
+        run: |
+          flutter pub get
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: voicetype-ios-ipa
+          path: build/ios/ipa/*.ipa
+
+      # flutter build ipa 的檔名跟著 app 顯示名稱走，用 glob 解析避免猜錯
+      - name: Locate IPA
+        id: ipa
+        run: echo "path=$(ls build/ios/ipa/*.ipa | head -1)" >> "$GITHUB_OUTPUT"
+
+      # 上傳到 App Store Connect（TestFlight / 送審都從這裡開始）
+      - name: Upload to App Store Connect
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: ${{ steps.ipa.outputs.path }}
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id: ${{ secrets.ASC_KEY_ID }}
+          api-private-key: ${{ secrets.ASC_API_PRIVATE_KEY }}

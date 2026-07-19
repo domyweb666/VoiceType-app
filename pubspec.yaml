@@ -77,9 +77,15 @@ flutter_launcher_icons:
   image_path: "assets/icon/app_icon.png"
   android: true
   ios: true
+  # App Store 的 1024 icon 不接受透明色版，iOS 版一律去 alpha。
+  remove_alpha_ios: true
   macos:
     generate: true
     image_path: "assets/icon/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    icon_size: 256
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
