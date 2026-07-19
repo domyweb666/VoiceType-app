@@ -196,6 +196,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final history = context.watch<HistoryProvider>();
     final t = context.tokens;
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
     _ensureSearchIndex(history.records);
     final visible = _filtered(history.records);
     _tryScrollToTarget(visible);
@@ -216,6 +217,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         onExport: () => _exportFilteredZip(visible),
         onBack: widget.onBack,
         embedded: widget.embedded,
+        isMobile: isMobile,
       ),
       const SizedBox(height: 22),
       // Search
@@ -300,9 +302,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: ListView.builder(
                     controller: _scrollController,
                     padding: EdgeInsets.fromLTRB(
-                      widget.embedded ? 48 : 24,
+                      isMobile ? 16 : (widget.embedded ? 48 : 24),
                       24,
-                      widget.embedded ? 48 : 24,
+                      isMobile ? 16 : (widget.embedded ? 48 : 24),
                       120,
                     ),
                     itemCount: content.length,
@@ -331,12 +333,14 @@ class _Hero extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback? onBack;
   final bool embedded;
+  final bool isMobile;
 
   const _Hero({
     required this.totalCount,
     required this.onExport,
     required this.onBack,
     required this.embedded,
+    required this.isMobile,
   });
 
   @override
@@ -344,50 +348,87 @@ class _Hero extends StatelessWidget {
     final t = context.tokens;
     final canPop = Navigator.canPop(context);
     final showBack = onBack != null || canPop;
+
+    final backBtn = showBack
+        ? Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onBack ?? () => Navigator.of(context).maybePop(),
+                borderRadius: BorderRadius.circular(9),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: t.bgChip,
+                    border: Border.all(color: t.line),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(Icons.arrow_back_rounded, size: 20, color: t.fg),
+                ),
+              ),
+            ),
+          )
+        : null;
+
+    final title = Text(
+      '歷史紀錄',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: serifItalic(size: isMobile ? 30 : 48, color: t.fg, height: 1.2),
+    );
+
+    final count = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text('$totalCount',
+            style: serifItalic(size: isMobile ? 24 : 34, color: t.fg)),
+        const SizedBox(width: 6),
+        Text('筆紀錄', style: TextStyle(fontSize: 13, color: t.fgDim)),
+      ],
+    );
+
+    final exportBtn = OutlinedButton.icon(
+      onPressed: onExport,
+      icon: const Icon(Icons.download_rounded, size: 16),
+      label: const Text('匯出 ZIP'),
+    );
+
+    // 手機：標題獨立一行，下面一行放「筆數 + 匯出」，避免大標題折行壓到計數。
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ?backBtn,
+              Expanded(child: title),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              count,
+              const Spacer(),
+              exportBtn,
+            ],
+          ),
+        ],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        if (showBack) ...[
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onBack ?? () => Navigator.of(context).maybePop(),
-              borderRadius: BorderRadius.circular(9),
-              child: Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: t.bgChip,
-                  border: Border.all(color: t.line),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(Icons.arrow_back_rounded, size: 18, color: t.fg),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-        ],
-        Expanded(
-          child: Text(
-            '歷史紀錄',
-            style: serifItalic(size: 48, color: t.fg, height: 1.0),
-          ),
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('$totalCount', style: serifItalic(size: 34, color: t.fg)),
-            Text('筆紀錄', style: TextStyle(fontSize: 12, color: t.fgDim)),
-          ],
-        ),
+        ?backBtn,
+        Expanded(child: title),
+        count,
         const SizedBox(width: 14),
-        OutlinedButton.icon(
-          onPressed: onExport,
-          icon: const Icon(Icons.download_rounded, size: 16),
-          label: const Text('匯出 ZIP'),
-        ),
+        exportBtn,
       ],
     );
   }

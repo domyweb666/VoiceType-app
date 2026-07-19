@@ -28,6 +28,8 @@ class HomeStage extends StatelessWidget {
   final int mobileTranscriptTab;
   final ValueChanged<int> onMobileTranscriptTabChange;
   final bool showDesktopSpaceHint;
+  final bool onboardingDismissed;
+  final VoidCallback onSkipOnboarding;
   final Future<void> Function() onPickFile;
   final Future<void> Function() onToggleRecord;
   final Future<void> Function(File) onRetryFile;
@@ -43,6 +45,8 @@ class HomeStage extends StatelessWidget {
     required this.mobileTranscriptTab,
     required this.onMobileTranscriptTabChange,
     required this.showDesktopSpaceHint,
+    required this.onboardingDismissed,
+    required this.onSkipOnboarding,
     required this.onPickFile,
     required this.onToggleRecord,
     required this.onRetryFile,
@@ -63,9 +67,11 @@ class HomeStage extends StatelessWidget {
     final transcription = context.watch<TranscriptionProvider>();
     final pendingQueue = context.watch<PendingQueueProvider>();
     // 首次啟動引導：金鑰還沒備妥時，idle hero 改顯示「第一步：設定金鑰」。
+    // 使用者按「先略過」後（onboardingDismissed）不再當強制擋牆，改回一般錄音畫面。
     final needsKeySetup = context.select<SettingsProvider, bool>(
-      (s) => !s.isLoading && !s.canTranscribe,
-    );
+          (s) => !s.isLoading && !s.canTranscribe,
+        ) &&
+        !onboardingDismissed;
 
     final hasContent =
         transcription.hasTranscript || transcription.organizedText.isNotEmpty;
@@ -103,9 +109,9 @@ class HomeStage extends StatelessWidget {
               Expanded(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(
-                    isMobile ? 20 : 48,
+                    isMobile ? 16 : 48,
                     isMobile ? 24 : 36,
-                    isMobile ? 20 : 48,
+                    isMobile ? 16 : 48,
                     isMobile ? 200 : 180,
                   ),
                   child: Center(
@@ -123,6 +129,7 @@ class HomeStage extends StatelessWidget {
                               isRecording: isRecording,
                               needsKeySetup: needsKeySetup,
                               onGoToSettings: onGoToSettings,
+                              onSkipOnboarding: onSkipOnboarding,
                             )
                           else
                             _DocBody(
@@ -263,19 +270,22 @@ class _StageHead extends StatelessWidget {
             icon: Icons.audio_file_outlined,
             tooltip: '從檔案轉錄（WAV／M4A）',
             onTap: disabled ? null : onPickFile,
+            size: isMobile ? 44 : 34,
           ),
           if (isMobile) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             _IconBtn(
               icon: Icons.history_rounded,
               tooltip: '歷史紀錄',
               onTap: onGoToHistory,
+              size: 44,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             _IconBtn(
               icon: Icons.settings_outlined,
               tooltip: '設定',
               onTap: onGoToSettings,
+              size: 44,
             ),
           ],
         ],
@@ -288,7 +298,13 @@ class _IconBtn extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
-  const _IconBtn({required this.icon, required this.tooltip, this.onTap});
+  final double size;
+  const _IconBtn({
+    required this.icon,
+    required this.tooltip,
+    this.onTap,
+    this.size = 34,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -301,8 +317,8 @@ class _IconBtn extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(9),
           child: Container(
-            width: 34,
-            height: 34,
+            width: size,
+            height: size,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               border: Border.all(color: t.line),
@@ -310,7 +326,7 @@ class _IconBtn extends StatelessWidget {
             ),
             child: Icon(
               icon,
-              size: 16,
+              size: 18,
               color: onTap == null ? t.fgMute : t.fgDim,
             ),
           ),
@@ -329,6 +345,7 @@ class _IdleHero extends StatelessWidget {
   final bool isRecording;
   final bool needsKeySetup;
   final VoidCallback onGoToSettings;
+  final VoidCallback onSkipOnboarding;
 
   const _IdleHero({
     required this.isMobile,
@@ -338,6 +355,7 @@ class _IdleHero extends StatelessWidget {
     required this.isRecording,
     required this.needsKeySetup,
     required this.onGoToSettings,
+    required this.onSkipOnboarding,
   });
 
   @override
@@ -410,6 +428,14 @@ class _IdleHero extends StatelessWidget {
                         label: const Text('如何取得金鑰？'),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: onSkipOnboarding,
+                    child: Text(
+                      '先略過，直接開始錄音',
+                      style: TextStyle(fontSize: 13.5, color: t.fgDim),
+                    ),
                   ),
                 ],
                 if (showDesktopSpaceHint && !needsKeySetup) ...[

@@ -34,20 +34,6 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-double _nearestTextScaleChip(double scale) {
-  const choices = [0.9, 1.0, 1.15, 1.3];
-  var best = choices.first;
-  var bestD = (scale - best).abs();
-  for (final c in choices.skip(1)) {
-    final d = (scale - c).abs();
-    if (d < bestD) {
-      best = c;
-      bestD = d;
-    }
-  }
-  return best;
-}
-
 class _SettingsScreenState extends State<SettingsScreen> {
   final _apiKeyController = TextEditingController();
   final _bytePlusKeyController = TextEditingController();
@@ -284,6 +270,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final t = context.tokens;
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
 
     if (!settings.isLoading && !_seededFromProvider) {
       _seededFromProvider = true;
@@ -296,9 +283,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ? Center(child: CircularProgressIndicator(color: t.accent))
         : SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-              widget.embedded ? 48 : 24,
+              isMobile ? 16 : (widget.embedded ? 48 : 24),
               24,
-              widget.embedded ? 48 : 24,
+              isMobile ? 16 : (widget.embedded ? 48 : 24),
               140,
             ),
             child: Center(
@@ -322,8 +309,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   () => Navigator.of(heroCtx).maybePop(),
                               borderRadius: BorderRadius.circular(9),
                               child: Container(
-                                width: 36,
-                                height: 36,
+                                width: 44,
+                                height: 44,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: t.bgChip,
@@ -331,15 +318,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   borderRadius: BorderRadius.circular(9),
                                 ),
                                 child: Icon(Icons.arrow_back_rounded,
-                                    size: 18, color: t.fg),
+                                    size: 20, color: t.fg),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 12),
                         ],
                         Expanded(
                           child: Text('設定',
-                              style: serifItalic(size: 48, color: t.fg, height: 1)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: serifItalic(
+                                  size: isMobile ? 30 : 48,
+                                  color: t.fg,
+                                  height: 1.2)),
                         ),
                       ],
                     );
@@ -355,117 +347,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: _buildEngineAndKeys(settings),
                     ),
 
-                    // Section: 完成後動作
+                    // Section: 自訂詞彙
                     _Section(
-                      title: '完成後動作',
-                      desc: null,
-                      child: SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('完成後自動複製文字稿'),
-                        subtitle: const Text(
-                          '轉錄潤飾一結束就把文字稿放進剪貼簿，切過去直接貼上。',
-                        ),
-                        value: settings.autoCopyPolished,
-                        onChanged: (v) => context
-                            .read<SettingsProvider>()
-                            .setAutoCopyPolished(v),
-                      ),
-                    ),
-
-                    // Section: 顯示與可及性
-                    _Section(
-                      title: '顯示與可及性',
-                      desc: '調整全 App 字級，方便長時間閱讀逐字稿。',
-                      child: SegmentedButton<double>(
-                        segments: const [
-                          ButtonSegment(value: 0.9, label: Text('較小')),
-                          ButtonSegment(value: 1.0, label: Text('預設')),
-                          ButtonSegment(value: 1.15, label: Text('較大')),
-                          ButtonSegment(value: 1.3, label: Text('特大')),
-                        ],
-                        selected: {
-                          _nearestTextScaleChip(settings.uiTextScale),
-                        },
-                        onSelectionChanged: (s) {
-                          context
-                              .read<SettingsProvider>()
-                              .setUiTextScale(s.first);
-                        },
-                      ),
-                    ),
-
-                    // Section: 背景主題
-                    _Section(
-                      title: '背景主題',
-                      desc: '選擇介面配色風格。',
-                      child: SegmentedButton<ThemeMode>(
-                        segments: const [
-                          ButtonSegment(
-                              value: ThemeMode.system, label: Text('跟隨系統')),
-                          ButtonSegment(
-                              value: ThemeMode.light, label: Text('淺色')),
-                          ButtonSegment(
-                              value: ThemeMode.dark, label: Text('暗色')),
-                        ],
-                        selected: {settings.themeMode},
-                        onSelectionChanged: (s) {
-                          context
-                              .read<SettingsProvider>()
-                              .setThemeMode(s.first);
-                        },
-                      ),
-                    ),
-
-                    // Section: 進階（一般使用者不需要碰，預設收合）
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 36),
-                      child: Theme(
-                        data: Theme.of(context)
-                            .copyWith(dividerColor: Colors.transparent),
-                        child: ExpansionTile(
-                          tilePadding: EdgeInsets.zero,
-                          childrenPadding: const EdgeInsets.only(top: 8),
-                          title: Text('進階設定',
-                              style: serifItalic(size: 26, color: t.fg)),
-                          subtitle: Text(
-                            '自訂詞彙。預設就能用，想微調 AI 行為再打開。',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              color: t.fgDim,
-                              height: 1.6,
+                      title: '自訂詞彙',
+                      desc:
+                          '每行一個詞或片語。會併入轉錄與潤飾請求：轉錄時作為專有名詞提示（限 OpenAI 引擎），潤飾時請模型盡量維持您指定的寫法。',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextField(
+                            controller: _glossaryController,
+                            maxLines: 8,
+                            minLines: 4,
+                            decoration: const InputDecoration(
+                              hintText: '例如：\n臺積電\nTSMC\nVoiceType',
+                              alignLabelWithHint: true,
                             ),
                           ),
-                          children: [
-                            _Section(
-                              title: '自訂詞彙',
-                              desc:
-                                  '每行一個詞或片語。會併入轉錄與潤飾請求：轉錄時作為專有名詞提示（限 OpenAI 引擎），潤飾時請模型盡量維持您指定的寫法。',
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
-                                children: [
-                                  TextField(
-                                    controller: _glossaryController,
-                                    maxLines: 8,
-                                    minLines: 4,
-                                    decoration: const InputDecoration(
-                                      hintText: '例如：\n臺積電\nTSMC\nVoiceType',
-                                      alignLabelWithHint: true,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: FilledButton(
-                                      onPressed: _saveGlossary,
-                                      child: const Text('儲存自訂詞彙'),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: FilledButton(
+                              onPressed: _saveGlossary,
+                              child: const Text('儲存自訂詞彙'),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
 

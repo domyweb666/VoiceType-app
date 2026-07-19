@@ -56,6 +56,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   bool _autoResumeFired = false;
 
+  // 使用者在首頁引導卡按「先略過」後為 true：本次啟動不再把金鑰引導
+  // 當成強制擋牆，改顯示一般錄音畫面（仍可直接錄，錄檔進「待轉錄」）。
+  bool _onboardingDismissed = false;
+
   static bool _isOnlineResult(List<ConnectivityResult> results) {
     if (results.isEmpty) return true;
     return results.any(
@@ -247,13 +251,11 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             actions: [
               FilledButton(
-                onPressed: () async {
-                  await context
-                      .read<SettingsProvider>()
-                      .markPrivacyDisclosureSeen();
-                  if (dialogContext.mounted) {
-                    Navigator.of(dialogContext).pop();
-                  }
+                onPressed: () {
+                  // 先同步關閉對話框，再 fire-and-forget 寫入旗標。
+                  // 避免「先 await 再 pop」在重建空檔中讓 pop 被跳過而卡死。
+                  Navigator.of(dialogContext).pop();
+                  context.read<SettingsProvider>().markPrivacyDisclosureSeen();
                 },
                 child: const Text('我知道了'),
               ),
@@ -652,7 +654,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ─── Mobile: 單欄 + Stack 浮動 mic ───
-  Widget _buildMobile() => _buildMainStage(isMobile: true);
+  // SafeArea 只在此處包一次：底下的歷史／設定內嵌畫面都在這個 SafeArea 內，
+  // 不必各自再包（桌面三欄不走這條路徑，維持原樣）。
+  Widget _buildMobile() => SafeArea(child: _buildMainStage(isMobile: true));
 
   Widget _buildMainStage({required bool isMobile}) {
     switch (_view) {
@@ -664,6 +668,8 @@ class _HomeScreenState extends State<HomeScreen>
           onMobileTranscriptTabChange: (i) =>
               setState(() => _mobileTranscriptTab = i),
           showDesktopSpaceHint: _showDesktopSpaceHint,
+          onboardingDismissed: _onboardingDismissed,
+          onSkipOnboarding: () => setState(() => _onboardingDismissed = true),
           onPickFile: _pickAudioFromFiles,
           onToggleRecord: _toggleRecording,
           onRetryFile: _retryTranscribeFile,
