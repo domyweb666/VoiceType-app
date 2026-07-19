@@ -1,0 +1,87 @@
+name: Desktop Release (macOS)
+
+# macOS 桌面版：建置 → Developer ID 簽章 → DMG → 公證 → staple。
+# Windows 桌面版在本機建（不需簽章），不走 CI。
+# 簽章素材見 code-signing playbook；secrets 與 Topoi 同一套值。
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    env:
+      APP_PATH: build/macos/Build/Products/Release/VoiceType.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.6"
+          channel: stable
+          cache: true
+
+      - uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Build macOS app
+        run: |
+          flutter pub get
+          flutter build macos --release
+
+      # 先簽 Frameworks 裡的每顆二進位，再帶 entitlements 簽外殼。
+      # 公證要求全部 Developer ID + hardened runtime + timestamp。
+      - name: Codesign app
+        env:
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          find "$APP_PATH/Contents/Frameworks" -type f -name "*.dylib" -print0 | \
+            xargs -0 -I{} codesign --force --options runtime --timestamp --sign "$IDENTITY" "{}"
+          find "$APP_PATH/Contents/Frameworks" -maxdepth 1 -name "*.framework" -print0 | \
+            xargs -0 -I{} codesign --force --options runtime --timestamp --sign "$IDENTITY" "{}"
+          codesign --force --options runtime --timestamp \
+            --entitlements macos/Runner/Release.entitlements \
+            --sign "$IDENTITY" "$APP_PATH"
+          codesign --verify --deep --strict "$APP_PATH"
+
+      # 保險絲：簽完的 app 要能啟動（hardened runtime 弄壞會在這裡紅，不會等使用者裝了才爆）
+      - name: Smoke-run signed app
+        run: |
+          "$APP_PATH/Contents/MacOS/VoiceType" & APP_PID=$!
+          sleep 10
+          kill -0 "$APP_PID" || { echo "app crashed after launch"; exit 1; }
+          kill "$APP_PID"
+
+      - name: Create DMG
+        id: dmg
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          DMG="VoiceType-${VERSION}-macos.dmg"
+          mkdir -p dist/dmgroot
+          cp -R "$APP_PATH" dist/dmgroot/
+          ln -s /Applications dist/dmgroot/Applications
+          hdiutil create -volname VoiceType -srcfolder dist/dmgroot -ov -format UDZO "dist/$DMG"
+          codesign --force --timestamp --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" "dist/$DMG"
+          echo "path=dist/$DMG" >> "$GITHUB_OUTPUT"
+
+      - name: Notarize and staple
+        run: |
+          set -euo pipefail
+          xcrun notarytool submit "${{ steps.dmg.outputs.path }}" \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APPLE_PASSWORD }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --wait --output-format json | tee notary.json
+          grep -q '"status":"Accepted"' notary.json || { echo "notarization not Accepted"; exit 1; }
+          xcrun stapler staple "${{ steps.dmg.outputs.path }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voicetype-macos-dmg
+          path: dist/*.dmg

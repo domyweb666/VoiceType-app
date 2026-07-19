@@ -60,3 +60,4 @@ android/gradle.properties
 
 # Claude Code local settings
 .claude/
+dist/
