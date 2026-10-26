@@ -207,6 +207,12 @@ a{color:var(--accent)}
   </div>
 
   <div class="card">
+    <h3>潤飾模型</h3>
+    <div class="seg" id="modelSeg"><button data-v="gpt-5.4-mini">GPT-5.4 mini</button><button data-v="gpt-4o-mini">GPT-4o mini</button></div>
+    <div class="muted" style="margin-top:8px">5.4 mini 分段和修錯字明顯比較好，每 10 分鐘錄音的潤飾約 NT$0.4；4o mini 便宜約五倍，但常整篇擠成一大段。</div>
+  </div>
+
+  <div class="card">
     <h3>自訂詞彙</h3>
     <div class="muted">一行一個專有名詞，例如人名、書名、品牌。轉錄和潤飾都會優先採用。</div>
     <div class="field"><textarea id="vocab" placeholder="多米&#10;DOMYWEB&#10;小呆瓜"></textarea></div>
@@ -284,20 +290,21 @@ a{color:var(--accent)}
 
 <script>
 'use strict';
-const VERSION = '1.0.0-web';
+const VERSION = '1.1.0-web';
 
 /* ================= 常數（對齊 App 版 constants.dart） ================= */
 const C = {
   base: 'https://api.openai.com/v1',
   asrModel: 'gpt-4o-mini-transcribe',
-  gptModel: 'gpt-4o-mini',
   segSeconds: 600,                 // 每段最長 10 分鐘，避開 25MB 上限
   maxBytes: 25 * 1024 * 1024,
   traditionalHint: '請以臺灣繁體中文（正體字）逐字轉錄，維持口述用語，勿改寫、勿換成簡體字。',
   maxPromptChars: 200,
   asrAttempts: 4, polishAttempts: 3, retryBaseMs: 2000,
   temperature: 0.3,
-  usdPerMin: 0.003, inPer1M: 0.15, outPer1M: 0.60, twd: 32,
+  usdPerMin: 0.003, twd: 32,
+  // 潤飾模型：每百萬 token 美元（輸入／輸出）
+  models: { 'gpt-5.4-mini': [0.75, 4.50], 'gpt-4o-mini': [0.15, 0.60] },
 };
 const DEFAULT_PROMPT = `角色設定：
 你是一位擅長「最小化干預」的文字編輯。你的任務是將口語錄音轉出的稿件，在不改變原作者說話風格與語氣的前提下，微調成適合閱讀的文字。
@@ -316,7 +323,11 @@ const DEFAULT_PROMPT = `角色設定：
 
 禁止標題： 不要加入小標題、章節標題或任何形式的標題行（含 Markdown 的 # 標題、獨立一行的主題名稱等）。全文為連續正文。
 
-字形與用詞： 全文以臺灣繁體中文（正體字）呈現；若有簡體字，僅改為對應繁體字形，不以同義詞替換原詞。英文與專有名詞維持原樣。
+修正辨識錯字： 語音辨識常把詞聽錯，尤其是英文術語與專有名詞（例如把「Vibe Coding」聽成「Vicodeing」）。依上下文能確定原意時，改回正確寫法；不確定就保留原樣。
+
+分段： 依意思的轉換分段，一個意思一段，段落之間空一行。不要整篇擠成一兩大段。
+
+字形與用詞： 全文以臺灣繁體中文（正體字）呈現；若有簡體字，僅改為對應繁體字形，不以同義詞替換原詞。英文與專有名詞維持原樣，英文與中文之間加一個半形空格（例如「做 iPhone 的 App」）。
 
 輸出格式：
 請直接輸出潤飾後的文字，不需要解釋你做了哪些修改。`;
@@ -344,6 +355,7 @@ const cfg = {
   get prompt(){ const p = S.get('prompt', ''); return p.trim() ? p : DEFAULT_PROMPT; },
   get autoCopy(){ return S.get('autoCopy', true); },
   get wakeLock(){ return S.get('wakeLock', true); },
+  get model(){ const m = S.get('model', 'gpt-5.4-mini'); return C.models[m] ? m : 'gpt-5.4-mini'; },
 };
 
 /* ================= IndexedDB ================= */
@@ -398,6 +410,7 @@ function friendly(e){
   if (!(e instanceof ApiError)) return '連不上 OpenAI，請檢查網路後再試。';
   if (e.status === 401) return 'API Key 無效或未授權，請到設定檢查。';
   if (e.status === 413) return '單檔超過 OpenAI 上限（約 25MB），請改傳較短的音檔。';
+  if (e.status === 400 || e.status === 404) return '這把 API Key 用不了目前選的潤飾模型，到設定換成另一個試試。';
   if (e.status === 429) return '請求太頻繁或額度不足（429），請稍後再試，或檢查 OpenAI 帳戶餘額。';
   return `OpenAI 回應錯誤（HTTP ${e.status}）`;
 }
@@ -446,7 +459,7 @@ async function polish(raw){
   return withRetry(async () => {
     const r = await apiFetch('/chat/completions', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: C.gptModel, temperature: C.temperature,
+      body: JSON.stringify({ model: cfg.model, ...(cfg.model.startsWith('gpt-4') ? { temperature: C.temperature } : {}),
         messages: [{ role: 'system', content: buildPolishPrompt() }, { role: 'user', content: raw }] }),
     });
     const j = await r.json();
@@ -456,7 +469,8 @@ async function polish(raw){
   }, C.polishAttempts);
 }
 function costTwd(secs, pt, ct){
-  const usd = secs / 60 * C.usdPerMin + pt / 1e6 * C.inPer1M + ct / 1e6 * C.outPer1M;
+  const [pin, pout] = C.models[cfg.model];
+  const usd = secs / 60 * C.usdPerMin + pt / 1e6 * pin + ct / 1e6 * pout;
   const twd = usd * C.twd;
   return twd < 0.1 ? '不到 NT$0.1' : '約 NT$' + twd.toFixed(1);
 }
@@ -820,6 +834,7 @@ function applyLook(){
   if (th === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = th;
   $$('#fsSeg button').forEach(b => b.classList.toggle('on', +b.dataset.v === +S.get('fs', 1)));
   $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === th));
+  $$('#modelSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === cfg.model));
 }
 function loadSettings(){
   $('#apiKey').value = cfg.key;
@@ -846,12 +861,13 @@ $('#resetPrompt').addEventListener('click', () => { S.set('prompt', ''); $('#pro
 $('#autoCopy').addEventListener('change', e => S.set('autoCopy', e.target.checked));
 $('#wakeLock').addEventListener('change', e => S.set('wakeLock', e.target.checked));
 $('#fsSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b){ S.set('fs', +b.dataset.v); applyLook(); } });
+$('#modelSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b){ S.set('model', b.dataset.v); applyLook(); } });
 $('#themeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b){ S.set('theme', b.dataset.v); applyLook(); } });
 
 /* 備份：只含文字紀錄與設定（不含 API Key 和未轉錄的音檔） */
 $('#backupOut').addEventListener('click', async () => {
   const data = { app: 'voicetype-web', version: 1, exportedAt: new Date().toISOString(),
-    settings: { vocab: S.get('vocab', ''), prompt: S.get('prompt', ''), autoCopy: cfg.autoCopy, wakeLock: cfg.wakeLock, fs: S.get('fs', 1), theme: S.get('theme', 'system') },
+    settings: { model: cfg.model, vocab: S.get('vocab', ''), prompt: S.get('prompt', ''), autoCopy: cfg.autoCopy, wakeLock: cfg.wakeLock, fs: S.get('fs', 1), theme: S.get('theme', 'system') },
     records: await DB.all('records') };
   const d = new Date(); downloadFile(`VoiceType備份-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`, JSON.stringify(data, null, 1), 'application/json');
 });
