@@ -1,6 +1,9 @@
 // VoiceType 網頁版離線快取。改了 index.html 之後把版本號 +1，手機才會拿到新版。
-const CACHE = 'voicetype-v3';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = 'voicetype-v4';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png',
+  './img/face-calm.webp', './img/face-listen.webp', './img/face-think.webp', './img/face-happy.webp', './img/face-confused.webp',
+  './img/pot.webp', './img/kernel.webp', './img/sleep.webp', './img/crate.webp', './img/search.webp', './img/barn.webp',
+  './img/corn-young.webp', './img/corn-normal.webp', './img/corn-gold.webp'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -24,5 +27,5 @@ self.addEventListener('fetch', e => {
     }).catch(() => caches.match('./index.html')));
     return;
   }
-  e.respondWith(caches.match(req).then(hit => hit || fetch(req)));
+  e.respondWith(caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req)));
 });

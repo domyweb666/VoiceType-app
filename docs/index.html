@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<title>VoiceType</title>
+<title>米說</title>
 <meta name="description" content="語音變文字，說完就整理好。">
-<meta name="theme-color" content="#F6F5F1" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0B0F10" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F7F1E8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16140F" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="VoiceType">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="icon" type="image/png" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="米說">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2">
+<link rel="icon" type="image/png" href="icons/icon-192.png?v=2">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
-/* ===== 設計 token（沿用 App 版的 bold-editor 配色） ===== */
+/* ===== 設計 token：米說（玉米黃＋玉米葉綠，蔬菜系列共用奶油白底） ===== */
 :root{
-  --bg:#F6F5F1; --bg-elev:#FFFFFF; --bg-card:#FFFFFF; --bg-chip:rgba(0,0,0,.04);
-  --line:rgba(0,0,0,.08); --line-strong:rgba(0,0,0,.14);
-  --fg:#1A1D1E; --fg-dim:#5A6066; --fg-mute:#9AA0A6;
-  --accent:#0F766E; --accent-ink:#FFFFFF; --accent-glow:rgba(15,118,110,.25);
-  --danger:#DC2626; --danger-glow:rgba(220,38,38,.25); --ok:#15803D;
+  --bg:#F7F1E8; --bg-elev:#FFFCF6; --bg-card:#FFFCF6; --bg-chip:rgba(80,60,20,.05);
+  --line:rgba(80,60,20,.10); --line-strong:rgba(80,60,20,.18);
+  --fg:#2B2418; --fg-dim:#6B5F4D; --fg-mute:#A3967F;
+  --accent:#E9B949; --accent-ink:#3A2A08; --accent-text:#9A6B12; --accent-glow:rgba(233,185,73,.30);
+  --husk:#6E9244; --face:#F9EFE3;
+  --danger:#D9534A; --danger-glow:rgba(217,83,74,.25); --ok:#5E8A35;
   --r-lg:20px; --r-md:14px; --r-sm:10px;
   --fs:1;
   --font:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
@@ -30,20 +31,22 @@
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0B0F10; --bg-elev:#11161A; --bg-card:#161C21; --bg-chip:rgba(255,255,255,.04);
-    --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.14);
-    --fg:#E9EEF0; --fg-dim:#9AA5AD; --fg-mute:#5C6870;
-    --accent:#2DD4BF; --accent-ink:#042420; --accent-glow:rgba(45,212,191,.35);
-    --danger:#F87171; --danger-glow:rgba(248,113,113,.35); --ok:#7DE2A5;
+    --bg:#16140F; --bg-elev:#1F1C15; --bg-card:#23201A; --bg-chip:rgba(255,240,200,.05);
+    --line:rgba(255,240,200,.09); --line-strong:rgba(255,240,200,.16);
+    --fg:#F3EBDD; --fg-dim:#B9AC96; --fg-mute:#7A6F5E;
+    --accent:#F2C14E; --accent-ink:#2A1E04; --accent-text:#F2C14E; --accent-glow:rgba(242,193,78,.30);
+    --husk:#9CC26A; --face:#F9EFE3;
+    --danger:#F0806F; --danger-glow:rgba(240,128,111,.30); --ok:#9CC26A;
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0B0F10; --bg-elev:#11161A; --bg-card:#161C21; --bg-chip:rgba(255,255,255,.04);
-  --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.14);
-  --fg:#E9EEF0; --fg-dim:#9AA5AD; --fg-mute:#5C6870;
-  --accent:#2DD4BF; --accent-ink:#042420; --accent-glow:rgba(45,212,191,.35);
-  --danger:#F87171; --danger-glow:rgba(248,113,113,.35); --ok:#7DE2A5;
+  --bg:#16140F; --bg-elev:#1F1C15; --bg-card:#23201A; --bg-chip:rgba(255,240,200,.05);
+  --line:rgba(255,240,200,.09); --line-strong:rgba(255,240,200,.16);
+  --fg:#F3EBDD; --fg-dim:#B9AC96; --fg-mute:#7A6F5E;
+  --accent:#F2C14E; --accent-ink:#2A1E04; --accent-text:#F2C14E; --accent-glow:rgba(242,193,78,.30);
+  --husk:#9CC26A; --face:#F9EFE3;
+  --danger:#F0806F; --danger-glow:rgba(240,128,111,.30); --ok:#9CC26A;
   color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -53,8 +56,9 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 input,textarea{font:inherit;color:inherit}
 .wrap{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 14px) 16px 24px}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.brand{font-weight:800;font-size:1.25rem;letter-spacing:-.02em}
-.brand span{color:var(--accent)}
+.brand{font-weight:800;font-size:1.3rem;letter-spacing:.02em;display:flex;align-items:center;gap:6px}
+.brand img{width:20px;height:20px;transform:rotate(-12deg)}
+.brand span{color:var(--accent-text)}
 .meta{font-family:var(--mono);font-size:.75rem;color:var(--fg-mute)}
 .view{display:none}.view.on{display:block}
 
@@ -74,16 +78,27 @@ input,textarea{font:inherit;color:inherit}
 /* 錄音舞台 */
 #v-home.on{display:flex;flex-direction:column;min-height:calc(100dvh - 72px - 38px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
 .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 0 12px;min-height:400px}
-.rec{width:136px;height:136px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 0 0 0 var(--accent-glow),0 10px 30px var(--accent-glow);transition:transform .15s,background .2s}
+.rec{position:relative;width:148px;height:148px;border-radius:50%;background:var(--face);border:5px solid var(--accent);padding:0;box-shadow:0 10px 30px var(--accent-glow);transition:transform .15s,border-color .2s}
 .rec:active{transform:scale(.96)}
-.rec svg{width:46px;height:46px}
-.rec #icStop{width:40px;height:40px}
-.rec.on{background:var(--danger);box-shadow:0 0 0 0 var(--danger-glow);animation:pulse 1.6s infinite}
-.rec.busy{opacity:.5}
+.rec img.face{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.rec .stopdot{position:absolute;right:-2px;bottom:4px;width:40px;height:40px;border-radius:50%;background:var(--danger);display:none;place-items:center;box-shadow:0 3px 10px var(--danger-glow);border:3px solid var(--bg)}
+.rec .stopdot::after{content:"";width:12px;height:12px;border-radius:3px;background:#fff}
+.rec.on{border-color:var(--danger);animation:pulse 1.6s infinite}
+.rec.on .stopdot{display:grid}
+.rec.busy img.face{animation:bob 1.4s ease-in-out infinite}
+.rec.happy img.face{animation:hop .5s ease-out}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-4px) rotate(-3deg)}}
+@keyframes hop{0%{transform:scale(1)}40%{transform:scale(1.08) translateY(-6px)}100%{transform:scale(1)}}
+.pot{width:44px;height:auto;display:block;margin:6px auto 0;animation:bob .7s ease-in-out infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 var(--danger-glow)}70%{box-shadow:0 0 0 22px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .timer{font-family:var(--mono);font-size:1.75rem;font-weight:600;margin-top:22px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .status{min-height:1.6em;margin-top:2px;color:var(--fg-dim);font-size:.9rem;text-align:center}
-canvas.wave{width:100%;max-width:320px;height:48px;display:block;margin-top:14px}
+canvas.wave{width:100%;max-width:320px;height:48px;display:block;margin-top:10px}
+.harvest{display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:700;color:var(--ok)}
+.harvest img{width:34px;height:auto;animation:pop .6s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes pop{0%{transform:scale(0) translateY(10px);opacity:0}100%{transform:scale(1);opacity:1}}
+.pend-head{display:flex;align-items:center;gap:10px}
+.pend-head img{width:64px;height:auto}
 .result-text{white-space:pre-wrap;max-height:40vh;overflow:auto;font-size:1rem;line-height:1.75}
 .pend{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
 .pend:first-of-type{border-top:0}
@@ -93,6 +108,12 @@ canvas.wave{width:100%;max-width:320px;height:48px;display:block;margin-top:14px
 .chips{display:flex;gap:6px;margin:10px 0 4px;overflow-x:auto}
 .chip{padding:6px 12px;border-radius:999px;background:var(--bg-chip);border:1px solid var(--line);font-size:.8rem;white-space:nowrap}
 .chip.on{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.barn{position:relative;margin-top:12px;border-radius:var(--r-lg);overflow:hidden;background:#FEF7EC;border:1px solid var(--line)}
+.barn>img{width:100%;display:block}
+.barn .slot{position:absolute;width:3.8%;transform:translate(-50%,-100%)}
+.barn .sign{position:absolute;left:17.4%;top:60%;width:15%;text-align:center;font-weight:800;color:#4A2E12;font-size:clamp(9px,2.6vw,13px);line-height:1.2;transform:translateX(-50%) rotate(-3deg)}
+.barn .sign small{display:block;font-weight:600;font-size:.85em;opacity:.75}
+.empty img{width:150px;height:auto;display:block;margin:0 auto 6px}
 .item{display:block;width:100%;text-align:left;background:var(--bg-card);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-top:8px}
 .item b{display:block;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item p{margin:2px 0 0;color:var(--fg-dim);font-size:.85rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -121,16 +142,16 @@ textarea.doc[readonly]{color:var(--fg-dim)}
 .switch{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
 .switch input{width:46px;height:28px;appearance:none;background:var(--line-strong);border-radius:999px;position:relative;transition:background .2s}
 .switch input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.switch input:checked{background:var(--accent)}
+.switch input:checked{background:var(--husk)}
 .switch input:checked::after{transform:translateX(18px)}
-a{color:var(--accent)}
+a{color:var(--accent-text)}
 
 /* 底部分頁 */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;background:var(--bg-elev);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 .tabs .in{display:flex;width:100%;max-width:560px}
 .tabs button{flex:1;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.7rem;color:var(--fg-mute)}
 .tabs button svg{width:22px;height:22px}
-.tabs button.on{color:var(--accent)}
+.tabs button.on{color:var(--accent-text)}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.875rem;opacity:0;pointer-events:none;transition:all .2s;z-index:50;max-width:calc(100% - 32px);text-align:center}
 .toast.on{opacity:1;transform:translateX(-50%)}
 .hidden{display:none!important}
@@ -141,16 +162,17 @@ a{color:var(--accent)}
 <!-- ===== 錄音 ===== -->
 <main class="wrap">
 <section id="v-home" class="view on">
-  <div class="top"><div class="brand">Voice<span>Type</span></div><div class="meta" id="netState"></div></div>
+  <div class="top"><div class="brand"><img src="img/kernel.webp" alt="">米<span>說</span></div><div class="meta" id="netState"></div></div>
   <div id="keyBanner" class="banner hidden">還沒設定 OpenAI API Key。沒設也能先錄，錄好的會留在待轉錄，設好再轉。<a href="#" data-go="settings">去設定</a></div>
 
   <div class="stage">
     <button class="rec" id="recBtn" aria-label="開始錄音">
-      <svg id="icMic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
-      <svg id="icStop" class="hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>
+      <img class="face" id="face" src="img/face-calm.webp" alt="">
+      <span class="stopdot"></span>
     </button>
     <div class="timer" id="timer">00:00</div>
-    <div class="status" id="status">點一下開始錄音</div>
+    <div class="status" id="status">點一下玉米，開始說話</div>
+    <img class="pot hidden" id="pot" src="img/pot.webp" alt="">
     <canvas class="wave" id="wave"></canvas>
   </div>
 
@@ -158,6 +180,7 @@ a{color:var(--accent)}
 
   <div id="resultCard" class="card hidden">
     <div class="row" style="justify-content:space-between"><h3>剛完成的文字稿</h3><span class="meta" id="resultMeta"></span></div>
+    <div class="harvest" id="harvest"></div>
     <div class="result-text" id="resultText"></div>
     <div class="row" style="margin-top:12px">
       <button class="btn primary" id="resultCopy">複製</button>
@@ -167,7 +190,7 @@ a{color:var(--accent)}
   </div>
 
   <div id="pendCard" class="card hidden">
-    <div class="row" style="justify-content:space-between"><h3>待轉錄</h3><button class="btn primary" id="pendAll">全部轉錄</button></div>
+    <div class="row" style="justify-content:space-between"><div class="pend-head"><img src="img/sleep.webp" alt=""><div><h3 style="margin:0">待轉錄</h3><div class="muted">玉米還在睡，叫醒它就開始轉</div></div></div><button class="btn primary" id="pendAll">全部轉錄</button></div>
     <div id="pendList"></div>
   </div>
 
@@ -182,8 +205,9 @@ a{color:var(--accent)}
 <!-- ===== 歷史 ===== -->
 <section id="v-history" class="view">
   <div class="top"><div class="brand">歷史</div><button class="btn" id="exportAll">匯出全部</button></div>
+  <div class="barn" id="barn"><img src="img/barn.webp" alt="穀倉"><div class="sign" id="barnSign"></div><div id="barnSlots"></div></div>
   <div class="stats">
-    <div class="stat"><b id="stCount">0</b><span>筆紀錄</span></div>
+    <div class="stat"><b id="stCount">0</b><span>累計收成</span></div>
     <div class="stat"><b id="stMin">0</b><span>總分鐘</span></div>
     <div class="stat"><b id="stStreak">0</b><span>連續錄音天數</span></div>
   </div>
@@ -255,7 +279,7 @@ a{color:var(--accent)}
 
   <div class="card">
     <h3>關於</h3>
-    <div class="muted">VoiceType 網頁版，多米做的。<a href="https://domyweb.org/tools/voicetype/" target="_blank" rel="noopener">聯絡多米</a> · <a href="https://portaly.cc/domyweb/support" target="_blank" rel="noopener">請多米喝杯咖啡 ☕</a></div>
+    <div class="muted">米說，VoiceType 的網頁版，多米做的。<a href="https://domyweb.org/tools/voicetype/" target="_blank" rel="noopener">聯絡多米</a> · <a href="https://portaly.cc/domyweb/support" target="_blank" rel="noopener">請多米喝杯咖啡 ☕</a></div>
     <div class="meta" style="margin-top:6px" id="verInfo"></div>
   </div>
 </section>
@@ -292,7 +316,7 @@ a{color:var(--accent)}
 
 <script>
 'use strict';
-const VERSION = '1.2.0-web';
+const VERSION = '2.0.0-web';
 
 /* ================= 常數（對齊 App 版 constants.dart） ================= */
 const C = {
@@ -488,6 +512,7 @@ const R = {
   writes: [], prevDone: [], actx: null, analyser: null, wake: null, levels: [], stopping: false,
 };
 let busy = false;           // 正在轉錄或潤飾
+let processingId = null;
 let clipResolve = null, clipReject = null;  // 自動複製（iOS 需在點擊當下登記剪貼簿）
 
 async function startRecording(){
@@ -578,7 +603,7 @@ async function processSession(id){
   if (busy) { rejectClip(); toast('還有一段在處理，等它好了再轉'); return false; }
   const s = await DB.get('sessions', id); if (!s) return false;
   if (!cfg.key){ toast('先到設定貼上 API Key'); return false; }
-  busy = true; setRecBusy(true); hideErr();
+  busy = true; processingId = id; setRecBusy(true); hideErr(); refreshPending();
   try {
     const total = s.segCount;
     for (let i = 0; i < total; i++){
@@ -595,7 +620,7 @@ async function processSession(id){
     const raw = s.segTexts.join('').trim();
     if (!raw){ await dropSession(s.id); setStatus('沒有辨識到語音內容'); rejectClip(); return true; }
 
-    setStatus('潤飾中…');
+    setStatus('潤飾中…'); $('#pot').classList.remove('hidden');
     let org = '', cost = costTwd(s.durationSec, 0, raw.length * 1.4), polishErr = null;
     try { const p = await polish(raw); org = p.text; cost = costTwd(s.durationSec, p.pt, p.ct); }
     catch (e){ polishErr = e; }
@@ -603,14 +628,16 @@ async function processSession(id){
     const rec = { id: uid(), title: deriveTitle(org || raw, s.createdAt), rawText: raw, organizedText: org, createdAt: s.createdAt, durationSeconds: Math.round(s.durationSec) };
     await DB.put('records', rec);
     await dropSession(s.id);
-    showResult(rec, cost);
+    const kind = addHarvest(rec);
+    showResult(rec, cost, kind);
     if (polishErr){
       rejectClip();
       showErr('轉錄好了，但潤飾失敗：' + friendly(polishErr) + '。口語稿已存進歷史，可以打開後按「重新潤飾」。');
-      setStatus('已存口語稿');
+      setStatus('已存口語稿'); setTimeout(() => setFace('confused'));
     } else {
       const copied = cfg.autoCopy ? await deliverClip(org) : false;
       setStatus(copied ? '完成，文字稿已複製，可以直接貼上' : '完成，已存進歷史');
+      setTimeout(celebrate);
     }
     return true;
   } catch (e){
@@ -618,10 +645,10 @@ async function processSession(id){
     let msg = e.message === 'oversize' ? '這段音檔超過 25MB，OpenAI 收不下。' : friendly(e);
     if (e.stage === 'asr' && e.total > 1) msg += `（第 ${e.seg+1}/${e.total} 段失敗，前面幾段已保留，重試會從這段接著轉）`;
     showErr(msg + ' 錄音已留在待轉錄。');
-    setStatus('轉錄沒完成');
+    setStatus('轉錄沒完成'); setTimeout(() => setFace('confused'));
     return false;
   } finally {
-    busy = false; setRecBusy(false); refreshPending(); renderHistory();
+    busy = false; processingId = null; setRecBusy(false); refreshPending(); renderHistory();
   }
 }
 function deriveTitle(text, t){
@@ -631,7 +658,7 @@ function deriveTitle(text, t){
 
 /* ================= 待轉錄佇列 ================= */
 async function refreshPending(){
-  const list = (await DB.all('sessions')).filter(s => s.status !== 'recording' || !R.session || s.id !== R.session.id);
+  const list = (await DB.all('sessions')).filter(s => s.id !== processingId && !(R.session && s.id === R.session.id));
   list.sort((a, b) => a.createdAt - b.createdAt);
   $('#pendCard').classList.toggle('hidden', !list.length);
   $('#pendList').innerHTML = list.map(s => {
@@ -680,7 +707,7 @@ const waveBuf = new Uint8Array(1024);
 function updateTimer(){ $('#timer').textContent = fmtDur((Date.now() - R.startedAt) / 1000); }
 
 /* 波形：每格畫面都讀音量、平滑處理，長條連續往左捲，不再一格一格跳 */
-const W = { raf: 0, level: 0, last: 0, acc: 0, color: '', STEP: 6, BAR: 3, EVERY: 60 };
+const W = { raf: 0, level: 0, last: 0, acc: 0, color: '', STEP: 7, BAR: 4, EVERY: 70 };
 function readLevel(){
   if (!R.analyser) return 0;
   R.analyser.getByteTimeDomainData(waveBuf);
@@ -689,7 +716,7 @@ function readLevel(){
   return Math.min(1, Math.pow(rms * 5, 0.7));   // 小聲也看得到起伏，大聲不會頂滿
 }
 function startWave(){
-  W.color = getComputedStyle(document.documentElement).getPropertyValue('--danger').trim();
+  W.color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
   W.level = 0; W.acc = 0; W.last = performance.now(); R.levels = [];
   const loop = now => {
     const dt = Math.min(100, now - W.last); W.last = now;
@@ -734,19 +761,24 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', () => { if (R.rec){ try { R.rec.requestData(); } catch {} } });
 
 /* ================= 首頁 UI ================= */
+let faceT;
+function setFace(n){ clearTimeout(faceT); $('#face').src = 'img/face-' + n + '.webp'; }
+function celebrate(){ const b = $('#recBtn'); setFace('happy'); b.classList.remove('happy'); void b.offsetWidth; b.classList.add('happy'); faceT = setTimeout(() => { if (!R.rec && !busy) setFace('calm'); }, 4000); }
 function setRecUI(on){
   $('#recBtn').classList.toggle('on', on);
-  $('#icMic').classList.toggle('hidden', on); $('#icStop').classList.toggle('hidden', !on);
+  setFace(on ? 'listen' : 'calm');
   $('#recBtn').setAttribute('aria-label', on ? '結束錄音' : '開始錄音');
   if (!on) $('#timer').textContent = '00:00';
 }
-function setRecBusy(b){ $('#recBtn').classList.toggle('busy', b); }
+function setRecBusy(b){ $('#recBtn').classList.toggle('busy', b); if (b) setFace('think'); else $('#pot').classList.add('hidden'); }
 function setStatus(t){ $('#status').textContent = t; }
 function showErr(t){ const b = $('#errBox'); b.textContent = t; b.classList.remove('hidden'); }
 function hideErr(){ $('#errBox').classList.add('hidden'); }
 let lastResult = null;
-function showResult(rec, cost){
+const KIND_NAME = { young: '收成一根嫩玉米', normal: '收成一根玉米', gold: '第 10 根！收成一根金玉米' };
+function showResult(rec, cost, kind){
   lastResult = rec;
+  $('#harvest').innerHTML = kind ? `<img src="img/corn-${kind}.webp" alt="">${KIND_NAME[kind]}` : '';
   $('#resultCard').classList.remove('hidden');
   $('#resultText').textContent = rec.organizedText || rec.rawText;
   $('#resultMeta').textContent = `${fmtDur(rec.durationSeconds)} · ${cost}`;
@@ -754,6 +786,7 @@ function showResult(rec, cost){
 $('#recBtn').addEventListener('click', () => {
   if (R.rec){ armClipboard(); stopRecording(); return; }
   if (busy){ toast('上一段還在轉錄，好了再錄'); return; }
+  hideErr();
   startRecording();
 });
 $('#resultCopy').addEventListener('click', async () => { if (lastResult) toast(await copyText(lastResult.organizedText || lastResult.rawText) ? '已複製' : '複製失敗'); });
@@ -775,11 +808,34 @@ function downloadFile(name, text, type = 'text/markdown'){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
+/* ================= 收成與穀倉 ================= */
+// 每完成一篇收成一根玉米；刪除紀錄不會拿走已經收成的玉米
+function harvest(){ return S.get('harvest', []); }
+function addHarvest(rec){
+  const h = harvest(); const n = h.length + 1;
+  const k = n % 10 === 0 ? 'gold' : (rec.durationSeconds < 60 ? 'young' : 'normal');
+  h.push({ t: rec.createdAt, k }); S.set('harvest', h); return k;
+}
+const SHELVES = [0.523, 0.623, 0.752], PER_ROW = 7, X0 = 0.468, X1 = 0.668;
+function renderBarn(){
+  const now = new Date(); const day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const wk0 = day0 - ((now.getDay() + 6) % 7) * 864e5;
+  const week = harvest().filter(x => x.t >= wk0);
+  const max = SHELVES.length * PER_ROW, shown = week.slice(-max);
+  $('#barnSlots').innerHTML = shown.map((x, i) => {
+    const row = Math.floor(i / PER_ROW), col = i % PER_ROW;
+    const left = (X0 + (X1 - X0) * col / (PER_ROW - 1)) * 100, top = SHELVES[row] * 100;
+    return `<img class="slot" src="img/corn-${x.k}.webp" style="left:${left}%;top:${top}%" alt="">`;
+  }).join('');
+  $('#barnSign').innerHTML = `本週 ${week.length} 根<small>${week.length > max ? '穀倉滿了' : '累計 ' + harvest().length}</small>`;
+}
+
 /* ================= 歷史 ================= */
 let filter = 'all';
 async function renderHistory(){
   const all = (await DB.all('records')).sort((a, b) => b.createdAt - a.createdAt);
-  $('#stCount').textContent = all.length;
+  $('#stCount').textContent = harvest().length;
+  renderBarn();
   $('#stMin').textContent = Math.round(all.reduce((s, r) => s + (r.durationSeconds || 0), 0) / 60);
   $('#stStreak').textContent = streak(all);
   const q = $('#search').value.trim().toLowerCase();
@@ -788,7 +844,7 @@ async function renderHistory(){
   const from = { all: 0, today: day0, week: wk0, month: mo0 }[filter];
   const list = all.filter(r => r.createdAt >= from && (!q || (r.organizedText + r.rawText + r.title).toLowerCase().includes(q)));
   $('#histList').innerHTML = list.length ? list.map(r => `<button class="item" data-open="${r.id}"><b>${esc(r.title)}</b><p>${esc((r.organizedText || r.rawText).slice(0, 120))}</p><div class="meta">${fmtDate(r.createdAt)} · ${fmtDur(r.durationSeconds)}${r.organizedText ? '' : ' · 未潤飾'}</div></button>`).join('')
-    : `<div class="empty">${all.length ? '沒有符合的紀錄' : '還沒有紀錄，回錄音頁講幾句吧'}</div>`;
+    : (all.length ? `<div class="empty"><img src="img/search.webp" alt="">找不到符合的紀錄</div>` : `<div class="empty"><img src="img/crate.webp" alt="">還沒有收成，回錄音頁講幾句吧</div>`);
 }
 function streak(all){
   const days = new Set(all.map(r => { const d = new Date(r.createdAt); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }));
@@ -899,7 +955,7 @@ $('#themeSeg').addEventListener('click', e => { const b = e.target.closest('butt
 $('#backupOut').addEventListener('click', async () => {
   const data = { app: 'voicetype-web', version: 1, exportedAt: new Date().toISOString(),
     settings: { model: cfg.model, vocab: S.get('vocab', ''), prompt: S.get('prompt', ''), autoCopy: cfg.autoCopy, wakeLock: cfg.wakeLock, fs: S.get('fs', 1), theme: S.get('theme', 'system') },
-    records: await DB.all('records') };
+    harvest: harvest(), records: await DB.all('records') };
   const d = new Date(); downloadFile(`VoiceType備份-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`, JSON.stringify(data, null, 1), 'application/json');
 });
 $('#backupIn').addEventListener('change', async e => {
@@ -909,6 +965,7 @@ $('#backupIn').addEventListener('change', async e => {
     if (data.app !== 'voicetype-web' || !Array.isArray(data.records)) throw 0;
     let n = 0; for (const r of data.records){ if (r && r.id && typeof r.rawText === 'string'){ await DB.put('records', r); n++; } }
     if (data.settings){ for (const [k, v] of Object.entries(data.settings)) S.set(k, v); loadSettings(); }
+    if (Array.isArray(data.harvest) && data.harvest.length > harvest().length) S.set('harvest', data.harvest);
     renderHistory(); toast(`已匯入 ${n} 筆紀錄`);
   } catch { toast('這個檔案不是 VoiceType 備份'); }
 });
@@ -939,6 +996,12 @@ addEventListener('offline', netState);
       await DB.put('sessions', s);
       toast('上次的錄音被中斷，已錄到的部分留在待轉錄', 4000);
     }
+  }
+  // 第一次升級成米說：把已經有的文字稿換算成收成
+  if (S.get('harvest', null) === null){
+    const recs = (await DB.all('records')).sort((a, b) => a.createdAt - b.createdAt); const h = [];
+    recs.forEach((r, i) => h.push({ t: r.createdAt, k: (i + 1) % 10 === 0 ? 'gold' : (r.durationSeconds < 60 ? 'young' : 'normal') }));
+    S.set('harvest', h);
   }
   refreshPending(); renderHistory();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
