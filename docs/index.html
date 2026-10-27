@@ -72,16 +72,18 @@ input,textarea{font:inherit;color:inherit}
 .err{background:var(--danger-glow)}
 
 /* 錄音舞台 */
-.stage{display:flex;flex-direction:column;align-items:center;padding:28px 0 8px}
-.rec{width:168px;height:168px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 0 0 0 var(--accent-glow),0 10px 30px var(--accent-glow);transition:transform .15s,background .2s}
+#v-home.on{display:flex;flex-direction:column;min-height:calc(100dvh - 72px - 38px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 0 12px;min-height:400px}
+.rec{width:136px;height:136px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 0 0 0 var(--accent-glow),0 10px 30px var(--accent-glow);transition:transform .15s,background .2s}
 .rec:active{transform:scale(.96)}
-.rec svg{width:56px;height:56px}
+.rec svg{width:46px;height:46px}
+.rec #icStop{width:40px;height:40px}
 .rec.on{background:var(--danger);box-shadow:0 0 0 0 var(--danger-glow);animation:pulse 1.6s infinite}
 .rec.busy{opacity:.5}
-@keyframes pulse{0%{box-shadow:0 0 0 0 var(--danger-glow)}70%{box-shadow:0 0 0 28px transparent}100%{box-shadow:0 0 0 0 transparent}}
-.timer{font-family:var(--mono);font-size:2rem;font-weight:600;margin-top:18px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+@keyframes pulse{0%{box-shadow:0 0 0 0 var(--danger-glow)}70%{box-shadow:0 0 0 22px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.timer{font-family:var(--mono);font-size:1.75rem;font-weight:600;margin-top:22px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .status{min-height:1.6em;margin-top:2px;color:var(--fg-dim);font-size:.9rem;text-align:center}
-canvas.wave{width:100%;height:56px;display:block;margin-top:10px}
+canvas.wave{width:100%;max-width:320px;height:48px;display:block;margin-top:14px}
 .result-text{white-space:pre-wrap;max-height:40vh;overflow:auto;font-size:1rem;line-height:1.75}
 .pend{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
 .pend:first-of-type{border-top:0}
@@ -290,7 +292,7 @@ a{color:var(--accent)}
 
 <script>
 'use strict';
-const VERSION = '1.1.0-web';
+const VERSION = '1.2.0-web';
 
 /* ================= 常數（對齊 App 版 constants.dart） ================= */
 const C = {
@@ -505,6 +507,7 @@ async function startRecording(){
   setupMeter();
   if (cfg.wakeLock) acquireWake();
   R.tick = setInterval(updateTimer, 250);
+  startWave();
   setRecUI(true);
   setStatus('錄音中，再點一下結束');
 }
@@ -526,7 +529,7 @@ function startSegment(){
 async function stopRecording(reason){
   if (!R.rec || R.stopping) return;
   R.stopping = true;
-  clearTimeout(R.segTimer); clearInterval(R.tick);
+  clearTimeout(R.segTimer); clearInterval(R.tick); stopWave();
   const rec = R.rec;
   if (rec.state !== 'inactive'){ try { rec.requestData(); } catch {} rec.stop(); }
   await rec._done; await Promise.allSettled(R.prevDone); R.prevDone = [];
@@ -674,25 +677,53 @@ function setupMeter(){
   } catch {}
 }
 const waveBuf = new Uint8Array(1024);
-function updateTimer(){
-  $('#timer').textContent = fmtDur((Date.now() - R.startedAt) / 1000);
-  if (R.analyser){
-    R.analyser.getByteTimeDomainData(waveBuf);
-    let sum = 0; for (const v of waveBuf){ const x = (v - 128) / 128; sum += x * x; }
-    R.levels.push(Math.min(1, Math.sqrt(sum / waveBuf.length) * 4));
-    if (R.levels.length > 120) R.levels.shift();
-  }
-  drawWave();
+function updateTimer(){ $('#timer').textContent = fmtDur((Date.now() - R.startedAt) / 1000); }
+
+/* 波形：每格畫面都讀音量、平滑處理，長條連續往左捲，不再一格一格跳 */
+const W = { raf: 0, level: 0, last: 0, acc: 0, color: '', STEP: 6, BAR: 3, EVERY: 60 };
+function readLevel(){
+  if (!R.analyser) return 0;
+  R.analyser.getByteTimeDomainData(waveBuf);
+  let sum = 0; for (const v of waveBuf){ const x = (v - 128) / 128; sum += x * x; }
+  const rms = Math.sqrt(sum / waveBuf.length);
+  return Math.min(1, Math.pow(rms * 5, 0.7));   // 小聲也看得到起伏，大聲不會頂滿
 }
-function drawWave(clear){
+function startWave(){
+  W.color = getComputedStyle(document.documentElement).getPropertyValue('--danger').trim();
+  W.level = 0; W.acc = 0; W.last = performance.now(); R.levels = [];
+  const loop = now => {
+    const dt = Math.min(100, now - W.last); W.last = now;
+    const target = readLevel();
+    // 上升快、下降慢，像真的說話的音量
+    W.level += (target - W.level) * (target > W.level ? 0.45 : 0.12);
+    W.acc += dt;
+    while (W.acc >= W.EVERY){ W.acc -= W.EVERY; R.levels.push(W.level); if (R.levels.length > 200) R.levels.shift(); }
+    drawWave(false, W.acc / W.EVERY);
+    W.raf = requestAnimationFrame(loop);
+  };
+  W.raf = requestAnimationFrame(loop);
+}
+function stopWave(){ cancelAnimationFrame(W.raf); W.raf = 0; }
+function drawWave(clear, frac = 0){
   const cv = $('#wave'); const dpr = devicePixelRatio || 1;
   const w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
-  if (cv.width !== w * dpr){ cv.width = w * dpr; cv.height = h * dpr; }
+  if (cv.width !== Math.round(w * dpr)){ cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
   if (clear) return;
-  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--danger').trim();
-  const bw = 3, gap = 2, n = Math.floor(w / (bw + gap)), lv = R.levels.slice(-n);
-  lv.forEach((v, i) => { const bh = Math.max(3, v * h); const x = w - (lv.length - i) * (bw + gap); g.beginPath(); g.roundRect ? g.roundRect(x, (h - bh) / 2, bw, bh, 1.5) : g.rect(x, (h - bh) / 2, bw, bh); g.fill(); });
+  g.fillStyle = W.color;
+  const lv = R.levels, n = Math.ceil(w / W.STEP) + 1;
+  const start = Math.max(0, lv.length - n);
+  for (let i = start; i < lv.length; i++){
+    const k = lv.length - i;                       // 1 = 最新的一條
+    const x = w - W.BAR - (k - 1) * W.STEP - frac * W.STEP;
+    if (x < -W.BAR) continue;
+    const bh = Math.max(W.BAR, lv[i] * (h - 4));
+    g.globalAlpha = Math.min(1, x / (w * 0.25)) * 0.9 + 0.1;   // 左邊淡出
+    g.beginPath();
+    if (g.roundRect) g.roundRect(x, (h - bh) / 2, W.BAR, bh, W.BAR / 2); else g.rect(x, (h - bh) / 2, W.BAR, bh);
+    g.fill();
+  }
+  g.globalAlpha = 1;
 }
 async function acquireWake(){ try { R.wake = await navigator.wakeLock?.request('screen'); } catch {} }
 function releaseWake(){ try { R.wake?.release(); } catch {} R.wake = null; }

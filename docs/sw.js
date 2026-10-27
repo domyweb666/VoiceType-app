@@ -1,5 +1,5 @@
 // VoiceType 網頁版離線快取。改了 index.html 之後把版本號 +1，手機才會拿到新版。
-const CACHE = 'voicetype-v2';
+const CACHE = 'voicetype-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
