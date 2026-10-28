@@ -12,8 +12,8 @@
 	<string>Apple Distribution</string>
 	<key>provisioningProfiles</key>
 	<dict>
-		<key>com.voicetype.voicetype</key>
-		<string>VoiceType App Store</string>
+		<key>org.domyweb.misay</key>
+		<string>MiSay App Store</string>
 	</dict>
 	<key>uploadSymbols</key>
 	<true/>

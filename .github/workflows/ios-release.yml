@@ -1,7 +1,7 @@
 name: iOS Release
 
 # 觸發方式：推 v* tag，或手動觸發。
-# 簽章素材全部來自 GitHub secrets（見 docs/ios-release-setup.md）。
+# 簽章素材全部來自 GitHub secrets（見 ios/README-release.md）。
 # secrets 未設定時 build 會在簽章步驟失敗，不會產出未簽章的 IPA。
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode \
-            > ~/Library/MobileDevice/Provisioning\ Profiles/voicetype-appstore.mobileprovision
+            > ~/Library/MobileDevice/Provisioning\ Profiles/misay-appstore.mobileprovision
 
       - name: Build IPA
         run: |
@@ -42,7 +42,7 @@ jobs:
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: voicetype-ios-ipa
+          name: misay-ios-ipa
           path: build/ios/ipa/*.ipa
 
       # flutter build ipa 的檔名跟著 app 顯示名稱走，用 glob 解析避免猜錯
