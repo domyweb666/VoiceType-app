@@ -1,5 +1,5 @@
 // VoiceType 網頁版離線快取。改了 index.html 之後把版本號 +1，手機才會拿到新版。
-const CACHE = 'voicetype-v4';
+const CACHE = 'voicetype-v5';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png',
   './img/face-calm.webp', './img/face-listen.webp', './img/face-think.webp', './img/face-happy.webp', './img/face-confused.webp',
   './img/pot.webp', './img/kernel.webp', './img/sleep.webp', './img/crate.webp', './img/search.webp', './img/barn.webp',
