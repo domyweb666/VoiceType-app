@@ -1,10 +1,10 @@
 {
-  "station": "decompose",
+  "station": "voice-lock",
   "updated_at": "2026-10-31T07:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": { "todo": 32, "machine_verified": 0, "human_verified": 0 },
   "chunks": [
-    { "name": "A 建置上架", "total": 3, "machine_done": 0, "human_verified": false, "approved": false },
+    { "name": "A 建置上架", "total": 3, "machine_done": 0, "human_verified": false, "approved": true },
     { "name": "B 金鑰與連線", "total": 3, "machine_done": 0, "human_verified": false, "approved": false },
     { "name": "C 錄音與救回", "total": 6, "machine_done": 0, "human_verified": false, "approved": false },
     { "name": "D 說話變草稿", "total": 7, "machine_done": 0, "human_verified": false, "approved": false },
