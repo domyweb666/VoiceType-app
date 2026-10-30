@@ -1,0 +1,254 @@
+<title>米說考古流程圖</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* 單一深色工程圖：刻意不跟淺色模式。主幹往下、分支往右。 */
+:root{
+  --bg:#0d1117; --node:#161b22; --line:#30363d; --fg:#e6edf3; --dim:#8b949e;
+  --ok:#3fb950; --bad:#f85149; --retry:#d29922; --cond:#58a6ff; --hl:#f0b72f;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--sans);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between;max-width:1140px}
+h1{font-size:20px;margin:0 0 4px;text-wrap:balance}
+.lead{font-size:13px;color:var(--dim);line-height:1.6;max-width:70ch;margin:0}
+.lead b{color:var(--fg)}
+button{font:inherit;color:var(--fg);background:var(--node);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;font-family:var(--mono);font-size:12px}
+button:focus-visible{outline:2px solid var(--cond);outline-offset:2px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-family:var(--mono);font-size:11px;color:var(--dim);margin:14px 0 10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:22px;height:0;border-top:2px solid}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+svg{display:block}
+.n rect{fill:var(--node);stroke:var(--line);stroke-width:1.2;cursor:pointer}
+.n.error rect{stroke:var(--bad)}
+.n.start rect,.n.end rect{stroke:var(--ok)}
+.n.decision rect{stroke:var(--cond)}
+.n.hl rect{stroke:var(--hl);stroke-width:2.5}
+.n.dim{opacity:.35}
+.n text{fill:var(--fg);font-family:var(--mono);font-size:12px;pointer-events:none}
+.n text.sub{fill:var(--dim);font-size:10.5px}
+.n text.flag{font-size:11px}
+.e{fill:none;stroke-width:1.6}
+.e.success{stroke:var(--ok)} .e.failure{stroke:var(--bad)} .e.retry{stroke:var(--retry);stroke-dasharray:6 5} .e.conditional{stroke:var(--cond)}
+.el{font-family:var(--mono);font-size:10px;fill:var(--dim)}
+aside{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:#0f141a;border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 18px) max(18px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 18px) 18px;z-index:20}
+aside.on{transform:none}
+aside h2{font-size:16px;margin:0 0 6px;font-family:var(--mono)}
+aside .k{font-family:var(--mono);font-size:11px;color:var(--dim);margin:16px 0 4px;letter-spacing:.04em}
+aside p{font-size:13.5px;line-height:1.6;margin:0}
+aside ul{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+aside li{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+aside li button{all:unset;cursor:pointer;font-family:var(--mono);font-size:12px;color:var(--cond);text-decoration:underline;word-break:break-all}
+aside li button:focus-visible{outline:2px solid var(--cond)}
+aside li span{display:block;font-size:12.5px;color:var(--dim);margin-top:4px;line-height:1.5}
+.close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:max(12px,env(safe-area-inset-right,0px))}
+details{max-width:1140px;margin-top:22px;border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+summary{cursor:pointer;font-size:13px}
+pre{font-family:var(--mono);font-size:12px;white-space:pre-wrap;color:var(--dim);line-height:1.6}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);background:var(--node);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:12.5px;font-family:var(--mono)}
+@media (prefers-reduced-motion:reduce){aside{transition:none}}
+</style>
+
+<header>
+  <div>
+    <h1>米說考古流程圖（Flutter 版，考古版）</h1>
+    <p class="lead">舊程式從按下錄音到存進歷史的實際流程。<b>這是 AI 讀程式碼畫的，可能有讀錯的地方</b>：你實際用的時候發現不一樣，就是這張圖錯了。點節點看它掛在哪些檔案；在側邊點檔名，會把用到那個檔案的節點都標出來。紅框是錯誤路徑，🔴 是會丟資料的地方。</p>
+  </div>
+  <button id="copy" type="button">複製 JSON</button>
+</header>
+<div class="legend">
+  <span><i style="border-color:var(--ok)"></i>成功</span>
+  <span><i style="border-color:var(--bad)"></i>失敗</span>
+  <span><i style="border-color:var(--retry);border-top-style:dashed"></i>重試</span>
+  <span><i style="border-color:var(--cond)"></i>條件</span>
+</div>
+<div class="wrap"><svg id="map" width="1140" height="1380" viewBox="0 0 1140 1380" role="img" aria-label="米說舊版錄音到存檔的流程圖"></svg></div>
+
+<aside id="side" aria-live="polite">
+  <button class="close" id="close" type="button">關閉</button>
+  <h2 id="sTitle"></h2>
+  <div class="k">做什麼</div><p id="sDesc"></p>
+  <div class="k">什麼時候進來</div><p id="sTrig"></p>
+  <div class="k">掛點檔案（點檔名看它還管哪些節點）</div><ul id="sFiles"></ul>
+</aside>
+<div class="toast" id="toast" hidden></div>
+
+<details>
+  <summary>🤖 給 Claude Code 的讀圖說明</summary>
+<pre>這份 HTML 包含一個 &lt;script id="flowmap-data" type="application/json"&gt; 區塊。
+讀取方式：document.getElementById('flowmap-data').textContent，然後 JSON.parse()。
+
+重要欄位：
+- nodes[].trigger_condition：這個狀態的觸發條件
+- nodes[].file_responsibilities：每個檔案在此節點的具體職責
+- file_index：反查表，給你一個檔名，告訴你它出現在哪些節點
+- edges[].type：success / failure / retry / conditional，代表分支語意
+
+當你修改一個檔案時，先查 file_index 找到它涉及的所有節點，
+再看每個節點的 edges 確認你的修改是否影響到下游分支。
+
+注意：這是 Flutter 舊版的考古圖。SwiftUI 新版不照抄，
+標 🔴 的兩個節點（n13、n18）是新版必須改掉的行為。</pre>
+</details>
+
+<script id="flowmap-data" type="application/json">
+{
+  "project": "米說（Flutter 舊版，考古版）",
+  "generated_at": "2026-10-31T05:30:00+08:00",
+  "nodes": [
+    {"id":"n1","label":"按錄音鈕","type":"start","description":"首頁按大圓鈕或底部浮動鈕；桌面另有空白鍵與 Ctrl+Alt+V","trigger_condition":"使用者點錄音鈕，且目前沒有在轉錄或潤飾（否則跳「請等待…完成」）","files":["lib/screens/home_screen.dart","lib/widgets/home/home_stage.dart","lib/widgets/record_button.dart"],"file_responsibilities":{"lib/screens/home_screen.dart":"_toggleRecording：判斷現在是開始還是停止；轉錄中時擋下並跳提示","lib/widgets/home/home_stage.dart":"閒置時畫 96pt 大鈕，有內容時改畫底部膠囊","lib/widgets/record_button.dart":"圓鈕本體與錄音中脈動"}},
+    {"id":"n2","label":"麥克風權限？","type":"decision","description":"Android 先走 permission_handler；iOS 由 record 套件觸發系統對話框","trigger_condition":"n1 判定為「開始錄音」","files":["lib/screens/home_screen.dart","lib/providers/recording_provider.dart","lib/services/audio_recorder_service.dart"],"file_responsibilities":{"lib/screens/home_screen.dart":"呼叫 recording.hasPermission()，沒權限就跳 SnackBar 並 return","lib/providers/recording_provider.dart":"hasPermission 轉呼叫 recorder service","lib/services/audio_recorder_service.dart":"AudioRecorder.hasPermission()"}},
+    {"id":"n3","label":"權限被拒：只跳一句","type":"error","description":"SnackBar「需要麥克風權限才能錄音」，沒有去系統設定的路；錄音鈕照樣能按","trigger_condition":"hasPermission() 回傳 false","files":["lib/screens/home_screen.dart"],"file_responsibilities":{"lib/screens/home_screen.dart":"第 476–490 行兩段相同的 SnackBar"}},
+    {"id":"n4","label":"錄音中：PCM 寫暫存檔","type":"process","description":"16 kHz、單聲道、16 bit PCM 串流，邊收邊寫進 tmp 資料夾的 .pcm；每塊算 RMS 推進 80 格波形環狀緩衝；每秒加一秒計時；iOS 另顯示常駐通知","trigger_condition":"權限通過，startRecording() 開始","files":["lib/providers/recording_provider.dart","lib/services/audio_recorder_service.dart","lib/services/recording_notification_service.dart","lib/widgets/record_hud_pill.dart"],"file_responsibilities":{"lib/providers/recording_provider.dart":"_onPcmData 寫檔＋算音量；每 90ms 最多通知畫面一次","lib/services/audio_recorder_service.dart":"startStream(pcm16bits, 16000Hz, 1ch, 關閉自動增益／回音消除／降噪)","lib/services/recording_notification_service.dart":"iOS：AVAudioSession playAndRecord＋measurement 模式，被動等級的常駐通知顯示計時","lib/widgets/record_hud_pill.dart":"膠囊裡的計時與波形"}},
+    {"id":"n18","label":"🔴 錄音中 App 被系統結束","type":"error","description":"⚠ 推斷：PCM 還在 tmp 的 .pcm，沒變成 WAV、沒進待轉錄。下次開 App 沒有任何程式去找這個檔，tmp 也可能被系統清掉 → 這段錄音不見","trigger_condition":"錄音中來電、記憶體不足、使用者從多工畫面滑掉","files":["lib/providers/recording_provider.dart"],"file_responsibilities":{"lib/providers/recording_provider.dart":"只在 stopRecording() 才把 PCM 組成 WAV；dispose() 會刪掉 .pcm"}},
+    {"id":"n5","label":"停止：PCM→WAV→待轉錄","type":"process","description":"等串流收尾最多 3 秒 → 整個 .pcm 讀進記憶體 → 加 44 byte WAV 標頭寫 tmp → 複製到 Documents/voice_type/pending_transcription/session_<時間>.wav → 刪 tmp","trigger_condition":"錄音中再按一次錄音鈕或「停止」","files":["lib/providers/recording_provider.dart","lib/services/audio_recorder_service.dart","lib/services/pending_session_service.dart","lib/screens/home_screen.dart"],"file_responsibilities":{"lib/providers/recording_provider.dart":"stopRecording：收尾、讀檔、組 WAV；沒有音訊回傳 null","lib/services/audio_recorder_service.dart":"buildWav 寫 RIFF 標頭","lib/services/pending_session_service.dart":"copyFromTempToPending 放進待轉錄資料夾","lib/screens/home_screen.dart":"複製完一定刪 tmp WAV"}},
+    {"id":"n6","label":"有金鑰？有網路？","type":"decision","description":"先查金鑰，再查網路","trigger_condition":"WAV 已進待轉錄","files":["lib/screens/home_screen.dart","lib/providers/settings_provider.dart"],"file_responsibilities":{"lib/screens/home_screen.dart":"canTranscribe 與 _online 兩道檢查","lib/providers/settings_provider.dart":"canTranscribe：選定引擎的金鑰存在"}},
+    {"id":"n7","label":"留在待轉錄","type":"end","description":"沒金鑰：「錄音已存入待轉錄，設定金鑰後會自動幫你轉成文字」＋去設定；離線：「連上網路後請點轉錄」","trigger_condition":"沒金鑰，或離線","files":["lib/screens/home_screen.dart","lib/widgets/home/pending_queue_card.dart"],"file_responsibilities":{"lib/screens/home_screen.dart":"兩種 SnackBar","lib/widgets/home/pending_queue_card.dart":"首頁列出待轉錄檔，可單獨轉、全部轉、刪（刪要確認）"}},
+    {"id":"n17","label":"自動續轉","type":"process","description":"從最舊的那個開始一個一個轉；某一個失敗就停，不無限重試","trigger_condition":"App 啟動、回到前景、網路從斷變通、設定裡補上金鑰；且已看過隱私說明、不在錄音、不在轉錄","files":["lib/screens/home_screen.dart","lib/providers/pending_queue_provider.dart","lib/services/pending_session_service.dart"],"file_responsibilities":{"lib/screens/home_screen.dart":"_autoResumePendingIfPossible：取最舊檔，成功才連鎖下一個","lib/providers/pending_queue_provider.dart":"refresh 重新掃待轉錄資料夾","lib/services/pending_session_service.dart":"listPendingWavs 依修改時間由新到舊"}},
+    {"id":"n8","label":"切段（超過 600 秒）","type":"process","description":"整個 WAV 讀進記憶體，PCM 部分每 600 秒切一段寫成 slice_*.wav；不超過就用原檔；M4A 不切","trigger_condition":"有金鑰且線上，開始轉錄","files":["lib/services/wav_split_service.dart","lib/providers/transcription_provider.dart"],"file_responsibilities":{"lib/services/wav_split_service.dart":"prepareTranscriptionParts：在背景 isolate 驗標頭、切 PCM","lib/providers/transcription_provider.dart":"單檔超過 25MB 直接報錯，不上傳"}},
+    {"id":"n9","label":"逐段轉錄（重試 4 次）","type":"process","description":"每段 POST /audio/transcriptions（gpt-4o-mini-transcribe、zh、純文字）；prompt＝繁中提示＋自訂詞彙＋前段結尾，合計 200 字內；可重試的錯誤等 2→4→8 秒","trigger_condition":"每一段依序進來","files":["lib/providers/transcription_provider.dart","lib/services/openai_service.dart","lib/utils/openai_retry.dart","lib/providers/settings_provider.dart"],"file_responsibilities":{"lib/providers/transcription_provider.dart":"_transcribeOneFileWithRetries；_buildTranscriptionPrompt","lib/services/openai_service.dart":"transcribeAudio：multipart 上傳，逾時 30／60 秒","lib/utils/openai_retry.dart":"逾時、斷線、408、429、5xx 重試；401、403、400、413、422 不重試","lib/providers/settings_provider.dart":"buildWhisperVocabularyHintLine：前 16 個詞"}},
+    {"id":"n10","label":"某段失敗：保留前段","type":"error","description":"已成功的段落留著，記住從第幾段續；錯誤字串加上「第 i/n 段失敗」","trigger_condition":"重試用盡，或遇到不可重試的錯誤","files":["lib/providers/transcription_provider.dart","lib/widgets/home/error_panel.dart"],"file_responsibilities":{"lib/providers/transcription_provider.dart":"_resumeSessionAbsolutePath／_resumeFromPartIndex","lib/widgets/home/error_panel.dart":"「重試轉錄」按鈕"}},
+    {"id":"n11","label":"⚠ 全部成功：刪掉 WAV","type":"process","description":"轉錄全部成功的那一刻，就把待轉錄資料夾裡的 WAV 刪掉；這時口語稿只在記憶體裡，還沒存檔","trigger_condition":"每一段都轉成功","files":["lib/providers/transcription_provider.dart"],"file_responsibilities":{"lib/providers/transcription_provider.dart":"第 279–295 行 sessionWav.delete()"}},
+    {"id":"n12","label":"潤飾（重試 3 次）","type":"process","description":"POST /chat/completions（gpt-4o-mini，temperature 0.3）；system prompt＝最小化干預提示詞＋自訂詞彙；可重試的錯誤等 2→4 秒","trigger_condition":"有 OpenAI 金鑰且口語稿不是空的","files":["lib/providers/transcription_provider.dart","lib/services/openai_service.dart","lib/providers/settings_provider.dart","lib/config/constants.dart"],"file_responsibilities":{"lib/providers/transcription_provider.dart":"organizeTranscript","lib/services/openai_service.dart":"organizeText：逾時 120 秒，回傳文字與 token 數","lib/providers/settings_provider.dart":"buildOrganizeSystemPrompt：附加【使用者自訂詞彙】","lib/config/constants.dart":"oralDraftSystemPrompt 預設提示詞"}},
+    {"id":"n13","label":"🔴 潤飾失敗：口語稿沒存","type":"error","description":"潤飾失敗就直接 return，不存歷史；WAV 在 n11 已經刪了。口語稿只留在畫面上，下一次按錄音（transcription.clear()）或 App 被關掉就不見","trigger_condition":"潤飾重試用盡，或回傳空字串","files":["lib/screens/home_screen.dart","lib/providers/transcription_provider.dart"],"file_responsibilities":{"lib/screens/home_screen.dart":"第 539–546 行提早 return；第 495 行開始新錄音時 clear()","lib/providers/transcription_provider.dart":"錯誤面板的「重試轉錄」靠 lastTranscribeSessionPath，成功後已清成 null，所以也沒有重試鈕"}},
+    {"id":"n14","label":"存進歷史（加密）","type":"process","description":"id＝毫秒時間戳；標題＝文字稿前 20 字；Hive 盒用 AES 加密，金鑰存 Keychain；讀到壞掉的單筆就刪掉那筆","trigger_condition":"潤飾成功且文字稿不是空的","files":["lib/providers/history_provider.dart","lib/services/history_service.dart","lib/services/hive_encryption_service.dart","lib/models/transcript_record.dart"],"file_responsibilities":{"lib/providers/history_provider.dart":"saveRecord、_deriveTitle","lib/services/history_service.dart":"_getBox：打不開會刪盒重建（檔案被鎖時除外）","lib/services/hive_encryption_service.dart":"32 byte 金鑰只產生一次","lib/models/transcript_record.dart":"六個欄位：id、標題、口語稿、文字稿、建立時間、秒數"}},
+    {"id":"n15","label":"自動複製＋提示","type":"process","description":"自動複製預設開（設定頁沒有開關）；SnackBar「已完成轉錄、潤飾並儲存至歷史，文字稿已複製」＋查看歷史","trigger_condition":"存檔完成","files":["lib/screens/home_screen.dart","lib/providers/settings_provider.dart"],"file_responsibilities":{"lib/screens/home_screen.dart":"Clipboard.setData 與 SnackBar","lib/providers/settings_provider.dart":"autoCopyPolished 預設 true，沒有任何畫面能改"}},
+    {"id":"n16","label":"完成","type":"end","description":"文字稿在剪貼簿，紀錄在歷史","trigger_condition":"n15 結束","files":[],"file_responsibilities":{}}
+  ],
+  "edges": [
+    {"from":"n1","to":"n2","label":"判定為開始","type":"conditional"},
+    {"from":"n2","to":"n3","label":"hasPermission()==false","type":"failure"},
+    {"from":"n2","to":"n4","label":"hasPermission()==true","type":"success"},
+    {"from":"n4","to":"n18","label":"App 被系統結束","type":"failure"},
+    {"from":"n4","to":"n5","label":"再按一次停止","type":"success"},
+    {"from":"n5","to":"n6","label":"WAV 進待轉錄","type":"success"},
+    {"from":"n6","to":"n7","label":"沒金鑰或離線","type":"failure"},
+    {"from":"n6","to":"n8","label":"有金鑰且線上","type":"success"},
+    {"from":"n7","to":"n17","label":"之後條件齊備","type":"conditional"},
+    {"from":"n17","to":"n8","label":"取最舊的待轉錄檔","type":"retry"},
+    {"from":"n8","to":"n9","label":"切好的段落清單","type":"success"},
+    {"from":"n9","to":"n10","label":"重試用盡或不可重試","type":"failure"},
+    {"from":"n10","to":"n9","label":"按「重試轉錄」從失敗段繼續","type":"retry"},
+    {"from":"n9","to":"n11","label":"每一段都成功","type":"success"},
+    {"from":"n11","to":"n12","label":"有 OpenAI 金鑰","type":"success"},
+    {"from":"n12","to":"n13","label":"重試用盡或回傳空","type":"failure"},
+    {"from":"n12","to":"n14","label":"文字稿非空","type":"success"},
+    {"from":"n14","to":"n15","label":"存檔完成","type":"success"},
+    {"from":"n15","to":"n16","label":"","type":"success"}
+  ],
+  "file_index": {
+    "lib/screens/home_screen.dart":["n1","n2","n3","n5","n6","n7","n13","n15","n17"],
+    "lib/widgets/home/home_stage.dart":["n1"],
+    "lib/widgets/record_button.dart":["n1"],
+    "lib/providers/recording_provider.dart":["n2","n4","n5","n18"],
+    "lib/services/audio_recorder_service.dart":["n2","n4","n5"],
+    "lib/services/recording_notification_service.dart":["n4"],
+    "lib/widgets/record_hud_pill.dart":["n4"],
+    "lib/services/pending_session_service.dart":["n5","n17"],
+    "lib/providers/settings_provider.dart":["n6","n9","n12","n15"],
+    "lib/widgets/home/pending_queue_card.dart":["n7"],
+    "lib/providers/pending_queue_provider.dart":["n17"],
+    "lib/services/wav_split_service.dart":["n8"],
+    "lib/providers/transcription_provider.dart":["n8","n9","n10","n11","n12","n13"],
+    "lib/services/openai_service.dart":["n9","n12"],
+    "lib/utils/openai_retry.dart":["n9"],
+    "lib/widgets/home/error_panel.dart":["n10"],
+    "lib/config/constants.dart":["n12"],
+    "lib/providers/history_provider.dart":["n14"],
+    "lib/services/history_service.dart":["n14"],
+    "lib/services/hive_encryption_service.dart":["n14"],
+    "lib/models/transcript_record.dart":["n14"]
+  }
+}
+</script>
+
+<script>
+(function(){
+  var data = JSON.parse(document.getElementById('flowmap-data').textContent);
+  // 版面：col 0 主幹、col 1 失敗分支、col 2 續轉；row 由上往下
+  var pos = {n1:[0,0],n2:[0,1],n3:[1,1],n4:[0,2],n18:[1,2],n5:[0,3],n6:[0,4],n7:[1,4],n17:[2,4],n8:[0,5],n9:[0,6],n10:[1,6],n11:[0,7],n12:[0,8],n13:[1,8],n14:[0,9],n15:[0,10],n16:[0,11]};
+  var W=310,H=72,colX=[40,420,800],rowY=function(r){return 40+r*110;};
+  var NS='http://www.w3.org/2000/svg', svg=document.getElementById('map');
+  function el(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
+  function box(id){var p=pos[id];return {x:colX[p[0]],y:rowY(p[1]),c:p[0],r:p[1]};}
+
+  var gE=el('g',{}), gN=el('g',{});
+  svg.appendChild(gE); svg.appendChild(gN);
+  data.edges.forEach(function(e){
+    var a=box(e.from), b=box(e.to), d, lx, ly, off=0;
+    if(e.from==='n10'&&e.to==='n9') off=-14;
+    if(e.from==='n9'&&e.to==='n10') off=14;
+    if(a.r===b.r){
+      var y=a.y+H/2+off, x1=a.c<b.c?a.x+W:a.x, x2=a.c<b.c?b.x:b.x+W;
+      d='M'+x1+' '+y+' L'+x2+' '+y; lx=(x1+x2)/2; ly=y-6;
+    } else if(a.c===b.c){
+      var x=a.x+W/2; d='M'+x+' '+(a.y+H)+' L'+x+' '+b.y; lx=x+8; ly=(a.y+H+b.y)/2+4;
+    } else {
+      var sx=a.x+W/2, sy=a.y+H, ty=b.y+H/2, tx=b.x+W;
+      d='M'+sx+' '+sy+' L'+sx+' '+ty+' L'+tx+' '+ty; lx=tx+10; ly=ty-6;
+    }
+    gE.appendChild(el('path',{d:d,'class':'e '+e.type,'marker-end':'url(#ar-'+e.type+')'}));
+    if(e.label){var t=el('text',{x:lx,y:ly,'class':'el','text-anchor':a.r===b.r?'middle':'start'});t.textContent=e.label;gE.appendChild(t);}
+  });
+  var defs=el('defs',{});
+  [['success','#3fb950'],['failure','#f85149'],['retry','#d29922'],['conditional','#58a6ff']].forEach(function(m){
+    var mk=el('marker',{id:'ar-'+m[0],viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto-start-reverse'});
+    mk.appendChild(el('path',{d:'M0 0 L10 5 L0 10 z',fill:m[1]})); defs.appendChild(mk);
+  });
+  svg.insertBefore(defs,svg.firstChild);
+
+  var nodeEls={};
+  data.nodes.forEach(function(n){
+    var b=box(n.id), g=el('g',{'class':'n '+n.type,tabindex:'0',role:'button','aria-label':n.label});
+    g.appendChild(el('rect',{x:b.x,y:b.y,width:W,height:H,rx:8}));
+    var t=el('text',{x:b.x+14,y:b.y+28}); t.textContent=n.label; g.appendChild(t);
+    var s=el('text',{x:b.x+14,y:b.y+52,'class':'sub'}); s.textContent=n.files.length?(n.files.length+' 個檔案・'+n.id):n.id; g.appendChild(s);
+    g.addEventListener('click',function(){open(n);});
+    g.addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();open(n);}});
+    gN.appendChild(g); nodeEls[n.id]=g;
+  });
+
+  var side=document.getElementById('side');
+  function open(n){
+    document.getElementById('sTitle').textContent=n.label+'（'+n.id+'）';
+    document.getElementById('sDesc').textContent=n.description;
+    document.getElementById('sTrig').textContent=n.trigger_condition;
+    var ul=document.getElementById('sFiles'); ul.innerHTML='';
+    if(!n.files.length){var li=document.createElement('li');li.textContent='（沒有掛點檔案）';ul.appendChild(li);}
+    n.files.forEach(function(f){
+      var li=document.createElement('li'), btn=document.createElement('button'), sp=document.createElement('span');
+      btn.type='button'; btn.textContent=f; btn.addEventListener('click',function(){highlight(f);});
+      sp.textContent=n.file_responsibilities[f]||''; li.appendChild(btn); li.appendChild(sp); ul.appendChild(li);
+    });
+    side.classList.add('on');
+  }
+  function highlight(f){
+    var hit=data.file_index[f]||[];
+    Object.keys(nodeEls).forEach(function(id){
+      nodeEls[id].classList.toggle('hl',hit.indexOf(id)>=0);
+      nodeEls[id].classList.toggle('dim',hit.indexOf(id)<0);
+    });
+    toast(f.split('/').pop()+' 出現在 '+hit.length+' 個節點');
+  }
+  document.getElementById('close').addEventListener('click',function(){
+    side.classList.remove('on');
+    Object.keys(nodeEls).forEach(function(id){nodeEls[id].classList.remove('hl','dim');});
+  });
+  var tEl=document.getElementById('toast'), tT;
+  function toast(m){tEl.textContent=m;tEl.hidden=false;clearTimeout(tT);tT=setTimeout(function(){tEl.hidden=true;},2200);}
+  document.getElementById('copy').addEventListener('click',function(){
+    var txt=document.getElementById('flowmap-data').textContent.trim();
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){toast('已複製 JSON');},function(){fallback(txt);});
+    } else fallback(txt);
+  });
+  function fallback(txt){
+    var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');toast('已複製 JSON');}catch(e){toast('複製失敗，請手動選取');} ta.remove();
+  }
+})();
+</script>
