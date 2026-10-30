@@ -14,6 +14,9 @@ env:
   XCODEGEN_VERSION: "2.46.0"
   # 2026-10-31 從官方 release 下載後算出；版本與內容一起釘死（安全標準八）。
   XCODEGEN_SHA256: "4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806"
+  # runner 映像沒預裝 SwiftLint（2026-10-31 實跑確認），同樣從官方 release 釘版本下載。
+  SWIFTLINT_VERSION: "0.65.1"
+  SWIFTLINT_SHA256: "c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0"
   SIMULATOR: "platform=iOS Simulator,name=iPhone 17"
 
 jobs:
@@ -34,6 +37,16 @@ jobs:
           test -x "$RUNNER_TEMP/xcodegen/bin/xcodegen"
           "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version
 
+      - name: 安裝 SwiftLint（釘版本、驗 SHA-256）
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/swiftlint.zip" \
+            "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/portable_swiftlint.zip"
+          echo "${SWIFTLINT_SHA256}  $RUNNER_TEMP/swiftlint.zip" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/swiftlint"
+          unzip -q "$RUNNER_TEMP/swiftlint.zip" -d "$RUNNER_TEMP/swiftlint"
+          test -x "$RUNNER_TEMP/swiftlint/swiftlint"
+          "$RUNNER_TEMP/swiftlint/swiftlint" version
+
       - name: 產生 Xcode 專案
         run: |
           xcodebuild -version
@@ -47,8 +60,7 @@ jobs:
 
       - name: 規矩檢查（SwiftLint）
         run: |
-          swiftlint version
-          swiftlint lint --strict
+          "$RUNNER_TEMP/swiftlint/swiftlint" lint --strict
 
       - name: 編譯模擬器版
         run: |
