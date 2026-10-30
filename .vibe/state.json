@@ -1,17 +1,17 @@
 {
-  "station": "regression",
+  "station": "audit-immediate",
   "updated_at": "2026-10-31T07:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
-    "todo": 32,
-    "machine_verified": 0,
+    "todo": 31,
+    "machine_verified": 1,
     "human_verified": 0
   },
   "chunks": [
     {
       "name": "A 建置上架",
       "total": 3,
-      "machine_done": 0,
+      "machine_done": 1,
       "human_verified": false,
       "approved": true
     },
@@ -75,7 +75,7 @@
     }
   ],
   "pending_immediate_verify": [
-    "A1（等 push 後看 Actions）"
+    "A1"
   ],
   "skipped_gates": [
     {
