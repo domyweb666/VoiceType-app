@@ -64,3 +64,8 @@ dist/
 
 # VibeRails hook 計數檔（每台機器自己的）
 .vibe/.turn-count
+
+# 米說 SwiftUI（ios-native/）：Xcode 專案與 Info.plist 由 CI 用 XcodeGen 產生，不進 repo
+ios-native/*.xcodeproj/
+ios-native/MiSay/Info.plist
+ios-native/DerivedData/

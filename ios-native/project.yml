@@ -1,0 +1,60 @@
+# 米說 iOS（SwiftUI）的專案描述檔。Xcode 專案不進 repo，CI 用 XcodeGen 照這份產生。
+# 名稱、Bundle ID、部署目標與 ios/README-release.md 的上架設定一致，片 A3 接簽章時不用改。
+name: MiSay
+
+options:
+  bundleIdPrefix: org.domyweb
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+
+targets:
+  MiSay:
+    type: application
+    platform: iOS
+    sources:
+      - MiSay
+    # Info.plist 由 XcodeGen 每次產生（不進 repo）。麥克風說明是片 C2 的事，這裡不放。
+    info:
+      path: MiSay/Info.plist
+      properties:
+        CFBundleDisplayName: 米說
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay
+
+  MiSayTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - MiSayTests
+    dependencies:
+      - target: MiSay
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay.MiSayTests
+
+schemes:
+  MiSay:
+    build:
+      targets:
+        MiSay: all
+        MiSayTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - MiSayTests
