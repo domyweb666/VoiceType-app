@@ -1,0 +1,4 @@
+# hook 與 CI 腳本一律 LF，否則 Windows 的 autocrlf 會讓 bash 吃到  跑不動
+.vibe/hooks/* text eol=lf
+.github/workflows/* text eol=lf
+*.sh text eol=lf
