@@ -1,19 +1,86 @@
 {
-  "station": "spec-standards",
+  "station": "plan-readback",
   "updated_at": "2026-10-31T07:30:00+08:00",
   "updated_by": "vibe-traffic-control",
-  "pieces": { "todo": 32, "machine_verified": 0, "human_verified": 0 },
+  "pieces": {
+    "todo": 32,
+    "machine_verified": 0,
+    "human_verified": 0
+  },
   "chunks": [
-    { "name": "A 建置上架", "total": 3, "machine_done": 0, "human_verified": false, "approved": true },
-    { "name": "B 金鑰與連線", "total": 3, "machine_done": 0, "human_verified": false, "approved": false },
-    { "name": "C 錄音與救回", "total": 6, "machine_done": 0, "human_verified": false, "approved": false },
-    { "name": "D 說話變草稿", "total": 7, "machine_done": 0, "human_verified": false, "approved": false },
-    { "name": "E 詳情與歷史", "total": 6, "machine_done": 0, "human_verified": false, "approved": false },
-    { "name": "F 一般設定", "total": 5, "machine_done": 0, "human_verified": false, "approved": false },
-    { "name": "G 備份", "total": 2, "machine_done": 0, "human_verified": false, "approved": false },
-    { "name": "H 首次體驗與進入點", "total": 0, "machine_done": 0, "human_verified": false, "approved": false, "note": "範圍待米定" },
-    { "name": "I 首頁定稿", "total": 0, "machine_done": 0, "human_verified": false, "approved": false, "note": "等方向測試" }
+    {
+      "name": "A 建置上架",
+      "total": 3,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": true
+    },
+    {
+      "name": "B 金鑰與連線",
+      "total": 3,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false
+    },
+    {
+      "name": "C 錄音與救回",
+      "total": 6,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false
+    },
+    {
+      "name": "D 說話變草稿",
+      "total": 7,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false
+    },
+    {
+      "name": "E 詳情與歷史",
+      "total": 6,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false
+    },
+    {
+      "name": "F 一般設定",
+      "total": 5,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false
+    },
+    {
+      "name": "G 備份",
+      "total": 2,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false
+    },
+    {
+      "name": "H 首次體驗與進入點",
+      "total": 0,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false,
+      "note": "範圍待米定"
+    },
+    {
+      "name": "I 首頁定稿",
+      "total": 0,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false,
+      "note": "等方向測試"
+    }
   ],
   "pending_immediate_verify": [],
-  "skipped_gates": []
+  "skipped_gates": [
+    {
+      "piece": "A1",
+      "gate": "spec-standards 真實情境走查",
+      "date": "2026-10-31",
+      "reason": "米：直接繼續往下做"
+    }
+  ]
 }
