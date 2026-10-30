@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# VibeRails pre-commit（vibe-voice-lock 焊進 git 的那台機器）
+# 跨平台（Windows Git Bash / macOS / Linux 都跑得動），只用 git + grep。
+# 掃「暫存區裡的新增行」。擋到任何一條就 exit 1，commit 不進去。
+# 啟用：git config core.hooksPath .vibe/hooks
+# 測試：PRECOMMIT_FILES="path1 path2" bash .vibe/hooks/pre-commit（直接掃整個檔）
+set -u
+
+fail=0
+say() { echo "[pre-commit] $*" >&2; }
+
+if [ -n "${PRECOMMIT_FILES:-}" ]; then
+  files="$PRECOMMIT_FILES"
+  added_lines() { cat -- "$1"; }
+else
+  files=$(git diff --cached --name-only --diff-filter=ACMR)
+  # 只看新增行（去掉 +++ 檔頭）。行號在 check() 比對之後才加，免得弄壞 ^ 錨點
+  added_lines() { git diff --cached -U0 -- "$1" | grep -E '^\+[^+]' | sed 's/^+//'; }
+fi
+
+[ -z "$files" ] && exit 0
+
+check() { # $1 檔案 $2 regex $3 原因
+  local hits
+  hits=$(added_lines "$1" | grep -nE -- "$2" | head -3)
+  if [ -n "$hits" ]; then
+    say "reason: $3"
+    say "  檔案：$1"
+    echo "$hits" | sed 's/^/[pre-commit]     /' >&2
+    fail=1
+  fi
+}
+
+for f in $files; do
+  [ -f "$f" ] || continue
+  case "$f" in
+    # 憑證與簽章素材整個檔不准進 repo（安全標準一、八）
+    *.p12|*.p8|*.cer|*.mobileprovision|*.pem|*.key|*.keystore|*.jks)
+      say "reason: 憑證／金鑰檔不准進 repo：$f"; fail=1; continue;;
+  esac
+
+  # 二進位檔跳過
+  if ! grep -Iq "" -- "$f" 2>/dev/null; then continue; fi
+
+  # ---- 全部檔案都查（repo 是 public）----
+  check "$f" 'sk-(proj-)?[A-Za-z0-9_-]{20,}'                       "疑似 OpenAI 金鑰"
+  check "$f" '(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}' "疑似 GitHub token"
+  check "$f" 'AKIA[0-9A-Z]{16}'                                     "疑似 AWS 金鑰"
+  check "$f" '-----BEGIN [A-Z ]*PRIVATE KEY-----'                   "私鑰內容"
+  check "$f" '(xoxb|xoxp)-[0-9A-Za-z-]{20,}'                        "疑似 Slack token"
+  check "$f" '[A-Za-z]:\\Users\\|/Users/[A-Za-z]|[A-Za-z]:\\[^ \\]{2,}\\' "本機絕對路徑（安全標準：不准進 repo）"
+  check "$f" '[A-Za-z0-9._%+-]+@(icloud|me|mac)\.com'              "疑似 Apple ID 信箱"
+
+  # ---- Swift（ios-native/）額外查，對應規矩檔第 3 節 ----
+  case "$f" in
+    ios-native/*.swift|*/ios-native/*.swift)
+      check "$f" '^\s*(print|NSLog|debugPrint)\('                   "不准 print/NSLog，用 os.Logger"
+      check "$f" '\btry!'                                           "不准 try!"
+      check "$f" '\bas!'                                            "不准 as!"
+      check "$f" 'catch\s*(\w+\s*)?\{\s*\}'                         "不准空的 catch"
+      check "$f" '^\s*import Combine'                               "不用 Combine"
+      check "$f" '"http://'                                         "只准 https"
+      check "$f" '\b(TODO|FIXME)\b'                                 "不准留 TODO/FIXME，寫進切片帳本"
+      check "$f" 'UserDefaults.*([Aa]pi[Kk]ey|[Tt]oken|[Ss]ecret)'  "金鑰只准存 Keychain"
+      ;;
+    ios-native/*.plist|ios-native/*.yml|ios-native/*.yaml|*/ios-native/*.plist|*/ios-native/*.yml)
+      check "$f" 'NSAllowsArbitraryLoads|NSExceptionAllowsInsecureHTTPLoads' "不准關掉 ATS（安全標準三）"
+      ;;
+  esac
+done
+
+if [ "$fail" -ne 0 ]; then
+  say "commit 被擋下。修掉上面的行再 commit；這不是風格問題，是安全或規矩檔第 3 節。"
+  exit 1
+fi
+exit 0

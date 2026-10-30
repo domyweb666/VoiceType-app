@@ -1,0 +1,79 @@
+# SwiftLint（Level 2 可驗證規則）。CI 用 `swiftlint --strict` 強制。
+# 能被這裡抓到的，不寫進 .vibe/規矩檔.md。
+included:
+  - .
+excluded:
+  - .build
+  - DerivedData
+
+opt_in_rules:
+  - cyclomatic_complexity
+  - function_body_length
+  - file_length
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - empty_count
+  - closure_spacing
+  - unused_import
+  - sorted_imports
+  - explicit_init
+  - fatal_error_message
+  - discouraged_optional_boolean
+  - todo
+
+analyzer_rules:
+  - unused_declaration
+  - unused_import
+
+function_body_length:
+  warning: 40
+  error: 60
+cyclomatic_complexity:
+  warning: 10
+  error: 15
+file_length:
+  warning: 300
+  error: 400
+line_length:
+  warning: 100
+  error: 120
+type_body_length:
+  warning: 200
+  error: 300
+identifier_name:
+  min_length: 3
+  excluded:
+    - id
+    - x
+    - y
+    - db
+    - ms
+
+# 規矩檔第 3 節：錯誤要大聲
+force_cast: error
+force_try: error
+force_unwrapping: error
+implicitly_unwrapped_optional: error
+todo: error
+
+custom_rules:
+  no_print:
+    name: "不准 print / NSLog / debugPrint"
+    regex: '^\s*(print|NSLog|debugPrint)\('
+    message: "用 os.Logger，而且金鑰、錄音、口語稿、文字稿不准進 log（規矩檔第 3 節）"
+    severity: error
+  no_empty_catch:
+    name: "不准空的 catch"
+    regex: 'catch\s*(\w+\s*)?\{\s*\}'
+    message: "錯誤不准默默吞（規矩檔第 3 節）"
+    severity: error
+  no_combine:
+    name: "不用 Combine"
+    regex: '^\s*import Combine'
+    message: "用 async/await，不用 Combine（規矩檔第 1 節）"
+    severity: error
+  no_insecure_http:
+    name: "只准 https"
+    regex: '"http://'
+    message: "只連 https://api.openai.com（安全標準三）"
+    severity: error

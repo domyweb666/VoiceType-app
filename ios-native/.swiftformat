@@ -1,0 +1,9 @@
+# SwiftFormat（Level 1 格式）。CI 用 `swiftformat --lint ios-native` 強制；本機沒有 Mac，不跑。
+--swiftversion 5.10
+--maxwidth 100
+--indent 4
+--wraparguments before-first
+--wrapcollections before-first
+--stripunusedargs closure-only
+--self remove
+--header strip
