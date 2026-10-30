@@ -1,0 +1,287 @@
+<title>米說線框</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* 線框：灰階、1 CSS px = 1 pt。單一紙本樣貌，刻意不跟深色模式。 */
+:root{
+  --desk:#E6E6E6; --paper:#FFFFFF; --ink:#1A1A1A; --g1:#F2F2F2; --g2:#DADADA; --g3:#A3A3A3; --g4:#5E5E5E;
+  --tap:#1A1A1A;
+  --font:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+  color-scheme:light;
+}
+html,body{background:var(--desk);color:var(--ink);font-family:var(--font)}
+body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+h1{font-size:22px;margin:0 0 6px;text-wrap:balance}
+.lead{font-size:14px;line-height:1.6;max-width:62ch;margin:0 0 14px;color:var(--g4)}
+.lead b{color:var(--ink)}
+.cal{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--g4);margin:0 0 28px;flex-wrap:wrap}
+.cal i{display:block;width:44px;height:44px;border:2px solid var(--ink);box-sizing:border-box;flex:none}
+h2{font-size:17px;margin:34px 0 4px}
+.note{font-size:13px;color:var(--g4);line-height:1.55;max-width:62ch;margin:0 0 12px}
+.row{display:flex;gap:28px;overflow-x:auto;padding-bottom:12px;scroll-snap-type:x mandatory}
+.cell{flex:none;scroll-snap-align:start;display:flex;flex-direction:column;gap:8px;width:393px}
+.cell.se{width:375px}
+.cap{font-size:13px;line-height:1.5;color:var(--g4);min-width:0}
+.cap b{color:var(--ink);font-size:14px}
+
+/* 手機框 */
+.f{position:relative;width:393px;height:852px;background:var(--paper);border-radius:44px;outline:1px solid var(--g3);overflow:hidden;flex:none}
+.f.se{width:375px;height:667px;border-radius:0}
+.f *{box-sizing:border-box}
+.a{position:absolute}
+.safe-top{left:0;right:0;top:0;height:59px;background:repeating-linear-gradient(135deg,var(--g1) 0 6px,var(--paper) 6px 12px)}
+.island{left:50%;top:11px;width:126px;height:37px;margin-left:-63px;border-radius:20px;background:var(--g3)}
+.safe-bot{left:0;right:0;bottom:0;height:34px;background:repeating-linear-gradient(135deg,var(--g1) 0 6px,var(--paper) 6px 12px)}
+.homebar{left:50%;bottom:8px;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:var(--g3)}
+.f.se .safe-top{height:20px}.f.se .island{display:none}.f.se .safe-bot{display:none}
+
+/* 點擊範圍：虛線框＋尺寸 */
+.t{outline:1.5px dashed var(--tap);outline-offset:-1.5px}
+.t[data-s]::after{content:attr(data-s);position:absolute;right:2px;bottom:-15px;font-size:10px;color:var(--g4);white-space:nowrap;font-family:ui-monospace,Menlo,monospace}
+.fill{background:var(--g2)}
+.fill2{background:var(--g1)}
+.dark{background:var(--g4);color:#fff}
+.round{border-radius:999px}
+.ctr{display:flex;align-items:center;justify-content:center;text-align:center}
+.lt{font-size:34px;font-weight:700;line-height:41px}
+.sub{font-size:15px;color:var(--g4)}
+.body{font-size:17px;line-height:1.45}
+.small{font-size:13px;color:var(--g4);line-height:1.4}
+.lbl{font-size:15px;font-weight:600}
+.ico{width:22px;height:22px;border:2px solid var(--g4);border-radius:5px}
+.ico.c{border-radius:50%}
+.list{left:16px;right:16px;background:var(--g1);border-radius:16px;overflow:hidden}
+.li{position:relative;height:66px;padding:11px 16px;border-bottom:1px solid var(--g2)}
+.li:last-child{border-bottom:0}
+.li .tt{font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .ss{font-size:15px;color:var(--g4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.sech{left:20px;font-size:13px;color:var(--g4)}
+.wave{display:flex;gap:3px;align-items:center;justify-content:center}
+.wave span{display:block;width:3px;border-radius:2px;background:var(--g4)}
+.kbd{left:0;right:0;bottom:0;height:336px;background:var(--g2);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--g4)}
+.tag{font-size:11px;color:var(--g4);font-family:ui-monospace,Menlo,monospace}
+</style>
+
+<h1>米說線框</h1>
+<p class="lead">
+<b>請在 iPhone 上打開這頁看。</b>每一張框都是 1 pt＝1 px 的真實尺寸，在電腦上看距離和大小都會失真。左右滑動換下一張。<br>
+灰階是故意的：這一輪只測「東西放在哪、按不按得到」，不測好不好看。虛線框是實際的點擊範圍，右下角的小字是它的尺寸（pt）。斜線區是動態島和主畫面橫條，系統的地盤，不放可按的東西。
+</p>
+<div class="cal"><i></i><span>44 × 44 pt 校正方塊。在手機上量起來大約 6.5 公釐（有誤差）。這是點擊範圍的底線，不是「好按」。</span></div>
+
+<!-- ============================================================ -->
+<h2>首頁・三個方向</h2>
+<p class="note">三個方向的主要動作（開始說）放在不同位置，操作方式也不同。拿給沒看過的人測時三張一起給，看他第一下點哪裡。不要告訴他哪一張是你想要的。</p>
+<div class="row">
+
+<!-- A -->
+<div class="cell">
+<div class="f">
+  <div class="a safe-top"></div><div class="a island"></div>
+  <div class="a t round fill2 ctr" style="right:16px;top:59px;width:96px;height:48px" data-s="2×48"><span class="ico" style="margin-right:22px"></span><span class="ico c"></span></div>
+  <div class="a lt" style="left:20px;top:112px">米說</div>
+  <div class="a sub" style="left:20px;top:155px">12 則文字稿</div>
+  <div class="a t fill" style="left:16px;top:186px;width:174px;height:96px;border-radius:20px;padding:12px 14px" data-s="174×96"><div class="lbl" style="position:absolute;bottom:12px">本週收成</div><div style="position:absolute;right:14px;top:6px;font-size:30px;font-weight:700">7</div></div>
+  <div class="a t fill" style="left:203px;top:186px;width:174px;height:96px;border-radius:20px;padding:12px 14px" data-s="174×96"><div class="lbl" style="position:absolute;bottom:12px">待轉錄</div><div style="position:absolute;right:14px;top:6px;font-size:30px;font-weight:700">2</div></div>
+  <div class="a sech" style="top:306px">今天</div>
+  <div class="a list" style="top:328px">
+    <div class="li t"><div class="tt">為什麼我不再用訂閱制工具</div><div class="ss">14:32　剛剛想到一件事，就是我們每個月花在…</div></div>
+    <div class="li t"><div class="tt">Threads 開頭三句的寫法</div><div class="ss">09:05　第一句要先講結論，不要先鋪陳…</div></div>
+  </div>
+  <div class="a sech" style="top:478px">本週</div>
+  <div class="a list" style="top:500px">
+    <div class="li t"><div class="tt">說書影片：原子習慣第三章的那個例子其實可以…</div><div class="ss">週二　這段我想講的是環境設計比意志力重要…</div></div>
+    <div class="li t"><div class="tt">課程銷售頁的 FAQ 草稿</div><div class="ss">週一　第一個問題是沒有基礎可以學嗎…</div></div>
+    <div class="li t"><div class="tt">給學員的回信</div><div class="ss">週一　謝謝你寫這麼長的心得…</div></div>
+  </div>
+  <div class="a t round fill2" style="left:16px;top:756px;width:289px;height:52px;padding:0 16px;display:flex;align-items:center;gap:8px" data-s="289×52"><span class="ico c" style="width:18px;height:18px"></span><span class="sub">搜尋</span></div>
+  <div class="a t round dark ctr" style="left:317px;top:752px;width:60px;height:60px;font-size:13px" data-s="60×60">說</div>
+  <div class="a safe-bot"></div><div class="a homebar"></div>
+</div>
+<div class="cap"><b>A｜右下角玉米鈕，開半頁面板錄</b><br>網頁版現在的結構。清單是主體，錄音鈕常駐右下，按下去升起錄音面板。搜尋跟錄音鈕並排在拇指區。差在哪：錄音鈕偏右，左手單手握時要跨過去。</div>
+</div>
+
+<!-- B -->
+<div class="cell">
+<div class="f">
+  <div class="a safe-top"></div><div class="a island"></div>
+  <div class="a t round fill2 ctr" style="right:16px;top:59px;width:96px;height:48px" data-s="2×48"><span class="ico" style="margin-right:22px"></span><span class="ico c"></span></div>
+  <div class="a lt" style="left:20px;top:112px">米說</div>
+  <div class="a t round fill2" style="left:16px;top:164px;width:361px;height:44px;padding:0 14px;display:flex;align-items:center;gap:8px" data-s="361×44"><span class="ico c" style="width:16px;height:16px"></span><span class="sub">搜尋 12 則文字稿</span></div>
+  <div class="a small" style="left:20px;top:222px">本週收成 7 根・<span style="text-decoration:underline">待轉錄 2 個</span></div>
+  <div class="a sech" style="top:256px">今天</div>
+  <div class="a list" style="top:278px">
+    <div class="li t"><div class="tt">為什麼我不再用訂閱制工具</div><div class="ss">14:32　剛剛想到一件事，就是我們每個月花在…</div></div>
+    <div class="li t"><div class="tt">Threads 開頭三句的寫法</div><div class="ss">09:05　第一句要先講結論，不要先鋪陳…</div></div>
+  </div>
+  <div class="a sech" style="top:428px">本週</div>
+  <div class="a list" style="top:450px">
+    <div class="li t"><div class="tt">說書影片：原子習慣第三章的那個例子其實可以…</div><div class="ss">週二　這段我想講的是環境設計比意志力重要…</div></div>
+    <div class="li t"><div class="tt">課程銷售頁的 FAQ 草稿</div><div class="ss">週一　第一個問題是沒有基礎可以學嗎…</div></div>
+    <div class="li t"><div class="tt">給學員的回信</div><div class="ss">週一　謝謝你寫這麼長的心得…</div></div>
+  </div>
+  <div class="a t dark ctr" style="left:16px;top:744px;width:361px;height:64px;border-radius:22px;font-size:17px;font-weight:600" data-s="361×64">點一下開始說</div>
+  <div class="a safe-bot"></div><div class="a homebar"></div>
+</div>
+<div class="cap"><b>B｜底部整條錄音條，原地錄</b><br>錄音條橫跨整個底部，左右手都按得到。按下去不開面板，這條原地長高變成波形＋計時＋停止，清單還看得到。搜尋搬到大標題下面。差在哪：錄音不離開清單；收成與待轉錄縮成一行字。</div>
+</div>
+
+<!-- C -->
+<div class="cell">
+<div class="f">
+  <div class="a safe-top"></div><div class="a island"></div>
+  <div class="a t round fill2 ctr" style="right:16px;top:59px;width:96px;height:48px" data-s="2×48"><span class="ico" style="margin-right:22px"></span><span class="ico c"></span></div>
+  <div class="a lt" style="left:20px;top:112px">米說</div>
+  <div class="a fill2" style="left:16px;top:172px;width:361px;height:248px;border-radius:20px;padding:16px">
+    <div class="small">最近一篇・14:32・3 分 48 秒</div>
+    <div class="body" style="margin-top:8px">剛剛想到一件事，就是我們每個月花在訂閱制工具上的錢，其實很多都是買一個「我之後會用」的感覺。我自己算過，去年光是寫作和剪片的工具就…</div>
+    <div class="a t round dark ctr" style="left:16px;bottom:16px;width:150px;height:44px;font-size:15px;font-weight:600" data-s="150×44">複製這篇</div>
+    <div class="a t ctr" style="left:178px;bottom:16px;width:100px;height:44px;font-size:15px" data-s="100×44">打開</div>
+  </div>
+  <div class="a t ctr" style="left:16px;top:432px;width:361px;height:44px;font-size:15px;justify-content:space-between;padding:0 4px" data-s="361×44"><span>全部文字稿（12）</span><span>›</span></div>
+  <div class="a small ctr" style="left:0;right:0;top:500px">本週收成 7 根・待轉錄 2 個</div>
+  <div class="a t round dark ctr" style="left:146px;top:572px;width:100px;height:100px;font-size:17px;font-weight:600" data-s="100×100">說</div>
+  <div class="a small ctr" style="left:0;right:0;top:686px">點一下開始，再點一下結束</div>
+  <div class="a safe-bot"></div><div class="a homebar"></div>
+</div>
+<div class="cap"><b>C｜畫面中下大鈕，首頁只放最近一篇</b><br>首頁的主角換成錄音本身：大鈕在中間偏下（最準的位置），上面只放最近一篇和「複製這篇」。完整清單變成推入頁。差在哪：最短的路徑是「打開→說→複製」，但找舊的那篇多一層。</div>
+</div>
+
+</div>
+
+<!-- ============================================================ -->
+<h2>錄音面板（接方向 A）</h2>
+<p class="note">半頁模態，<b>不能下滑關閉</b>：錄到一半誤滑就丟掉，是 2-5 的死法。關閉只有一個明確的按鈕，而且錄音中按關閉要先停止並收進待轉錄，不會丟。</p>
+<div class="row">
+
+<div class="cell">
+<div class="f">
+  <div class="a safe-top"></div><div class="a island"></div>
+  <div class="a" style="left:0;right:0;top:0;bottom:0;background:var(--g3);opacity:.5"></div>
+  <div class="a" style="left:0;right:0;top:300px;bottom:0;background:var(--paper);border-radius:28px 28px 0 0"></div>
+  <div class="a" style="left:50%;top:308px;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:var(--g2)"></div>
+  <div class="a fill ctr" style="left:156px;top:336px;width:80px;height:80px;border-radius:50%;font-size:11px;color:var(--g4)">玉米表情</div>
+  <div class="a ctr" style="left:0;right:0;top:432px;font-size:48px;font-weight:300;font-variant-numeric:tabular-nums">02:17</div>
+  <div class="a small ctr" style="left:0;right:0;top:494px">正在聽</div>
+  <div class="a wave" style="left:40px;right:40px;top:530px;height:60px">
+    <span style="height:12px"></span><span style="height:22px"></span><span style="height:40px"></span><span style="height:28px"></span><span style="height:50px"></span><span style="height:34px"></span><span style="height:18px"></span><span style="height:44px"></span><span style="height:58px"></span><span style="height:30px"></span><span style="height:20px"></span><span style="height:36px"></span><span style="height:48px"></span><span style="height:26px"></span><span style="height:14px"></span><span style="height:32px"></span><span style="height:52px"></span><span style="height:40px"></span><span style="height:22px"></span><span style="height:12px"></span><span style="height:28px"></span><span style="height:44px"></span><span style="height:30px"></span><span style="height:16px"></span><span style="height:10px"></span>
+  </div>
+  <div class="a t dark ctr" style="left:156px;top:640px;width:80px;height:80px;border-radius:50%;font-size:15px;font-weight:600" data-s="80×80">停止</div>
+  <div class="a small ctr" style="left:0;right:0;top:732px">鎖住螢幕也會繼續錄</div>
+  <div class="a safe-bot"></div><div class="a homebar"></div>
+</div>
+<div class="cap"><b>錄音中</b><br>主角是計時與波形，只回答一件事：「它還在聽嗎」。停止鈕 80pt，在畫面中下、拇指最準的位置，跟剛剛按下的錄音鈕距離很近。</div>
+</div>
+
+<div class="cell">
+<div class="f">
+  <div class="a safe-top"></div><div class="a island"></div>
+  <div class="a" style="left:0;right:0;top:0;bottom:0;background:var(--g3);opacity:.5"></div>
+  <div class="a" style="left:0;right:0;top:260px;bottom:0;background:var(--paper);border-radius:28px 28px 0 0"></div>
+  <div class="a" style="left:50%;top:268px;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:var(--g2)"></div>
+  <div class="a lbl" style="left:24px;top:296px">好了，已經複製</div>
+  <div class="a small" style="left:24px;top:322px">2 分 17 秒・收成第 8 根</div>
+  <div class="a fill2 body" style="left:16px;right:16px;top:356px;height:250px;border-radius:16px;padding:14px 16px;overflow:hidden">剛剛想到一件事，就是我們每個月花在訂閱制工具上的錢，其實很多都是買一個「我之後會用」的感覺。<br><br>我自己算過，去年光是寫作和剪片的工具就花了一萬多，真的每週打開的只有兩個。</div>
+  <div class="a t dark ctr" style="left:16px;top:628px;width:361px;height:56px;border-radius:16px;font-size:17px;font-weight:600" data-s="361×56">分享到…</div>
+  <div class="a t ctr" style="left:16px;top:696px;width:176px;height:48px;font-size:17px" data-s="176×48">打開這篇</div>
+  <div class="a t ctr" style="left:201px;top:696px;width:176px;height:48px;font-size:17px" data-s="176×48">完成</div>
+  <div class="a safe-bot"></div><div class="a homebar"></div>
+</div>
+<div class="cap"><b>完成</b><br>這一格是高峰：第一行就講「已經複製」，因為成功的感覺是「貼到別的地方」。主要按鈕是「分享到…」（系統分享表單），「完成」收起面板。自動複製在設定裡可以關。</div>
+</div>
+
+<div class="cell">
+<div class="f">
+  <div class="a safe-top"></div><div class="a island"></div>
+  <div class="a" style="left:0;right:0;top:0;bottom:0;background:var(--g3);opacity:.5"></div>
+  <div class="a" style="left:0;right:0;top:420px;bottom:0;background:var(--paper);border-radius:28px 28px 0 0"></div>
+  <div class="a" style="left:50%;top:428px;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:var(--g2)"></div>
+  <div class="a fill ctr" style="left:166px;top:456px;width:60px;height:60px;border-radius:50%;font-size:11px;color:var(--g4)">玉米</div>
+  <div class="a lbl ctr" style="left:24px;right:24px;top:530px">米說聽不到你的聲音</div>
+  <div class="a small ctr" style="left:32px;right:32px;top:558px">麥克風權限是關的。到「設定」打開米說的麥克風，回來就能錄。</div>
+  <div class="a t dark ctr" style="left:16px;top:626px;width:361px;height:56px;border-radius:16px;font-size:17px;font-weight:600" data-s="361×56">打開「設定」</div>
+  <div class="a t ctr" style="left:16px;top:694px;width:361px;height:48px;font-size:17px" data-s="361×48">先不要</div>
+  <div class="a safe-bot"></div><div class="a homebar"></div>
+</div>
+<div class="cap"><b>權限被拒</b><br>舊版這裡只跳一句提示，然後錄音鈕照樣能按（審查紀錄 #8）。現在面板直接換成這個狀態：說發生什麼、怎麼辦，一顆直接開系統設定的按鈕。</div>
+</div>
+
+</div>
+
+<!-- ============================================================ -->
+<h2>文字稿詳情</h2>
+<p class="note">推入頁，左緣返回手勢有效。主角是正文。「複製」固定在底部工具列最左邊，拇指不用找。</p>
+<div class="row">
+
+<div class="cell">
+<div class="f">
+  <div class="a safe-top"></div><div class="a island"></div>
+  <div class="a t round fill2 ctr" style="left:16px;top:59px;width:48px;height:48px" data-s="48×48">‹</div>
+  <div class="a t round fill2 ctr" style="right:16px;top:59px;width:96px;height:48px" data-s="2×48"><span class="ico" style="margin-right:22px"></span><span class="ico c"></span></div>
+  <div class="a small ctr" style="left:0;right:0;top:116px">10 月 31 日 14:32・3 分 48 秒</div>
+  <div class="a t round fill2" style="left:16px;top:142px;width:361px;height:44px;display:flex;padding:3px" data-s="361×44"><div class="round ctr" style="flex:1;background:var(--paper);font-size:15px;font-weight:600">文字稿</div><div class="ctr" style="flex:1;font-size:15px">口語稿</div></div>
+  <div class="a body" style="left:20px;right:20px;top:206px;height:500px;overflow:hidden">剛剛想到一件事，就是我們每個月花在訂閱制工具上的錢，其實很多都是買一個「我之後會用」的感覺。<br><br>我自己算過，去年光是寫作和剪片的工具就花了一萬多，真的每週打開的只有兩個。剩下的都是那種「說不定哪天會用到」，然後每個月默默扣款。<br><br>所以我後來開始自己做工具。不是因為我比較厲害，是因為我只需要那一個功能，而那一個功能其實不難。</div>
+  <div class="a fill2 round" style="left:16px;top:748px;width:361px;height:56px;display:flex;align-items:center;padding:0 4px">
+    <div class="t ctr" style="position:relative;width:120px;height:48px;font-size:15px;font-weight:600" data-s="120×48">複製</div>
+    <div class="t ctr" style="position:relative;width:120px;height:48px;font-size:15px" data-s="120×48">重新潤飾</div>
+    <div class="t ctr" style="position:relative;width:113px;height:48px;font-size:15px" data-s="113×48">分享</div>
+  </div>
+  <div class="a safe-bot"></div><div class="a homebar"></div>
+</div>
+<div class="cap"><b>閱讀中</b><br>「⋯」裡放刪除（系統動作表，紅字），不放在工具列上，跟「複製」拉開距離。分段控制是 44pt 高（網頁版 30pt 不夠）。改字自動存，存好時頂部小字閃一下「已儲存」。</div>
+</div>
+
+<div class="cell">
+<div class="f">
+  <div class="a safe-top"></div><div class="a island"></div>
+  <div class="a t round fill2 ctr" style="left:16px;top:59px;width:48px;height:48px" data-s="48×48">‹</div>
+  <div class="a t round dark ctr" style="right:16px;top:59px;width:72px;height:48px;font-size:15px;font-weight:600" data-s="72×48">完成</div>
+  <div class="a small ctr" style="left:0;right:0;top:116px">編輯中・已儲存</div>
+  <div class="a body" style="left:20px;right:20px;top:142px;height:360px;overflow:hidden">剛剛想到一件事，就是我們每個月花在訂閱制工具上的錢，其實很多都是買一個「我之後會用」的感覺。<br><br>我自己算過，去年光是寫作和剪片的工具就花了一萬多，真的每週打開的只有兩個。<span style="border-left:2px solid var(--ink)"></span></div>
+  <div class="a kbd">鍵盤（336 pt，依機型不同）</div>
+</div>
+<div class="cap"><b>鍵盤升起</b><br>底部工具列在鍵盤升起時隱藏，「完成」移到右上角，不會被鍵盤蓋住（3-3 死法：確認鈕放下方會被蓋）。鍵盤高度是示意值，要真機確認。</div>
+</div>
+
+</div>
+
+<!-- ============================================================ -->
+<h2>首頁・第一次與最壞內容（接方向 A）</h2>
+<div class="row">
+
+<div class="cell">
+<div class="f">
+  <div class="a safe-top"></div><div class="a island"></div>
+  <div class="a t round fill2 ctr" style="right:16px;top:59px;width:96px;height:48px" data-s="2×48"><span class="ico" style="margin-right:22px"></span><span class="ico c"></span></div>
+  <div class="a lt" style="left:20px;top:112px">米說</div>
+  <div class="a fill2" style="left:16px;top:176px;width:361px;height:72px;border-radius:16px;padding:12px 16px">
+    <div class="lbl">還沒設定 OpenAI 金鑰</div><div class="small" style="margin-top:2px">沒設也能先錄，錄好的會等在待轉錄。</div>
+  </div>
+  <div class="a t" style="left:16px;top:176px;width:361px;height:72px;border-radius:16px" data-s="361×72"></div>
+  <div class="a fill ctr" style="left:121px;top:330px;width:150px;height:150px;border-radius:24px;font-size:12px;color:var(--g4)">空狀態插圖</div>
+  <div class="a lbl ctr" style="left:24px;right:24px;top:500px">按右下角的玉米，說一段話</div>
+  <div class="a small ctr" style="left:32px;right:32px;top:528px">說完會變成可以直接貼上的文字，自動幫你複製。</div>
+  <div class="a t round fill2" style="left:16px;top:756px;width:289px;height:52px;padding:0 16px;display:flex;align-items:center;gap:8px;opacity:.5" data-s="289×52"><span class="ico c" style="width:18px;height:18px"></span><span class="sub">搜尋</span></div>
+  <div class="a t round dark ctr" style="left:317px;top:752px;width:60px;height:60px;font-size:13px" data-s="60×60">說</div>
+  <div class="a safe-bot"></div><div class="a homebar"></div>
+</div>
+<div class="cap"><b>第一次打開</b><br>沒有歡迎頁、沒有隱私長文對話框。空狀態只講一件事：去按那顆鈕。金鑰提醒是一列可點的橫幅，不擋錄音。搜尋在沒有資料時淡掉。</div>
+</div>
+
+<div class="cell se">
+<div class="f se">
+  <div class="a safe-top"></div>
+  <div class="a t round fill2 ctr" style="right:16px;top:20px;width:96px;height:48px" data-s="2×48"><span class="ico" style="margin-right:22px"></span><span class="ico c"></span></div>
+  <div class="a" style="left:20px;top:72px;font-size:44px;font-weight:700;line-height:52px">米說</div>
+  <div class="a" style="left:20px;top:128px;font-size:21px;color:var(--g4)">248 則文字稿</div>
+  <div class="a sech" style="top:170px;font-size:17px">今天</div>
+  <div class="a list" style="top:198px">
+    <div class="li t" style="height:110px"><div class="tt" style="font-size:23px;white-space:normal;line-height:1.25;max-height:58px;overflow:hidden">說書影片：原子習慣第三章的那個例子其實可以換成我們自己學員的案例</div><div class="ss" style="font-size:19px">14:32　這段我想講的是…</div></div>
+    <div class="li t" style="height:110px"><div class="tt" style="font-size:23px;white-space:normal;line-height:1.25;max-height:58px;overflow:hidden">課程銷售頁的 FAQ 草稿，第二版，改掉價格那一段</div><div class="ss" style="font-size:19px">09:05　第一個問題是…</div></div>
+  </div>
+  <div class="a t round fill2" style="left:16px;top:595px;width:271px;height:60px;padding:0 16px;display:flex;align-items:center;gap:8px" data-s="271×60"><span class="ico c" style="width:20px;height:20px"></span><span style="font-size:21px;color:var(--g4)">搜尋</span></div>
+  <div class="a t round dark ctr" style="left:299px;top:591px;width:68px;height:68px;font-size:15px" data-s="68×68">說</div>
+</div>
+<div class="cap"><b>最壞內容（iPhone SE 375×667、大字級預估）</b><br>標題給兩行、預覽一行。這只是預估：最大無障礙字級真的會怎麼排，要在真機上開系統設定看，看圖不准寫「過」。兩個統計方塊在大字級下改成一行字。</div>
+</div>
+
+</div>
