@@ -1,0 +1,223 @@
+<title>米說架構藍圖</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* 單一深色工程圖：刻意不跟淺色模式。待掛點版：節點虛線框、尚未對應程式檔。 */
+:root{
+  --bg:#0d1117; --node:#161b22; --line:#30363d; --fg:#e6edf3; --dim:#8b949e;
+  --ok:#3fb950; --bad:#f85149; --retry:#d29922; --cond:#58a6ff; --hl:#f0b72f; --deep:#bc8cff;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--sans);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between;max-width:1140px}
+h1{font-size:20px;margin:0 0 4px;text-wrap:balance}
+.lead{font-size:13px;color:var(--dim);line-height:1.6;max-width:70ch;margin:0}
+.lead b{color:var(--fg)}
+button{font:inherit;color:var(--fg);background:var(--node);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;font-family:var(--mono);font-size:12px}
+button:focus-visible{outline:2px solid var(--cond);outline-offset:2px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-family:var(--mono);font-size:11px;color:var(--dim);margin:14px 0 10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:22px;height:0;border-top:2px solid}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+svg{display:block}
+.n rect{fill:var(--node);stroke:var(--line);stroke-width:1.2;stroke-dasharray:5 4;cursor:pointer}
+.n.error rect{stroke:var(--bad)}
+.n.start rect,.n.end rect{stroke:var(--ok)}
+.n.decision rect{stroke:var(--cond)}
+.n.sub rect{stroke-width:3;stroke-dasharray:none;stroke:var(--line)}
+.n.hl rect{stroke:var(--hl);stroke-width:2.5}
+.n text{fill:var(--fg);font-family:var(--mono);font-size:12px;pointer-events:none}
+.n text.sub{fill:var(--dim);font-size:10.5px}
+.n text.deep{fill:var(--deep);font-size:10.5px}
+.e{fill:none;stroke-width:1.6}
+.e.success{stroke:var(--ok)} .e.failure{stroke:var(--bad)} .e.retry{stroke:var(--retry);stroke-dasharray:6 5} .e.conditional{stroke:var(--cond)}
+.el{font-family:var(--mono);font-size:10px;fill:var(--dim)}
+aside{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:#0f141a;border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 18px) max(18px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 18px) 18px;z-index:20}
+aside.on{transform:none}
+aside h2{font-size:16px;margin:0 0 6px;font-family:var(--mono)}
+aside .k{font-family:var(--mono);font-size:11px;color:var(--dim);margin:16px 0 4px;letter-spacing:.04em}
+aside p{font-size:13.5px;line-height:1.6;margin:0}
+.close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:max(12px,env(safe-area-inset-right,0px))}
+details{max-width:1140px;margin-top:22px;border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+summary{cursor:pointer;font-size:13px}
+pre{font-family:var(--mono);font-size:12px;white-space:pre-wrap;color:var(--dim);line-height:1.6}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);background:var(--node);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:12.5px;font-family:var(--mono)}
+@media (prefers-reduced-motion:reduce){aside{transition:none}}
+</style>
+
+<header>
+  <div>
+    <h1>米說架構藍圖（SwiftUI 新版，待掛點）</h1>
+    <p class="lead">新版從打開 App 到貼進 Word 的流程。<b>還沒有程式碼，所以每個節點都是虛線框、還沒對到檔案</b>；寫出程式後會重跑一次，把檔案掛上去。紫字是深模組，雙邊框是點開才看得到的子流程（設定、備份、詳情）。點節點看它在做什麼、什麼時候會走進來。</p>
+  </div>
+  <button id="copy" type="button">複製 JSON</button>
+</header>
+<div class="legend">
+  <span><i style="border-color:var(--ok)"></i>成功</span>
+  <span><i style="border-color:var(--bad)"></i>失敗</span>
+  <span><i style="border-color:var(--retry);border-top-style:dashed"></i>重試</span>
+  <span><i style="border-color:var(--cond)"></i>條件</span>
+</div>
+<div class="wrap"><svg id="map" width="1140" height="1360" viewBox="0 0 1140 1360" role="img" aria-label="米說新版從打開 App 到貼進 Word 的流程圖"></svg></div>
+
+<aside id="side" aria-live="polite">
+  <button class="close" id="close" type="button">關閉</button>
+  <h2 id="sTitle"></h2>
+  <div class="k">做什麼</div><p id="sDesc"></p>
+  <div class="k">什麼時候進來</div><p id="sTrig"></p>
+  <div class="k">屬於哪個方塊</div><p id="sMod"></p>
+  <div class="k">掛點檔案</div><p>[尚未對應]：還沒有程式碼。</p>
+</aside>
+<div class="toast" id="toast" hidden></div>
+
+<details>
+  <summary>🤖 給 Claude Code 的讀圖說明</summary>
+<pre>這份 HTML 包含一個 &lt;script id="flowmap-data" type="application/json"&gt; 區塊。
+讀取方式：document.getElementById('flowmap-data').textContent，然後 JSON.parse()。
+
+重要欄位：
+- nodes[].trigger_condition：這個狀態的觸發條件
+- nodes[].file_responsibilities：每個檔案在此節點的具體職責
+- file_index：反查表，給你一個檔名，告訴你它出現在哪些節點
+- edges[].type：success / failure / retry / conditional，代表分支語意
+
+當你修改一個檔案時，先查 file_index 找到它涉及的所有節點，
+再看每個節點的 edges 確認你的修改是否影響到下游分支。
+
+這是待掛點版：files 全部為空、file_index 為空。
+實作出程式碼後，由 vibe-health-check 或 vibe-integrate 重跑掛點模式補上。
+nodes[].module 對應 .vibe/架構藍圖.md 的方塊代號（M1–M11）。</pre>
+</details>
+
+<script id="flowmap-data" type="application/json">
+{
+  "project": "米說 iOS（SwiftUI，待掛點）",
+  "generated_at": "2026-10-31T06:00:00+08:00",
+  "nodes": [
+    {"id":"n1","label":"打開米說","type":"start","module":"M9","description":"啟動畫面跟首頁同底色、沒有 logo；第一次打開沒有歡迎頁和長文","trigger_condition":"點主畫面圖示，或從捷徑、通知、靈動島進來","files":[],"file_responsibilities":{}},
+    {"id":"n2","label":"首頁：清單＋錄音鈕","type":"process","module":"M9","description":"文字稿清單、搜尋、待轉錄；沒金鑰時一列可點的提醒，不擋錄音。版面待三方向測試決定","trigger_condition":"App 打開，或從其他畫面返回","files":[],"file_responsibilities":{}},
+    {"id":"n21","label":"設定（子流程）","type":"sub","module":"M6／M7","description":"金鑰（先存再驗證）、潤飾模型、自訂詞彙、提示詞（可一鍵還原）、自動複製、外觀","trigger_condition":"首頁「⋯」→ 設定","files":[],"file_responsibilities":{}},
+    {"id":"n22","label":"備份（子流程）","type":"sub","module":"M8","description":"匯出全部文字稿成備份檔；匯入時不蓋掉現有的，除非畫面講清楚且米同意；不含金鑰","trigger_condition":"設定 → 資料","files":[],"file_responsibilities":{}},
+    {"id":"n3","label":"麥克風權限？","type":"decision","module":"M1","description":"只在第一次按錄音時由系統詢問","trigger_condition":"按錄音鈕","files":[],"file_responsibilities":{}},
+    {"id":"n4","label":"被拒：說明＋開設定","type":"error","module":"M9","description":"錄音面板換成「米說聽不到你的聲音」，一顆直接開 iPhone 設定米說那頁","trigger_condition":"權限是關的","files":[],"file_responsibilities":{}},
+    {"id":"n5","label":"錄音中","type":"process","module":"M1","description":"🧠 鎖屏、切 App 照樣錄；每幾秒把聲音寫成救得回來的檔（最多丟 5 秒）；波形、計時、靈動島狀態","trigger_condition":"權限允許","files":[],"file_responsibilities":{}},
+    {"id":"n6","label":"被打斷","type":"error","module":"M1","description":"來電、別的 App 搶走音訊：暫停並保住已錄的；App 被系統關掉：檔案已經在手機裡","trigger_condition":"系統中斷錄音，或 App 被結束","files":[],"file_responsibilities":{}},
+    {"id":"n7","label":"重開時撿回","type":"process","module":"M1／M2","description":"下次打開時找到沒收尾的錄音檔，收進待轉錄，告訴米「上次錄到 X 分 X 秒，已經收好」","trigger_condition":"啟動時發現沒收尾的錄音檔","files":[],"file_responsibilities":{}},
+    {"id":"n8","label":"錄音檔進待轉錄","type":"process","module":"M2","description":"停止後錄音檔收進待轉錄；這時還不刪任何東西","trigger_condition":"按停止，或 n7 撿回","files":[],"file_responsibilities":{}},
+    {"id":"n9","label":"有金鑰且有網路？","type":"decision","module":"M2","description":"兩個條件都齊才往下轉","trigger_condition":"有一筆待轉錄","files":[],"file_responsibilities":{}},
+    {"id":"n10","label":"留在待轉錄","type":"error","module":"M2","description":"畫面第一句：錄音收好了、沒有被扣款；第二句講原因（沒網路／沒金鑰）","trigger_condition":"沒金鑰，或沒網路","files":[],"file_responsibilities":{}},
+    {"id":"n11","label":"條件齊了自動轉","type":"process","module":"M2","description":"App 打開、回到前景、網路恢復、補上金鑰時，從最舊的開始一筆一筆轉；某一筆失敗就停，不無限扣錢","trigger_condition":"條件從不齊變成齊","files":[],"file_responsibilities":{}},
+    {"id":"n12","label":"切段＋逐段轉錄","type":"process","module":"M3","description":"🧠 超過 10 分鐘切段；每段送 OpenAI，附繁中提示＋自訂詞彙＋前段結尾（200 字內）；可重試的錯誤等 2、4、8 秒，最多 4 次","trigger_condition":"有金鑰且有網路","files":[],"file_responsibilities":{}},
+    {"id":"n13","label":"某段失敗：記住從哪續","type":"error","module":"M3","description":"已轉好的段落保留；按重試從失敗那段接著轉；錄音檔還在","trigger_condition":"重試用盡，或遇到不重試的錯誤（金鑰錯、檔案太大）","files":[],"file_responsibilities":{}},
+    {"id":"n14","label":"口語稿先存，再刪錄音","type":"process","module":"M5","description":"🧠 口語稿確定寫進歷史之後，才刪待轉錄的錄音檔（改掉舊版轉完就刪）","trigger_condition":"每一段都轉成功","files":[],"file_responsibilities":{}},
+    {"id":"n15","label":"潤飾成草稿","type":"process","module":"M4","description":"🧠 照米的草稿規矩：刪贅字、修斷句、補標點、分段、重複只留最完整一次、不合成新句、改辨識錯字、不加標題；可重試的錯誤等 2、4 秒，最多 3 次","trigger_condition":"口語稿已存","files":[],"file_responsibilities":{}},
+    {"id":"n16","label":"潤飾失敗：口語稿還在","type":"error","module":"M4／M9","description":"畫面第一句：錄音和口語稿都還在、可以重試；歷史裡看得到這篇的口語稿","trigger_condition":"潤飾重試用盡，或回傳空字串","files":[],"file_responsibilities":{}},
+    {"id":"n17","label":"草稿存進歷史","type":"process","module":"M5","description":"同一篇補上文字稿；標題取自草稿開頭","trigger_condition":"潤飾成功且不是空的","files":[],"file_responsibilities":{}},
+    {"id":"n18","label":"完成面板：已複製","type":"process","module":"M9","description":"自動複製開著就先複製；第一行「好了，已經複製」；分享到…／打開這篇／完成","trigger_condition":"草稿存好","files":[],"file_responsibilities":{}},
+    {"id":"n23","label":"詳情（子流程）","type":"sub","module":"M5／M8／M9","description":"改字自動存；重新潤飾（蓋掉或另存）；分享與儲存到檔案；刪除後 5 秒內可復原","trigger_condition":"完成面板「打開這篇」，或首頁點一篇","files":[],"file_responsibilities":{}},
+    {"id":"n19","label":"貼進 Word","type":"end","module":"—","description":"米說之外的事：米切到 Word 貼上，開始寫文章","trigger_condition":"米自己切過去","files":[],"file_responsibilities":{}}
+  ],
+  "edges": [
+    {"from":"n1","to":"n2","label":"","type":"success"},
+    {"from":"n2","to":"n21","label":"「⋯」→ 設定","type":"conditional"},
+    {"from":"n21","to":"n22","label":"資料","type":"conditional"},
+    {"from":"n2","to":"n3","label":"按錄音鈕","type":"conditional"},
+    {"from":"n3","to":"n4","label":"權限是關的","type":"failure"},
+    {"from":"n3","to":"n5","label":"允許","type":"success"},
+    {"from":"n5","to":"n6","label":"來電／被系統結束","type":"failure"},
+    {"from":"n6","to":"n7","label":"下次打開","type":"retry"},
+    {"from":"n5","to":"n8","label":"按停止","type":"success"},
+    {"from":"n7","to":"n8","label":"收進待轉錄","type":"success"},
+    {"from":"n8","to":"n9","label":"","type":"success"},
+    {"from":"n9","to":"n10","label":"沒金鑰或沒網路","type":"failure"},
+    {"from":"n10","to":"n11","label":"條件齊了","type":"conditional"},
+    {"from":"n9","to":"n12","label":"兩個都有","type":"success"},
+    {"from":"n11","to":"n12","label":"取最舊的一筆","type":"retry"},
+    {"from":"n12","to":"n13","label":"重試用盡或不可重試","type":"failure"},
+    {"from":"n13","to":"n12","label":"按重試，從失敗段接著","type":"retry"},
+    {"from":"n12","to":"n14","label":"每段都成功","type":"success"},
+    {"from":"n14","to":"n15","label":"","type":"success"},
+    {"from":"n15","to":"n16","label":"重試用盡或回傳空","type":"failure"},
+    {"from":"n16","to":"n15","label":"按重試","type":"retry"},
+    {"from":"n15","to":"n17","label":"草稿不是空的","type":"success"},
+    {"from":"n17","to":"n18","label":"","type":"success"},
+    {"from":"n18","to":"n23","label":"打開這篇","type":"conditional"},
+    {"from":"n18","to":"n19","label":"米切到 Word","type":"success"}
+  ],
+  "file_index": {}
+}
+</script>
+
+<script>
+(function(){
+  var data = JSON.parse(document.getElementById('flowmap-data').textContent);
+  var pos = {n1:[0,0],n2:[0,1],n21:[1,1],n22:[2,1],n3:[0,2],n4:[1,2],n5:[0,3],n6:[1,3],n7:[2,3],n8:[0,4],n9:[0,5],n10:[1,5],n11:[2,5],n12:[0,6],n13:[1,6],n14:[0,7],n15:[0,8],n16:[1,8],n17:[0,9],n18:[0,10],n23:[1,10],n19:[0,11]};
+  var W=310,H=72,colX=[40,420,800],rowY=function(r){return 40+r*110;};
+  var NS='http://www.w3.org/2000/svg', svg=document.getElementById('map');
+  function el(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
+  function box(id){var p=pos[id];return {x:colX[p[0]],y:rowY(p[1]),c:p[0],r:p[1]};}
+  var defs=el('defs',{});
+  [['success','#3fb950'],['failure','#f85149'],['retry','#d29922'],['conditional','#58a6ff']].forEach(function(m){
+    var mk=el('marker',{id:'ar-'+m[0],viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto-start-reverse'});
+    mk.appendChild(el('path',{d:'M0 0 L10 5 L0 10 z',fill:m[1]})); defs.appendChild(mk);
+  });
+  svg.appendChild(defs);
+  var gE=el('g',{}), gN=el('g',{});
+  svg.appendChild(gE); svg.appendChild(gN);
+  var pair={}; data.edges.forEach(function(e){pair[e.from+'>'+e.to]=1;});
+  data.edges.forEach(function(e){
+    var a=box(e.from), b=box(e.to), d, lx, ly, anchor='start', off=0;
+    if(pair[e.to+'>'+e.from]&&a.r===b.r){off=a.c>b.c?-14:14;}
+    if(a.r===b.r){
+      var y=a.y+H/2+off, x1=a.c<b.c?a.x+W:a.x, x2=a.c<b.c?b.x:b.x+W;
+      d='M'+x1+' '+y+' L'+x2+' '+y; lx=(x1+x2)/2; ly=y-6; anchor='middle';
+    } else if(a.c===b.c){
+      var x=a.x+W/2; d='M'+x+' '+(a.y+H)+' L'+x+' '+b.y; lx=x+8; ly=(a.y+H+b.y)/2+4;
+    } else {
+      var sx=a.x+W/2, sy=a.y+H, gy=b.y-18, tx=b.x+W/2+40;
+      d='M'+sx+' '+sy+' L'+sx+' '+gy+' L'+tx+' '+gy+' L'+tx+' '+b.y; lx=tx+8; ly=gy-6;
+    }
+    gE.appendChild(el('path',{d:d,'class':'e '+e.type,'marker-end':'url(#ar-'+e.type+')'}));
+    if(e.label){var t=el('text',{x:lx,y:ly,'class':'el','text-anchor':anchor});t.textContent=e.label;gE.appendChild(t);}
+  });
+  var nodeEls={};
+  data.nodes.forEach(function(n){
+    var b=box(n.id), g=el('g',{'class':'n '+n.type,tabindex:'0',role:'button','aria-label':n.label});
+    g.appendChild(el('rect',{x:b.x,y:b.y,width:W,height:H,rx:8}));
+    var t=el('text',{x:b.x+14,y:b.y+28}); t.textContent=n.label; g.appendChild(t);
+    var deep=n.description.indexOf('🧠')===0;
+    var s=el('text',{x:b.x+14,y:b.y+52,'class':deep?'deep':'sub'}); s.textContent=(deep?'🧠 深模組・':'')+n.module+'・'+n.id; g.appendChild(s);
+    g.addEventListener('click',function(){open(n);});
+    g.addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();open(n);}});
+    gN.appendChild(g); nodeEls[n.id]=g;
+  });
+  var side=document.getElementById('side');
+  function open(n){
+    Object.keys(nodeEls).forEach(function(id){nodeEls[id].classList.toggle('hl',id===n.id);});
+    document.getElementById('sTitle').textContent=n.label+'（'+n.id+'）';
+    document.getElementById('sDesc').textContent=n.description;
+    document.getElementById('sTrig').textContent=n.trigger_condition;
+    document.getElementById('sMod').textContent=n.module;
+    side.classList.add('on');
+  }
+  document.getElementById('close').addEventListener('click',function(){
+    side.classList.remove('on');
+    Object.keys(nodeEls).forEach(function(id){nodeEls[id].classList.remove('hl');});
+  });
+  var tEl=document.getElementById('toast'), tT;
+  function toast(m){tEl.textContent=m;tEl.hidden=false;clearTimeout(tT);tT=setTimeout(function(){tEl.hidden=true;},2200);}
+  document.getElementById('copy').addEventListener('click',function(){
+    var txt=document.getElementById('flowmap-data').textContent.trim();
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){toast('已複製 JSON');},function(){fallback(txt);});
+    } else fallback(txt);
+  });
+  function fallback(txt){
+    var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');toast('已複製 JSON');}catch(e){toast('複製失敗，請手動選取');} ta.remove();
+  }
+})();
+</script>
