@@ -1,5 +1,5 @@
 {
-  "station": "self-review",
+  "station": "regression",
   "updated_at": "2026-10-31T07:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
@@ -74,7 +74,9 @@
       "note": "等方向測試"
     }
   ],
-  "pending_immediate_verify": [],
+  "pending_immediate_verify": [
+    "A1（等 push 後看 Actions）"
+  ],
   "skipped_gates": [
     {
       "piece": "A1",
