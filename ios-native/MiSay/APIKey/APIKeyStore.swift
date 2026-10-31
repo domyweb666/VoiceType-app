@@ -24,6 +24,7 @@ struct APIKeyStore {
         }
 
         // 先刪舊的再加新的，比 SecItemUpdate 少一條分支；兩步都要成功才算存好。
+        // 刪成功、加失敗時舊金鑰已不在，倒向「沒金鑰、要重貼」這一側，不會留半套。
         let deleteStatus = SecItemDelete(Self.query as CFDictionary)
         guard deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound else {
             throw Failure.saveFailed(deleteStatus)
@@ -31,7 +32,7 @@ struct APIKeyStore {
 
         var attributes = Self.query
         attributes[kSecValueData as String] = Data(key.utf8)
-        // 只在這台裝置、解鎖後可用：不進 iCloud 備份，換手機要重貼（PRD 備份那條）。
+        // 只在這台裝置、解鎖後可用：不會搬到新手機，換手機要重貼（PRD 備份那條）。
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let status = SecItemAdd(attributes as CFDictionary, nil)
         guard status == errSecSuccess else {

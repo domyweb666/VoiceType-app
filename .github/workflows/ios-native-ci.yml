@@ -62,6 +62,8 @@ jobs:
         run: |
           "$RUNNER_TEMP/swiftlint/swiftlint" lint --strict
 
+      # 模擬器版用本機自簽（ad-hoc，不需要任何憑證或 secret）。
+      # 2026-10-31 B1 踩到：完全不簽章的 App 沒有身分，模擬器上 Keychain 回 -34018，測試全紅。
       - name: 編譯模擬器版
         run: |
           xcodebuild build \
@@ -69,7 +71,7 @@ jobs:
             -scheme MiSay \
             -destination "${SIMULATOR}" \
             -derivedDataPath DerivedData \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGN_IDENTITY=-
 
       - name: 跑單元測試
         run: |
@@ -78,4 +80,4 @@ jobs:
             -scheme MiSay \
             -destination "${SIMULATOR}" \
             -derivedDataPath DerivedData \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGN_IDENTITY=-
