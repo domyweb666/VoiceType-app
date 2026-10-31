@@ -77,12 +77,14 @@ final class TranscriberTests: XCTestCase {
 
     func test轉錄提示詞在兩百字內而且含繁體提示詞彙與前一段結尾() {
         let previous = String(repeating: "前", count: 300) + "結尾"
-        let prompt = TranscriptionPrompt.build(vocabulary: ["DOMYWEB", " Vibe Coding "], previousText: previous)
+        let vocabulary = ["DOMYWEB", " Vibe Coding "]
+        let prompt = TranscriptionPrompt.build(vocabulary: vocabulary, previousText: previous)
         XCTAssertLessThanOrEqual(prompt.count, TranscriptionPrompt.maxCharacters)
         XCTAssertTrue(prompt.hasPrefix(TranscriptionPrompt.traditionalHint))
         XCTAssertTrue(prompt.contains("專有名詞：DOMYWEB、Vibe Coding"))
         XCTAssertTrue(prompt.hasSuffix("結尾"))
-        XCTAssertEqual(TranscriptionPrompt.build(vocabulary: [], previousText: ""), TranscriptionPrompt.traditionalHint)
+        let bare = TranscriptionPrompt.build(vocabulary: [], previousText: "")
+        XCTAssertEqual(bare, TranscriptionPrompt.traditionalHint)
     }
 
     private func makeTranscriber() -> Transcriber {

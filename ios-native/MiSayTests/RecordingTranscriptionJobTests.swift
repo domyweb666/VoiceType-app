@@ -22,9 +22,10 @@ final class RecordingTranscriptionJobTests: XCTestCase {
 
     func test切段二十五分鐘切成三段每段都是完整WAV() throws {
         let recording = try makeRecording(minutes: 25)
-        let segments = try WAVSegmenter.split(recording, into: directory.appending(path: "segments"))
+        let segments = try WAVSegmenter.split(recording, into: segmentsDirectory)
         XCTAssertEqual(segments.count, 3)
-        XCTAssertEqual(segments.map(\.lastPathComponent), ["rec-25m-01.wav", "rec-25m-02.wav", "rec-25m-03.wav"])
+        let names = ["rec-25m-01.wav", "rec-25m-02.wav", "rec-25m-03.wav"]
+        XCTAssertEqual(segments.map(\.lastPathComponent), names)
         let sizes = try segments.map { try Data(contentsOf: $0).count }
         XCTAssertEqual(sizes, [44 + 19_200_000, 44 + 19_200_000, 44 + 9_600_000])
         let last = try Data(contentsOf: segments[2])
@@ -33,7 +34,7 @@ final class RecordingTranscriptionJobTests: XCTestCase {
 
     func test切段十分鐘以內不切原檔直接用() throws {
         let recording = try makeRecording(minutes: 10)
-        let segments = try WAVSegmenter.split(recording, into: directory.appending(path: "segments"))
+        let segments = try WAVSegmenter.split(recording, into: segmentsDirectory)
         XCTAssertEqual(segments, [recording])
     }
 
@@ -68,6 +69,10 @@ final class RecordingTranscriptionJobTests: XCTestCase {
         let progress = RecordingTranscriptionJob.progressURL(for: recording)
         XCTAssertFalse(FileManager.default.fileExists(atPath: progress.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: recording.path))
+    }
+
+    private var segmentsDirectory: URL {
+        directory.appending(path: "segments")
     }
 
     private func makeTranscriber() -> Transcriber {

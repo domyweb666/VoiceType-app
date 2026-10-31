@@ -21,7 +21,8 @@ struct MultipartForm {
 
     mutating func addFile(name: String, filename: String, contentType: String, data: Data) {
         parts.append(Data("--\(boundary)\r\n".utf8))
-        let disposition = "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\r\n"
+        let disposition = "Content-Disposition: form-data; name=\"\(name)\"; "
+            + "filename=\"\(filename)\"\r\n"
         parts.append(Data(disposition.utf8))
         parts.append(Data("Content-Type: \(contentType)\r\n\r\n".utf8))
         parts.append(data)

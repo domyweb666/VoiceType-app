@@ -43,7 +43,12 @@ struct Transcriber {
         if !prompt.isEmpty {
             form.addField(name: "prompt", value: prompt)
         }
-        form.addFile(name: "file", filename: fileURL.lastPathComponent, contentType: "audio/wav", data: audio)
+        form.addFile(
+            name: "file",
+            filename: fileURL.lastPathComponent,
+            contentType: "audio/wav",
+            data: audio
+        )
 
         let data = try await OpenAIClient.retrying(
             maxAttempts: Self.maxAttempts,
@@ -57,7 +62,8 @@ struct Transcriber {
                 timeoutSeconds: OpenAIClient.requestTimeoutSeconds
             )
         }
-        guard let response = try? JSONDecoder().decode(TranscriptionResponse.self, from: data) else {
+        let response = try? JSONDecoder().decode(TranscriptionResponse.self, from: data)
+        guard let response else {
             throw Failure.malformedResponse
         }
         return response.text

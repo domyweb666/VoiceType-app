@@ -26,11 +26,15 @@ struct RecordingTranscriptionJob {
 
     /// 回整篇口語稿（各段直接接起來，舊版也是）。中途哪一段失敗就拋出那一段的錯，已成功的段留在進度檔。
     func transcribe(recordingAt recordingURL: URL) async throws -> String {
-        let segments = try WAVSegmenter.split(recordingURL, into: Self.segmentsDirectory(for: recordingURL))
+        let segmentsDirectory = Self.segmentsDirectory(for: recordingURL)
+        let segments = try WAVSegmenter.split(recordingURL, into: segmentsDirectory)
         var progress = loadProgress(for: recordingURL)
         for (index, segment) in segments.enumerated() where progress.segmentTexts[index] == nil {
             let previousText = (0 ..< index).compactMap { progress.segmentTexts[$0] }.joined()
-            let prompt = TranscriptionPrompt.build(vocabulary: vocabulary, previousText: previousText)
+            let prompt = TranscriptionPrompt.build(
+                vocabulary: vocabulary,
+                previousText: previousText
+            )
             let text = try await transcriber.transcribe(fileURL: segment, prompt: prompt)
             progress.segmentTexts[index] = text
             try saveProgress(progress, for: recordingURL)

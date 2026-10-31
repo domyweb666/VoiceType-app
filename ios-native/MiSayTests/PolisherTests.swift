@@ -53,7 +53,10 @@ final class PolisherTests: XCTestCase {
 
     func test潤飾暫時錯誤會重試金鑰錯不重試() async throws {
         let reply = #"{"choices":[{"message":{"role":"assistant","content":"好了"}}]}"#
-        FakeOpenAIServer.queuedReplies = [.http(status: 503, body: ""), .http(status: 200, body: reply)]
+        FakeOpenAIServer.queuedReplies = [
+            .http(status: 503, body: ""),
+            .http(status: 200, body: reply),
+        ]
         let draft = try await makePolisher().polish(
             rawText: "x",
             model: Polisher.defaultModel,
@@ -66,7 +69,7 @@ final class PolisherTests: XCTestCase {
         FakeOpenAIServer.reset()
         FakeOpenAIServer.reply = .http(status: 401, body: "")
         do {
-            _ = try await makePolisher().polish(rawText: "x", model: "m", systemPrompt: "P", vocabulary: [])
+            _ = try await polishShort()
             XCTFail("應該要拋錯")
         } catch let failure as OpenAIClient.Failure {
             XCTAssertEqual(failure, .invalidAPIKey(statusCode: 401))
@@ -75,13 +78,18 @@ final class PolisherTests: XCTestCase {
     }
 
     func test潤飾回來是空的算失敗() async throws {
-        FakeOpenAIServer.reply = .http(status: 200, body: #"{"choices":[{"message":{"role":"assistant","content":" "}}]}"#)
+        let blank = #"{"choices":[{"message":{"role":"assistant","content":" "}}]}"#
+        FakeOpenAIServer.reply = .http(status: 200, body: blank)
         do {
-            _ = try await makePolisher().polish(rawText: "x", model: "m", systemPrompt: "P", vocabulary: [])
+            _ = try await polishShort()
             XCTFail("應該要拋錯")
         } catch let failure as Polisher.Failure {
             XCTAssertEqual(failure, .emptyDraft)
         }
+    }
+
+    private func polishShort() async throws -> String {
+        try await makePolisher().polish(rawText: "x", model: "m", systemPrompt: "P", vocabulary: [])
     }
 
     private func makePolisher() -> Polisher {

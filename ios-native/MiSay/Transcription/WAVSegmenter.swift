@@ -13,7 +13,8 @@ enum WAVSegmenter {
 
     /// 不超過一段長度就原檔送回（不複製）；超過就切進 `directory`，檔名「原檔名-01.wav」起跳。
     static func split(_ source: URL, into directory: URL) throws -> [URL] {
-        let bytesPerSecond = WAVFileWriter.sampleRate * WAVFileWriter.channelCount * WAVFileWriter.bitsPerSample / 8
+        let bytesPerFrame = WAVFileWriter.channelCount * WAVFileWriter.bitsPerSample / 8
+        let bytesPerSecond = WAVFileWriter.sampleRate * bytesPerFrame
         let segmentByteCount = bytesPerSecond * maxSegmentSeconds
         let header = WAVFileWriter.headerByteCount
         let attributes = try FileManager.default.attributesOfItem(atPath: source.path)
@@ -48,7 +49,8 @@ enum WAVSegmenter {
                 throw Failure.cannotRead
             }
             let index = segments.count + 1
-            let segmentURL = directory.appending(path: String(format: "%@-%02d.wav", baseName, index))
+            let segmentName = String(format: "%@-%02d.wav", baseName, index)
+            let segmentURL = directory.appending(path: segmentName)
             var segment = WAVFileWriter.header(dataByteCount: UInt32(length))
             segment.append(chunk)
             do {
