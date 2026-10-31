@@ -91,7 +91,11 @@ final class TranscriptionQueue {
         }
         // 口語稿已經落地，這時才准刪錄音檔與切段（安全標準二：存好才准刪）。
         job.cleanUp(recordingAt: url)
-        let recordingFile = PendingRecordings.Recording(url: url, recordedAt: .distantPast, durationSeconds: 0)
+        let recordingFile = PendingRecordings.Recording(
+            url: url,
+            recordedAt: .distantPast,
+            durationSeconds: 0
+        )
         try? pending.delete(recordingFile)
 
         activity = .polishing(recording: name)
