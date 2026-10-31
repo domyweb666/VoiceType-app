@@ -3,7 +3,8 @@ import SwiftUI
 /// 設定（推入頁）。片 B3 做金鑰那一區；自動複製、詞彙、提示詞、模型是組塊 F。
 /// 金鑰只在這一頁看得到，而且預設遮住（安全標準一）。存進 M6、驗證走 M11，這頁不碰網路也不碰 Keychain 細節。
 struct SettingsView: View {
-    /// 「儲存並驗證」之後那一行字。句子照 `.uiux/06-首次體驗.md`；設計檔沒寫的三句在 B3 計畫讀稿列過，米放行。
+    /// 「儲存並驗證」之後那一行字。四句照 `.uiux/06-首次體驗.md`；忙線、額度那兩句在 B3 計畫讀稿米放行；
+    /// 空欄與 Keychain 三句的措辭列在組塊 B 待驗清單給米定。
     struct KeyStatus: Equatable {
         let message: String
         let isGood: Bool
@@ -26,9 +27,9 @@ struct SettingsView: View {
             message: "先存起來了，OpenAI 現在忙，下次整理時會再試。",
             isGood: false
         )
-        static let saveFailed = KeyStatus(message: "金鑰沒存好，重開 App 再試一次。", isGood: false)
-        static let deleteFailed = KeyStatus(message: "金鑰沒刪掉，重開 App 再試一次。", isGood: false)
-        static let loadFailed = KeyStatus(message: "讀不到存好的金鑰，重開 App 再試一次。", isGood: false)
+        static let saveFailed = KeyStatus(message: "金鑰沒存好，重開米說再試一次。", isGood: false)
+        static let deleteFailed = KeyStatus(message: "金鑰沒刪掉，重開米說再試一次。", isGood: false)
+        static let loadFailed = KeyStatus(message: "讀不到存好的金鑰，重開米說再試一次。", isGood: false)
 
         /// M11 的兩堆錯誤翻成給人看的一句：金鑰本身的問題講金鑰，線路的問題講「先存起來了」。
         init(verifyFailure: OpenAIClient.Failure) {
@@ -71,7 +72,8 @@ struct SettingsView: View {
                 }
                 deleteButton
             } header: {
-                Text("OpenAI 金鑰（API Key）")
+                // iOS 預設把區塊標題轉大寫；詞彙表要的是「OpenAI 金鑰（API Key）」原樣。
+                Text("OpenAI 金鑰（API Key）").textCase(nil)
             } footer: {
                 if let url = Self.applyURL {
                     Link("去申請金鑰", destination: url)
@@ -145,6 +147,7 @@ struct SettingsView: View {
         return HStack(alignment: .firstTextBaseline, spacing: Token.Space.s) {
             Image(systemName: symbol)
                 .foregroundStyle(status.isGood ? Token.Colors.link : Token.Colors.danger)
+                .accessibilityHidden(true)
             Text(status.message)
                 .font(Token.Fonts.secondary)
                 .foregroundStyle(Token.Colors.textPrimary)
@@ -164,6 +167,10 @@ struct SettingsView: View {
     /// 先存再驗：沒網路也不白貼（PRD「沒網路也能錄」）。存失敗就不驗，不讓人以為存好了。
     @MainActor
     private func saveAndVerify() async {
+        // 按鈕變灰之前的那一瞬間再點一下也不送第二次。
+        guard !isVerifying else {
+            return
+        }
         let trimmedKey = keyText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
             status = .empty
