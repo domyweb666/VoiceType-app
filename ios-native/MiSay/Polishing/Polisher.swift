@@ -14,7 +14,8 @@ struct Polisher {
     static let alternativeModel = "gpt-4o-mini"
     static let maxAttempts = 3
     static let retryBaseDelaySeconds: Double = 2
-    static let temperature = 0.3
+    /// 只有 gpt-4 系列帶：GPT-5 系列不收自訂 temperature（會回 400），網頁版 docs/index.html 也是這樣分。
+    static let gpt4Temperature = 0.3
     static let endpointPath = "/v1/chat/completions"
 
     /// 舊版提示詞的骨架＋米的草稿規矩（產品定稿：分段、重複只留最完整一次、不合成新句、只改錯字、
@@ -79,7 +80,7 @@ struct Polisher {
                 ChatMessage(role: "system", content: system),
                 ChatMessage(role: "user", content: rawText),
             ],
-            temperature: Self.temperature
+            temperature: Self.temperature(for: model)
         )
         let body: Data
         do {
@@ -125,10 +126,15 @@ struct Polisher {
         let content: String
     }
 
+    static func temperature(for model: String) -> Double? {
+        model.hasPrefix("gpt-4") ? gpt4Temperature : nil
+    }
+
+    /// temperature 是 nil 時整個欄位不送（Encodable 合成的會略過 nil）。
     private struct ChatRequest: Encodable {
         let model: String
         let messages: [ChatMessage]
-        let temperature: Double
+        let temperature: Double?
     }
 
     private struct ChatResponse: Decodable {

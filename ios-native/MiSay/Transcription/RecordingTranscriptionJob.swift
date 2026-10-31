@@ -28,13 +28,14 @@ struct RecordingTranscriptionJob {
     /// `onSegment` 在每段開始送之前叫（第幾段／共幾段），給面板畫「第 2／3 段」。
     func transcribe(
         recordingAt recordingURL: URL,
-        onSegment: (Int, Int) -> Void = { _, _ in }
+        onSegment: @MainActor (Int, Int) -> Void = { _, _ in }
     ) async throws -> String {
         let segmentsDirectory = Self.segmentsDirectory(for: recordingURL)
         let segments = try WAVSegmenter.split(recordingURL, into: segmentsDirectory)
         var progress = loadProgress(for: recordingURL)
         for (index, segment) in segments.enumerated() where progress.segmentTexts[index] == nil {
-            onSegment(index + 1, segments.count)
+            // 回呼會改畫面讀的進度，要回主執行緒叫；這個函式本身跑在背景。
+            await onSegment(index + 1, segments.count)
             let previousText = (0 ..< index).compactMap { progress.segmentTexts[$0] }.joined()
             let prompt = TranscriptionPrompt.build(
                 vocabulary: vocabulary,

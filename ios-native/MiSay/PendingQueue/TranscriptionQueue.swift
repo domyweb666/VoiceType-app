@@ -24,6 +24,15 @@ final class TranscriptionQueue {
         case storageFailed
         /// 潤飾回來了但存不進去：口語稿那一版還在歷史裡，錄音檔已刪。
         case draftNotSaved(Transcript)
+        /// 錄音檔讀不到或切不了段（不是 OpenAI 的事）：檔還在待轉錄，沒送出去的不扣款。
+        case recordingUnreadable
+        /// 口語稿存好了但錄音檔刪不掉：不停下來的話下一輪會整段重轉、重扣一次錢。
+        case recordingNotDeleted(Transcript)
+    }
+
+    /// `Result` 的失敗那一邊要是 Error；包一層讓「存口語稿那一步」能把要停下來的結局帶回來。
+    private struct StoppedOutcome: Error {
+        let value: Outcome
     }
 
     private(set) var activity = Activity.idle
@@ -57,7 +66,7 @@ final class TranscriptionQueue {
         inFlight.insert(name)
         defer {
             inFlight.remove(name)
-            activity = .idle
+            resetActivity(ifShowing: name)
         }
 
         guard (try? keyStore.read()) != nil else {
@@ -79,34 +88,64 @@ final class TranscriptionQueue {
             }
         } catch let failure as OpenAIClient.Failure {
             return .transcriptionFailed(failure)
+        } catch is CancellationError {
+            return nil
         } catch {
-            return .transcriptionFailed(.malformedResponse)
+            return .recordingUnreadable
         }
 
+        let transcript: Transcript
+        switch saveRawThenDeleteRecording(rawText, recordingAt: url, job: job) {
+        case let .success(saved):
+            transcript = saved
+        case let .failure(outcome):
+            return outcome.value
+        }
+        activity = .polishing(recording: name)
+        return await polishAndSave(transcript)
+    }
+
+    /// 口語稿落地之後才准刪錄音檔（安全標準二：存好才准刪）；錄音檔刪掉之後才清切段與進度檔，
+    /// 不然錄音刪不掉時進度也沒了，下一輪只能整段重送。
+    private func saveRawThenDeleteRecording(
+        _ rawText: String,
+        recordingAt url: URL,
+        job: RecordingTranscriptionJob
+    ) -> Result<Transcript, StoppedOutcome> {
+        let name = url.lastPathComponent
         let duration = (try? pending.list().first { $0.id == name }?.durationSeconds) ?? 0
         let transcript = Transcript(durationSeconds: duration, rawText: rawText)
         do {
             try store.save(transcript)
         } catch {
-            return .storageFailed
+            return .failure(StoppedOutcome(value: .storageFailed))
         }
-        // 口語稿已經落地，這時才准刪錄音檔與切段（安全標準二：存好才准刪）。
+        do {
+            try pending.delete(recordingAt: url)
+        } catch {
+            return .failure(StoppedOutcome(value: .recordingNotDeleted(transcript)))
+        }
         job.cleanUp(recordingAt: url)
-        let recordingFile = PendingRecordings.Recording(
-            url: url,
-            recordedAt: .distantPast,
-            durationSeconds: 0
-        )
-        try? pending.delete(recordingFile)
+        return .success(transcript)
+    }
 
-        activity = .polishing(recording: name)
-        return await polishAndSave(transcript)
+    /// 只有正在顯示的是這一筆時才歸零：面板與續轉可能同時各跑一筆，不能蓋掉另一筆的進度。
+    private func resetActivity(ifShowing recording: String) {
+        switch activity {
+        case let .transcribing(name, _, _), let .polishing(name):
+            if name == recording {
+                activity = .idle
+            }
+        case .idle:
+            break
+        }
     }
 
     /// 片 D6「重試潤飾」：口語稿已在歷史，只重送潤飾，成功就存回同一篇。
     func retryPolish(_ transcript: Transcript) async -> Outcome {
-        activity = .polishing(recording: transcript.id.uuidString)
-        defer { activity = .idle }
+        let name = transcript.id.uuidString
+        activity = .polishing(recording: name)
+        defer { resetActivity(ifShowing: name) }
         return await polishAndSave(transcript)
     }
 
@@ -152,7 +191,8 @@ final class TranscriptionQueue {
             switch outcome {
             case .finished, .polishFailed, .draftNotSaved, nil:
                 continue
-            case .noAPIKey, .transcriptionFailed, .storageFailed:
+            case .noAPIKey, .transcriptionFailed, .storageFailed, .recordingUnreadable,
+                 .recordingNotDeleted:
                 return
             }
         }

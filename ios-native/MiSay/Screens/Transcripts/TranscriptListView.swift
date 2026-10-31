@@ -10,6 +10,7 @@ struct TranscriptListView: View {
     @State private var transcripts: [Transcript] = []
     @State private var unreadableCount = 0
     @State private var loadFailed = false
+    @State private var deleteFailed = false
     @State private var query = ""
     @State private var pendingDeletion: Transcript?
     @State private var deletionTask: Task<Void, Never>?
@@ -81,7 +82,7 @@ struct TranscriptListView: View {
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(Token.Colors.danger)
                 .accessibilityHidden(true)
-            Text("有 \(unreadableCount) 篇歷史讀不到，原檔已保留。")
+            Text("有 \(unreadableCount) 篇文字稿讀不到，原檔已保留。")
                 .font(Token.Fonts.secondary)
                 .foregroundStyle(Token.Colors.textPrimary)
         }
@@ -131,6 +132,12 @@ struct TranscriptListView: View {
             )
             .padding(.horizontal, Token.Space.l)
             .padding(.bottom, Token.Space.s)
+        } else if deleteFailed {
+            // 清單有東西時空狀態那句不會出現，刪不掉要在這裡講，不然那篇像是自己跑回來。
+            Text("沒刪掉，這篇還在。再刪一次看看。")
+                .font(Token.Fonts.secondary)
+                .foregroundStyle(Token.Colors.danger)
+                .padding(Token.Space.l)
         }
     }
 
@@ -165,6 +172,7 @@ struct TranscriptListView: View {
     /// 先從畫面拿掉、5 秒後才真的刪檔；期間按「復原」就放回去。
     private func softDelete(_ transcript: Transcript) {
         commitDeletionNow()
+        deleteFailed = false
         pendingDeletion = transcript
         deletionTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(Self.undoWindowSeconds))
@@ -192,8 +200,8 @@ struct TranscriptListView: View {
             try TranscriptStore().delete(id: doomed.id)
             transcripts.removeAll { $0.id == doomed.id }
         } catch {
-            // 刪不掉就留著：下次 reload 它還在清單裡，比默默消失誠實。
-            loadFailed = true
+            // 刪不掉就留著：它還在清單裡，並且說出來，比默默消失誠實。
+            deleteFailed = true
         }
     }
 }

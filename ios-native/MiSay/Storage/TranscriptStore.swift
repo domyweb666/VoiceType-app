@@ -20,6 +20,7 @@ struct TranscriptStore {
     }
 
     static let fileExtension = "transcript"
+    private static let unreadableDirectoryName = "Transcripts/Unreadable"
     /// 「第一次解鎖後可用」：背景自動整理（D5）在鎖屏時也要存得進去。加密另外靠 CryptoKit。
     static let fileProtection = FileProtectionType.completeUntilFirstUserAuthentication
     /// 原子寫入（先寫暫存再換名）＋同一級檔案保護。
@@ -79,7 +80,23 @@ struct TranscriptStore {
             }
         }
         transcripts.sort { $0.createdAt > $1.createdAt }
-        return LoadResult(transcripts: transcripts, unreadableCount: unreadableCount)
+        // 以前搬走的也要算：不然從詳情頁返回、再讀一次，數字就變 0、橫幅不見了。
+        let totalUnreadable = max(unreadableCount, setAsideFileCount())
+        return LoadResult(transcripts: transcripts, unreadableCount: totalUnreadable)
+    }
+
+    /// Unreadable/ 裡現有幾個檔。數不到就當 0：只影響橫幅的數字，不影響任何資料。
+    private func setAsideFileCount() -> Int {
+        do {
+            let unreadable = try ensuredDirectory(named: Self.unreadableDirectoryName)
+            let files = try fileManager.contentsOfDirectory(
+                at: unreadable,
+                includingPropertiesForKeys: nil
+            )
+            return files.filter { $0.pathExtension == Self.fileExtension }.count
+        } catch {
+            return 0
+        }
     }
 
     /// 真的把那一篇的檔刪掉。畫面要先給 5 秒復原的機會（E3）才呼叫。
@@ -109,7 +126,7 @@ struct TranscriptStore {
 
     /// 壞檔另存不刪（PRD「歷史檔讀不到的時候 App 不會自己清空」）。
     private func setAside(_ file: URL) throws {
-        let unreadable = try ensuredDirectory(named: "Transcripts/Unreadable")
+        let unreadable = try ensuredDirectory(named: Self.unreadableDirectoryName)
         try fileManager.moveItem(at: file, to: unreadable.appending(path: file.lastPathComponent))
     }
 

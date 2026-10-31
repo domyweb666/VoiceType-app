@@ -13,7 +13,8 @@ final class TranscriptStoreTests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: try store.directoryURL())
+        let directory = try store.directoryURL()
+        try? FileManager.default.removeItem(at: directory)
         try keyStore.deleteForTesting()
     }
 

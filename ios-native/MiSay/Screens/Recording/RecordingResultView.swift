@@ -10,6 +10,7 @@ struct RecordingResultView: View {
         case transcriptionFailed(reason: String, needsNewKey: Bool)
         case storageFailed
         case polishFailed(Transcript)
+        case recordingNotDeleted(Transcript)
         case finished(Transcript, isCopied: Bool)
     }
 
@@ -47,6 +48,8 @@ struct RecordingResultView: View {
                 )
             case let .polishFailed(transcript):
                 polishFailedContent(transcript)
+            case let .recordingNotDeleted(transcript):
+                recordingNotDeletedContent(transcript)
             case let .finished(transcript, isCopied):
                 finishedContent(transcript, isCopied: isCopied)
             }
@@ -70,7 +73,7 @@ struct RecordingResultView: View {
         switch status {
         case .finished:
             Token.Haptics.transcriptReady
-        case .noAPIKey, .transcriptionFailed, .storageFailed, .polishFailed:
+        case .noAPIKey, .transcriptionFailed, .storageFailed, .polishFailed, .recordingNotDeleted:
             Token.Haptics.failed
         case .processing:
             nil
@@ -134,6 +137,10 @@ struct RecordingResultView: View {
             status = Self.failedStatus(for: failure)
         case .storageFailed:
             status = .storageFailed
+        case .recordingUnreadable:
+            status = .transcriptionFailed(reason: "這段錄音讀不出來，再試一次。", needsNewKey: false)
+        case let .recordingNotDeleted(transcript):
+            status = .recordingNotDeleted(transcript)
         case let .polishFailed(transcript, _), let .draftNotSaved(transcript):
             status = .polishFailed(transcript)
         case let .finished(transcript):
@@ -204,6 +211,16 @@ private extension RecordingResultView {
             message("口語稿已經存好，潤飾沒有成功。")
             primaryButton("重試潤飾") { retryPolish(transcript) }
             textButton("打開這篇") { onOpenTranscript(transcript) }
+            textButton("完成") { dismiss() }
+        }
+    }
+
+    /// 不刪的話下一輪會再整理一次這段錄音，所以叫使用者自己去待轉錄刪。
+    func recordingNotDeletedContent(_ transcript: Transcript) -> some View {
+        VStack(spacing: Token.Space.m) {
+            failureIcon
+            message("口語稿已經存好，但錄音檔刪不掉，還在待轉錄。到待轉錄把它刪掉，不然會再整理一次。")
+            primaryButton("打開這篇") { onOpenTranscript(transcript) }
             textButton("完成") { dismiss() }
         }
     }

@@ -121,8 +121,13 @@ struct PendingRecordings {
 
     /// 片 C6「刪掉這一個」。畫面要先用系統動作表確認過才准呼叫（⚠️ 刪檔）。
     func delete(_ recording: Recording) throws {
+        try delete(recordingAt: recording.url)
+    }
+
+    /// D5：口語稿存進歷史之後由流水呼叫；畫面上的刪除走上面那個。
+    func delete(recordingAt url: URL) throws {
         do {
-            try fileManager.removeItem(at: recording.url)
+            try fileManager.removeItem(at: url)
         } catch {
             throw Failure.cannotDelete
         }

@@ -48,19 +48,22 @@ enum WAVSegmenter {
             guard let chunk, chunk.count == length else {
                 throw Failure.cannotRead
             }
-            let index = segments.count + 1
-            let segmentName = String(format: "%@-%02d.wav", baseName, index)
-            let segmentURL = directory.appending(path: segmentName)
-            var segment = WAVFileWriter.header(dataByteCount: UInt32(length))
-            segment.append(chunk)
-            do {
-                try segment.write(to: segmentURL, options: .atomic)
-            } catch {
-                throw Failure.cannotWrite
-            }
-            segments.append(segmentURL)
+            let segmentName = String(format: "%@-%02d.wav", baseName, segments.count + 1)
+            try segments.append(writeSegment(chunk, to: directory.appending(path: segmentName)))
             offset += length
         }
         return segments
+    }
+
+    /// 每段都補上自己的檔頭，OpenAI 才當它是完整的 WAV。
+    private static func writeSegment(_ pcm: Data, to url: URL) throws -> URL {
+        var segment = WAVFileWriter.header(dataByteCount: UInt32(pcm.count))
+        segment.append(pcm)
+        do {
+            try segment.write(to: url, options: .atomic)
+        } catch {
+            throw Failure.cannotWrite
+        }
+        return url
     }
 }
