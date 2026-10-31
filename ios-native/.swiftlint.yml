@@ -36,6 +36,7 @@ file_length:
 line_length:
   warning: 100
   error: 120
+  ignores_comments: true
 type_body_length:
   warning: 200
   error: 300
@@ -47,6 +48,13 @@ identifier_name:
     - y
     - db
     - ms
+    # Tokens.swift 的六個間距刻度（設計代號，不改名）
+    - xs
+    - s
+    - m
+    - l
+    - xl
+    - xxl
 
 # 規矩檔第 3 節：錯誤要大聲
 force_cast: error
@@ -75,4 +83,29 @@ custom_rules:
     name: "只准 https"
     regex: '"http://'
     message: "只連 https://api.openai.com（安全標準三）"
+    severity: error
+  # 以下四條：畫面寫死數值檢查（.uiux/05-設計代號/使用規則.md 最後一節）。Tokens.swift 是唯一例外。
+  no_hardcoded_color:
+    name: "畫面不准寫死顏色"
+    regex: '#[0-9A-Fa-f]{3,8}\b|Color\(red:|Color\(hex:|UIColor\(red:|Color\(\.sRGB|Color\(white:'
+    excluded: ".*Tokens\\.swift"
+    message: "顏色只准用 Token.Colors（使用規則第 1 條）"
+    severity: error
+  no_hardcoded_font_size:
+    name: "畫面不准寫死字級"
+    regex: '\.font\(\.system\(size:|Font\.system\(size:'
+    excluded: ".*Tokens\\.swift"
+    message: "字級只准用 Token.Fonts，跟著系統字級走（使用規則第 5 條）"
+    severity: error
+  no_hardcoded_spacing:
+    name: "畫面不准寫死間距與圓角"
+    regex: '\.padding\((\.[a-zA-Z]+, *)?[0-9]|cornerRadius: *[0-9]|spacing: *[0-9]'
+    excluded: ".*Tokens\\.swift"
+    message: "間距與圓角只准用 Token.Space／Token.Shape（使用規則第 1 條）"
+    severity: error
+  no_hardcoded_duration:
+    name: "畫面不准寫死動畫秒數"
+    regex: 'duration: *[0-9]'
+    excluded: ".*Tokens\\.swift"
+    message: "動畫只准用 Token.Motion（使用規則第 1 條）"
     severity: error

@@ -62,6 +62,14 @@ for f in $files; do
       check "$f" '"http://'                                         "只准 https"
       check "$f" '\b(TODO|FIXME)\b'                                 "不准留 TODO/FIXME，寫進切片帳本"
       check "$f" 'UserDefaults.*([Aa]pi[Kk]ey|[Tt]oken|[Ss]ecret)'  "金鑰只准存 Keychain"
+      # 畫面寫死數值（.uiux/05-設計代號/使用規則.md 最後一節）；Tokens.swift 是唯一例外
+      case "$f" in *Tokens.swift) ;; *)
+        check "$f" '#[0-9A-Fa-f]{3,8}\b|Color\(red:|Color\(hex:|UIColor\(red:|Color\(white:' "畫面不准寫死顏色，只准 Token.Colors"
+        check "$f" '\.font\(\.system\(size:|Font\.system\(size:'                       "畫面不准寫死字級，只准 Token.Fonts"
+        check "$f" '\.padding\((\.[a-zA-Z]+, *)?[0-9]|cornerRadius: *[0-9]|spacing: *[0-9]' "畫面不准寫死間距與圓角，只准 Token.Space／Shape"
+        check "$f" 'duration: *[0-9]'                                                  "畫面不准寫死動畫秒數，只准 Token.Motion"
+        ;;
+      esac
       ;;
     ios-native/*.plist|ios-native/*.yml|ios-native/*.yaml|*/ios-native/*.plist|*/ios-native/*.yml)
       check "$f" 'NSAllowsArbitraryLoads|NSExceptionAllowsInsecureHTTPLoads' "不准關掉 ATS（安全標準三）"
