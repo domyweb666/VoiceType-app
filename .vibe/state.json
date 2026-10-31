@@ -1,10 +1,10 @@
 {
-  "station": "impl",
-  "updated_at": "2026-11-01T04:10:00+08:00",
+  "station": "audit-batch",
+  "updated_at": "2026-11-01T05:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
-    "todo": 27,
-    "machine_verified": 5,
+    "todo": 26,
+    "machine_verified": 6,
     "human_verified": 4
   },
   "chunks": [
@@ -18,7 +18,7 @@
     {
       "name": "B 金鑰與連線",
       "total": 3,
-      "machine_done": 2,
+      "machine_done": 3,
       "human_verified": false,
       "approved": true
     },
