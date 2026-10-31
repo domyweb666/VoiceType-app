@@ -13,7 +13,7 @@ targets:
     platform: iOS
     sources:
       - MiSay
-    # Info.plist 由 XcodeGen 每次產生（不進 repo）。麥克風說明是片 C2 的事，這裡不放。
+    # Info.plist 由 XcodeGen 每次產生（不進 repo）。
     info:
       path: MiSay/Info.plist
       properties:

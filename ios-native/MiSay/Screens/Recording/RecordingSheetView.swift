@@ -1,15 +1,18 @@
 import SwiftUI
 
 /// 錄音面板（半頁模態，不可下滑關閉：03-線框「錄到一半誤滑就丟掉」）。
-/// 片 C1：只有錄音中與失敗兩種狀態；停止後直接收起。整理中、完成、沒聲音是 D6。
+/// 片 C1：錄音中、失敗、停止；片 C2：麥克風被拒。整理中、完成、沒聲音是 D6。
 struct RecordingSheetView: View {
     enum Phase: Equatable {
         case starting
         case recording
+        case stopped
+        case microphoneDenied
         case failed(String)
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var recorder = Recorder()
     @State private var phase = Phase.starting
@@ -18,8 +21,10 @@ struct RecordingSheetView: View {
     var body: some View {
         VStack(spacing: Token.Space.xl) {
             switch phase {
-            case .starting, .recording:
+            case .starting, .recording, .stopped:
                 recordingContent
+            case .microphoneDenied:
+                deniedContent
             case let .failed(message):
                 failedContent(message)
             }
@@ -29,12 +34,23 @@ struct RecordingSheetView: View {
         .background(Token.Colors.groupedBackground)
         .interactiveDismissDisabled()
         .sensoryFeedback(trigger: phase) { old, new in
-            if new == .recording {
-                return Token.Haptics.recordStart
-            }
-            return old == .recording ? Token.Haptics.recordStop : nil
+            Self.feedback(from: old, to: new)
         }
         .task { await startRecording() }
+    }
+
+    /// 手感參數表：開始、停止各一下且不同；失敗一下警告。
+    static func feedback(from old: Phase, to new: Phase) -> SensoryFeedback? {
+        switch new {
+        case .recording:
+            return Token.Haptics.recordStart
+        case .stopped:
+            return old == .recording ? Token.Haptics.recordStop : nil
+        case .microphoneDenied, .failed:
+            return Token.Haptics.failed
+        case .starting:
+            return nil
+        }
     }
 
     private var recordingContent: some View {
@@ -43,19 +59,19 @@ struct RecordingSheetView: View {
                 .font(Token.Fonts.timer)
                 .foregroundStyle(Token.Colors.textPrimary)
                 .accessibilityLabel("已錄 \(Self.formatElapsed(recorder.elapsedSeconds))")
-            HStack(spacing: Token.Space.s) {
+            Text("正在聽")
+                .font(Token.Fonts.secondary)
+                .foregroundStyle(Token.Colors.textSecondary)
+            waveform
+            HStack(spacing: Token.Space.m) {
                 if reduceMotion {
                     Circle()
                         .fill(Token.Colors.recordingFill)
                         .frame(width: Token.Space.s, height: Token.Space.s)
                         .accessibilityHidden(true)
                 }
-                Text("正在聽")
-                    .font(Token.Fonts.secondary)
-                    .foregroundStyle(Token.Colors.textSecondary)
+                stopButton
             }
-            waveform
-            stopButton
             Text("鎖住螢幕也會繼續錄")
                 .font(Token.Fonts.footnote)
                 .foregroundStyle(Token.Colors.textSecondary)
@@ -89,7 +105,7 @@ struct RecordingSheetView: View {
         }
     }
 
-    /// 80pt 紅鈕；外圈 1.4 秒呼吸一次（4pt → 12pt）。減少動態時不呼吸，由上面的紅點代替。
+    /// 80pt 紅鈕；外圈 1.4 秒呼吸一次（4pt → 12pt）。減少動態時不呼吸，由旁邊的紅點代替。
     private var stopButton: some View {
         Button {
             stopRecording()
@@ -117,6 +133,36 @@ struct RecordingSheetView: View {
             withAnimation(breathing.repeatForever(autoreverses: true)) {
                 isPulsing = true
             }
+        }
+    }
+
+    /// 片 C2：文案照首次體驗檔權限時刻表；「打開『設定』」直接開系統設定的米說頁。
+    private var deniedContent: some View {
+        VStack(spacing: Token.Space.m) {
+            Text("米說聽不到你的聲音")
+                .font(Token.Fonts.rowTitle)
+                .foregroundStyle(Token.Colors.textPrimary)
+            Text("麥克風權限是關的。到『設定』打開米說的麥克風，回來就能錄。")
+                .font(Token.Fonts.body)
+                .foregroundStyle(Token.Colors.textPrimary)
+                .multilineTextAlignment(.center)
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(url)
+                }
+                dismiss()
+            } label: {
+                Text("打開『設定』")
+                    .font(Token.Fonts.rowTitle)
+                    .frame(maxWidth: .infinity, minHeight: Token.Shape.primaryTap)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Token.Colors.link)
+            Button("先不要") {
+                dismiss()
+            }
+            .font(Token.Fonts.body)
+            .tint(Token.Colors.link)
         }
     }
 
@@ -156,8 +202,7 @@ struct RecordingSheetView: View {
             try await recorder.start()
             phase = .recording
         } catch Recorder.Failure.microphoneDenied {
-            // 被拒的完整畫面（「打開設定」那顆）是片 C2；這裡先用首次體驗檔的第一句。
-            phase = .failed("米說聽不到你的聲音。麥克風權限是關的。")
+            phase = .microphoneDenied
         } catch {
             phase = .failed("錄音沒有開始，再試一次。")
         }
@@ -168,6 +213,7 @@ struct RecordingSheetView: View {
         do {
             let recordedURL = try recorder.stop()
             _ = try PendingRecordings().accept(recordingAt: recordedURL)
+            phase = .stopped
             dismiss()
         } catch {
             phase = .failed("錄音停不下來或存不進去，檔案還在，重開米說會撿回來。")

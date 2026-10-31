@@ -19,6 +19,12 @@ final class Recorder {
     static let levelsPerSecond = Token.Motion.waveformHz
     /// 畫面上柱子的根數；滿了從左邊掉出去。
     static let levelHistoryCount = 40
+    /// 錄音檔的保護等級。用「第一次解鎖後可用」：鎖屏時還在錄（C3），檔案要寫得進去（安全標準二）。
+    static let fileProtection = FileProtectionType.completeUntilFirstUserAuthentication
+    /// 轉換器輸出緩衝多留幾個 frame，取樣率換算有小數時不會不夠。
+    private static let converterHeadroomFrames: AVAudioFrameCount = 16
+    /// RMS 到這個值就當講話很大聲（柱子頂到底）。手感參數表沒給，標「待調」。
+    private static let loudSpeechRMS = 0.25
 
     private(set) var isRecording = false
     private(set) var elapsedSeconds: Double = 0
@@ -27,10 +33,10 @@ final class Recorder {
     private(set) var levels: [Double] = Array(repeating: 0, count: Recorder.levelHistoryCount)
 
     private let engine = AVAudioEngine()
-    private var converter: AVAudioConverter?
-    private var writer: WAVFileWriter?
-    /// 音訊執行緒寫不進去時記一筆，停止時才報，不在回呼裡默默吞掉。
-    private var hasWriteFailure = false
+    @ObservationIgnored private var converter: AVAudioConverter?
+    @ObservationIgnored private var writer: WAVFileWriter?
+    /// 音訊執行緒寫不進去或轉不過去時記一筆，停止時報出來，不在回呼裡默默吞掉。
+    @ObservationIgnored private var hasWriteFailure = false
     private let fileManager = FileManager.default
 
     /// 錄音中的檔先放這裡（救回檔的家，C4 會來撿）；停止後呼叫端搬去待轉錄。
@@ -45,7 +51,7 @@ final class Recorder {
         try fileManager.createDirectory(
             at: directory,
             withIntermediateDirectories: true,
-            attributes: [.protectionKey: PendingRecordings.fileProtection]
+            attributes: [.protectionKey: Self.fileProtection]
         )
         return directory
     }
@@ -53,10 +59,24 @@ final class Recorder {
     /// 問權限（第一次會跳系統框）、開收音、開始寫檔。失敗就拋，什麼都不留。
     @MainActor
     func start() async throws {
+        guard !isRecording else {
+            return
+        }
         guard await AVAudioApplication.requestRecordPermission() else {
             throw Failure.microphoneDenied
         }
         try activateAudioSession()
+        do {
+            try startEngine()
+        } catch {
+            // 起不來就把剛開的東西全收掉：空檔不留（它從沒裝過資料，刪了不違反「存好才准刪」）。
+            abandonStart()
+            throw error
+        }
+        isRecording = true
+    }
+
+    private func startEngine() throws {
         let targetFormat = try Self.targetFormat()
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
@@ -85,21 +105,33 @@ final class Recorder {
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
-            writer = nil
             throw Failure.inputUnavailable
         }
-        isRecording = true
+    }
+
+    private func abandonStart() {
+        converter = nil
+        if let writer {
+            try? fileManager.removeItem(at: writer.url)
+        }
+        writer = nil
+        // 關不掉音訊工作階段不影響任何資料，所以不當錯誤。
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     /// 停收音、補檔頭，回錄好的檔在哪。呼叫端負責搬去待轉錄。
     @MainActor
     func stop() throws -> URL {
-        guard isRecording, let writer else {
+        guard isRecording else {
             throw Failure.notRecording
         }
+        // 先拆 tap、停引擎，之後才拿 writer 的副本：不然最後一段還在寫，檔頭會少算它。
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         isRecording = false
+        guard let writer else {
+            throw Failure.notRecording
+        }
         self.writer = nil
         do {
             try writer.finish()
@@ -149,9 +181,11 @@ final class Recorder {
             return
         }
         let ratio = targetFormat.sampleRate / buffer.format.sampleRate
-        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 16
+        let frames = AVAudioFrameCount(Double(buffer.frameLength) * ratio)
+        let capacity = frames + Self.converterHeadroomFrames
         let output = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity)
         guard let converted = output else {
+            hasWriteFailure = true
             return
         }
         var consumed = false
@@ -166,6 +200,7 @@ final class Recorder {
             return buffer
         }
         guard status != .error, let channels = converted.int16ChannelData else {
+            hasWriteFailure = true
             return
         }
         let samples = UnsafeBufferPointer(start: channels[0], count: Int(converted.frameLength))
@@ -191,7 +226,7 @@ final class Recorder {
         levels.append(level)
     }
 
-    /// RMS 換成 0 到 1；0.25 左右就算講話很大聲，再往上截掉，柱子才不會老是貼頂或貼底。
+    /// RMS 換成 0 到 1；到 loudSpeechRMS 就截掉，柱子才不會老是貼頂或貼底。
     private static func level(of samples: UnsafeBufferPointer<Int16>) -> Double {
         guard !samples.isEmpty else {
             return 0
@@ -202,6 +237,6 @@ final class Recorder {
             sum += normalized * normalized
         }
         let rms = (sum / Double(samples.count)).squareRoot()
-        return min(rms * 4, 1)
+        return min(rms / loudSpeechRMS, 1)
     }
 }

@@ -9,9 +9,6 @@ struct PendingRecordings {
         case cannotMoveIn
     }
 
-    /// 用「第一次解鎖後可用」而不是「鎖上就關」：鎖屏時還在錄（C3），檔案要寫得進去。
-    static let fileProtection = FileProtectionType.completeUntilFirstUserAuthentication
-
     private let fileManager = FileManager.default
 
     /// 資料夾不存在就建；每次都把保護等級設一次，舊資料夾也會被補上。
@@ -27,10 +24,10 @@ struct PendingRecordings {
             try fileManager.createDirectory(
                 at: directory,
                 withIntermediateDirectories: true,
-                attributes: [.protectionKey: Self.fileProtection]
+                attributes: [.protectionKey: Recorder.fileProtection]
             )
             try fileManager.setAttributes(
-                [.protectionKey: Self.fileProtection],
+                [.protectionKey: Recorder.fileProtection],
                 ofItemAtPath: directory.path
             )
         } catch {
