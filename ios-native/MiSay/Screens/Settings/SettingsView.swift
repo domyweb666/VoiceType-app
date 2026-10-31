@@ -85,6 +85,7 @@ struct SettingsView: View {
             .listRowBackground(Token.Colors.rowBackground)
             polishSection
             habitsSection
+            BackupSection()
             aboutSection
         }
         .scrollContentBackground(.hidden)
@@ -214,7 +215,7 @@ struct SettingsView: View {
     }
 }
 
-/// 金鑰以外的三區（片 F1～F5）。改了馬上存（M7），下一筆整理就照新的走。
+/// 潤飾、使用習慣、關於（片 F1～F5）；「資料」在 `BackupSection`（組塊 G）。改了馬上存（M7），下一筆整理就照新的走。
 private extension SettingsView {
     var polishSection: some View {
         Section {
