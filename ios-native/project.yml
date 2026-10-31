@@ -23,11 +23,17 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # 只用 HTTPS，出口合規免申報；沒這行每個 build 都要進 App Store Connect 手動回答
         ITSAppUsesNonExemptEncryption: false
+        # 2026-11-01 Apple 退件 ITMS-90474／90475：要宣告方向與啟動畫面。米說只做 iPhone 直向（.uiux）。
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UILaunchScreen: {}
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay
         MARKETING_VERSION: "0.0.0"
         CURRENT_PROJECT_VERSION: "1"
+        # 只給 iPhone（1）。不宣告的話 Apple 用 iPad 多工規格審，ITMS-90023／90474／90475 都是這樣來的
+        TARGETED_DEVICE_FAMILY: "1"
 
   MiSayTests:
     type: bundle.unit-test
