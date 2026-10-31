@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// 方塊 M2 的待轉錄資料夾：收錄音檔（C1）、重開時撿回救回檔（C4）、列出與刪掉（C6）。
 /// 判斷條件、自動續轉、失敗就停是 D5。
@@ -20,6 +21,8 @@ struct PendingRecordings {
         var id: String { url.lastPathComponent }
     }
 
+    /// 只記檔名（時間戳，不含內容），規矩檔第 3 節。
+    private static let logger = Logger(subsystem: "MiSay", category: "PendingRecordings")
     private let fileManager = FileManager.default
 
     /// 資料夾不存在就建；每次都把保護等級設一次，舊資料夾也會被補上。
@@ -73,12 +76,17 @@ struct PendingRecordings {
         }
         var recovered: [URL] = []
         for file in files where file.pathExtension == "wav" {
-            let dataByteCount = try WAVFileWriter.repairHeader(at: file)
-            if dataByteCount == 0 {
-                try? fileManager.removeItem(at: file)
-                continue
+            // 一個檔撿不回來不擋其他檔：它留在原地（資料沒動），下次重開再試，並記一筆。
+            do {
+                let dataByteCount = try WAVFileWriter.repairHeader(at: file)
+                if dataByteCount == 0 {
+                    try fileManager.removeItem(at: file)
+                    continue
+                }
+                try recovered.append(accept(recordingAt: file))
+            } catch {
+                Self.logger.error("救回檔撿不回來，留在原地：\(file.lastPathComponent, privacy: .public)")
             }
-            recovered.append(try accept(recordingAt: file))
         }
         return recovered
     }

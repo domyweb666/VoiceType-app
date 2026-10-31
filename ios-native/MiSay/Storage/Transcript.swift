@@ -2,7 +2,8 @@ import Foundation
 
 /// 方塊 M5 的一篇：口語稿一定有（轉錄完就落地），文字稿潤飾成功才有。
 /// 欄位對應 PRD「一篇的資料結構（口語稿、文字稿、時間、長度、用的模型）」。
-struct Transcript: Codable, Identifiable, Equatable {
+/// Hashable 給 D6「打開這篇」用 `navigationDestination(item:)` 推頁。
+struct Transcript: Codable, Identifiable, Hashable {
     let id: UUID
     let createdAt: Date
     let durationSeconds: Double

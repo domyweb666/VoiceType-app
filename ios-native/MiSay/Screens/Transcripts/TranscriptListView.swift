@@ -2,7 +2,11 @@ import SwiftUI
 
 /// 「文字稿」推入頁（片 D7、E3 復原、E6 搜尋）：歷史篇最新在上，點一列開詳情。
 /// 讀不到的篇數照 PRD 說「原檔已保留」，不自己清空。
+/// 片 D6「打開這篇」從錄音面板進來時先推到那一篇；返回落在清單，刪除照樣走「已刪除・復原」。
 struct TranscriptListView: View {
+    private let openingTranscript: Transcript?
+    @State private var openedTranscript: Transcript?
+    @State private var hasOpenedInitialTranscript = false
     @State private var transcripts: [Transcript] = []
     @State private var unreadableCount = 0
     @State private var loadFailed = false
@@ -12,6 +16,10 @@ struct TranscriptListView: View {
 
     /// 「已刪除・復原」留多久（PRD：5 秒內可復原）。
     static let undoWindowSeconds: Double = 5
+
+    init(opening transcript: Transcript? = nil) {
+        openingTranscript = transcript
+    }
 
     var body: some View {
         List {
@@ -33,7 +41,13 @@ struct TranscriptListView: View {
         .overlay { emptyOverlay }
         .safeAreaInset(edge: .bottom) { undoBanner }
         .navigationTitle("文字稿")
-        .task { reload() }
+        .navigationDestination(item: $openedTranscript) { transcript in
+            TranscriptDetailView(transcript: transcript, onDelete: softDelete)
+        }
+        .task {
+            reload()
+            openInitialTranscriptOnce()
+        }
         .onDisappear { commitDeletionNow() }
     }
 
@@ -124,6 +138,15 @@ struct TranscriptListView: View {
     static func subtitle(for transcript: Transcript) -> String {
         let date = transcript.createdAt.formatted(date: .abbreviated, time: .shortened)
         return date + "・" + RecordingSheetView.formatSpoken(transcript.durationSeconds)
+    }
+
+    /// `.task` 每次回到這頁都會跑，所以要記住已經推過，不然從詳情返回又被推回去。
+    private func openInitialTranscriptOnce() {
+        guard !hasOpenedInitialTranscript, let openingTranscript else {
+            return
+        }
+        hasOpenedInitialTranscript = true
+        openedTranscript = openingTranscript
     }
 
     private func reload() {

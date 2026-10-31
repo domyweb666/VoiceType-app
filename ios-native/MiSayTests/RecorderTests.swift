@@ -1,5 +1,5 @@
-@testable import MiSay
 import AVFoundation
+@testable import MiSay
 import XCTest
 
 /// 片 C3：中斷通知的判讀與面板上唸給人聽的秒數。真的來電只有真機驗得到。
@@ -8,20 +8,20 @@ final class RecorderTests: XCTestCase {
         let began: [AnyHashable: Any] = [
             AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue,
         ]
-        XCTAssertEqual(Recorder.interruptionKind(from: began), .began)
+        XCTAssertEqual(AudioInterruption(userInfo: began), .began)
 
         let shouldResume = AVAudioSession.InterruptionOptions.shouldResume.rawValue
         let endedResume: [AnyHashable: Any] = [
             AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.ended.rawValue,
             AVAudioSessionInterruptionOptionKey: shouldResume,
         ]
-        XCTAssertEqual(Recorder.interruptionKind(from: endedResume), .endedCanResume)
+        XCTAssertEqual(AudioInterruption(userInfo: endedResume), .endedCanResume)
 
         let endedNoResume: [AnyHashable: Any] = [
             AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.ended.rawValue,
         ]
-        XCTAssertEqual(Recorder.interruptionKind(from: endedNoResume), .endedCannotResume)
-        XCTAssertNil(Recorder.interruptionKind(from: nil))
+        XCTAssertEqual(AudioInterruption(userInfo: endedNoResume), .endedCannotResume)
+        XCTAssertNil(AudioInterruption(userInfo: nil))
     }
 
     func test錄音秒數唸成分與秒() {

@@ -2,11 +2,16 @@ import SwiftUI
 
 /// 首頁：米 2026-10-31 鎖定的骨架，正中央超大錄音鈕，其他全搬走。
 /// 片 A2 的殼；片 C1 把鈕接上錄音面板（方向 D：點一下升起半頁）；片 C6 的待轉錄列在鈕下方，0 個時整列不出現。
-/// 片 C4：第一次出現時先把上次被殺掉留下的救回檔撿進待轉錄。
+/// 片 C4：出現時先把上次被殺掉留下的救回檔撿進待轉錄。
+/// 片 D6：出現時、回到前景時自動續轉待轉錄；面板的「打開這篇」「去設定」從這裡推頁。
 struct HomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(TranscriptionQueue.self) private var queue
     @State private var isRecordingSheetShown = false
     @State private var pendingCount = 0
+    @State private var openedTranscript: Transcript?
+    @State private var isSettingsOpen = false
 
     var body: some View {
         VStack {
@@ -24,13 +29,36 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Token.Colors.groupedBackground)
         .sheet(isPresented: $isRecordingSheetShown) {
-            RecordingSheetView()
-                .presentationDetents([.medium])
-                .presentationCornerRadius(Token.Shape.radiusSheet)
+            RecordingSheetView(
+                queue: queue,
+                onOpenTranscript: openFromSheet,
+                onOpenSettings: openSettingsFromSheet
+            )
+            .presentationDetents([.medium])
+            .presentationCornerRadius(Token.Shape.radiusSheet)
         }
-        .task { recoverThenReloadPending() }
+        .navigationDestination(item: $openedTranscript) { transcript in
+            TranscriptListView(opening: transcript)
+        }
+        .navigationDestination(isPresented: $isSettingsOpen) { SettingsView() }
+        .task {
+            recoverThenReloadPending()
+            await queue.processPending()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else {
+                return
+            }
+            Task { await queue.processPending() }
+        }
         .onChange(of: isRecordingSheetShown) { _, shown in
             if !shown {
+                reloadPending()
+            }
+        }
+        .onChange(of: queue.activity) { _, activity in
+            // 背景整理完一筆（或面板收起後才整理完）就重算待轉錄數。
+            if activity == .idle {
                 reloadPending()
             }
         }
@@ -96,7 +124,18 @@ struct HomeView: View {
         .padding(.bottom, Token.Space.l)
     }
 
-    /// 撿回只在第一次出現時做，而且在任何錄音開始之前；錄音中的檔不能被當成救回檔。
+    /// 面板先收起再推頁，推到「文字稿」清單上的那一篇。
+    private func openFromSheet(_ transcript: Transcript) {
+        isRecordingSheetShown = false
+        openedTranscript = transcript
+    }
+
+    private func openSettingsFromSheet() {
+        isRecordingSheetShown = false
+        isSettingsOpen = true
+    }
+
+    /// 首頁每次出現（含從別頁返回）都會跑；這時面板一定是收起的，不會有錄音中的檔被當成救回檔。
     private func recoverThenReloadPending() {
         // 撿不回來不擋首頁：檔還留在原地，下次再試。
         _ = try? PendingRecordings().recoverAbandonedRecordings()

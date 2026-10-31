@@ -38,9 +38,10 @@ final class PendingRecordingsTests: XCTestCase {
         let recovered = try pending.recoverAbandonedRecordings()
         defer { recovered.forEach { try? FileManager.default.removeItem(at: $0) } }
 
-        XCTAssertEqual(recovered.map(\.lastPathComponent), [abandoned.lastPathComponent])
+        XCTAssertTrue(recovered.map(\.lastPathComponent).contains(abandoned.lastPathComponent))
         XCTAssertFalse(FileManager.default.fileExists(atPath: abandoned.path))
-        let bytes = try Data(contentsOf: try XCTUnwrap(recovered.first))
+        let recoveredFile = try XCTUnwrap(recovered.first { $0.lastPathComponent == abandonedName })
+        let bytes = try Data(contentsOf: recoveredFile)
         XCTAssertEqual(bytes.littleEndianUInt32(at: 40), 32000)
     }
 

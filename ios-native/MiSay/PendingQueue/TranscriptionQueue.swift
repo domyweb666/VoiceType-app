@@ -20,11 +20,15 @@ final class TranscriptionQueue {
         case transcriptionFailed(OpenAIClient.Failure)
         case polishFailed(Transcript, OpenAIClient.Failure)
         case finished(Transcript)
+        /// 口語稿存不進歷史：錄音檔還在待轉錄（沒刪）。
         case storageFailed
+        /// 潤飾回來了但存不進去：口語稿那一版還在歷史裡，錄音檔已刪。
+        case draftNotSaved(Transcript)
     }
 
     private(set) var activity = Activity.idle
     private var inFlight: Set<String> = []
+    private var isProcessingPending = false
 
     private let pending = PendingRecordings()
     private let keyStore = APIKeyStore()
@@ -83,7 +87,7 @@ final class TranscriptionQueue {
         }
 
         let duration = (try? pending.list().first { $0.id == name }?.durationSeconds) ?? 0
-        var transcript = Transcript(durationSeconds: duration, rawText: rawText)
+        let transcript = Transcript(durationSeconds: duration, rawText: rawText)
         do {
             try store.save(transcript)
         } catch {
@@ -99,38 +103,56 @@ final class TranscriptionQueue {
         try? pending.delete(recordingFile)
 
         activity = .polishing(recording: name)
+        return await polishAndSave(transcript)
+    }
+
+    /// 片 D6「重試潤飾」：口語稿已在歷史，只重送潤飾，成功就存回同一篇。
+    func retryPolish(_ transcript: Transcript) async -> Outcome {
+        activity = .polishing(recording: transcript.id.uuidString)
+        defer { activity = .idle }
+        return await polishAndSave(transcript)
+    }
+
+    private func polishAndSave(_ transcript: Transcript) async -> Outcome {
+        var polished = transcript
         do {
-            let draft = try await polisher.polish(
-                rawText: rawText,
+            polished.draftText = try await polisher.polish(
+                rawText: transcript.rawText,
                 model: polishModel,
                 systemPrompt: polishPrompt,
                 vocabulary: vocabulary
             )
-            transcript.draftText = draft
-            transcript.polishModel = polishModel
-            transcript.updatedAt = Date()
+            polished.polishModel = polishModel
+            polished.updatedAt = Date()
         } catch let failure as OpenAIClient.Failure {
             return .polishFailed(transcript, failure)
         } catch {
             return .polishFailed(transcript, .malformedResponse)
         }
         do {
-            try store.save(transcript)
+            try store.save(polished)
         } catch {
-            return .storageFailed
+            return .draftNotSaved(transcript)
         }
-        return .finished(transcript)
+        return .finished(polished)
     }
 
     /// 自動續轉：從最舊的開始，一筆一筆；哪一筆失敗就停，等下次條件齊了再來。
     func processPending() async {
-        guard let recordings = try? pending.list() else {
+        // 首頁出現、回到前景都會叫；同一時間只跑一輪，不然兩輪會交錯、「失敗就停」就不準了。
+        guard !isProcessingPending, let recordings = try? pending.list() else {
             return
         }
+        isProcessingPending = true
+        defer { isProcessingPending = false }
         for recording in recordings.reversed() {
+            // 清單是開跑時拍的照：這段時間面板可能已經整理完那一筆、錄音檔已刪。
+            guard FileManager.default.fileExists(atPath: recording.url.path) else {
+                continue
+            }
             let outcome = await process(recordingAt: recording.url)
             switch outcome {
-            case .finished, .polishFailed, nil:
+            case .finished, .polishFailed, .draftNotSaved, nil:
                 continue
             case .noAPIKey, .transcriptionFailed, .storageFailed:
                 return

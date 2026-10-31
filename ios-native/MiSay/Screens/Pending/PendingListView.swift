@@ -8,6 +8,7 @@ struct PendingListView: View {
 
     @State private var recordings: [PendingRecordings.Recording] = []
     @State private var loadFailed = false
+    @State private var deleteFailed = false
     @State private var recordingToDelete: PendingRecordings.Recording?
     @State private var isConfirmingDelete = false
 
@@ -41,6 +42,15 @@ struct PendingListView: View {
                     .padding(.horizontal, Token.Space.xl)
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            // 清單還有東西時 overlay 不出現，刪不掉要另外講，不然按了像沒反應。
+            if deleteFailed {
+                Text("沒刪掉，錄音還在，再試一次。")
+                    .font(Token.Fonts.secondary)
+                    .foregroundStyle(Token.Colors.danger)
+                    .padding(Token.Space.l)
+            }
+        }
         .navigationTitle("待轉錄")
         .confirmationDialog(
             "這段還沒轉成文字，刪了就沒有了。",
@@ -70,9 +80,10 @@ struct PendingListView: View {
         do {
             try PendingRecordings().delete(recording)
             recordings.removeAll { $0.id == recording.id }
+            deleteFailed = false
             onChange()
         } catch {
-            loadFailed = true
+            deleteFailed = true
         }
     }
 }

@@ -2,9 +2,8 @@ import AVFoundation
 import Foundation
 import Observation
 
-/// 方塊 M1：一台最陽春的錄音機。開始、停止、計時、音量；邊錄邊寫 WAV。
-/// 鎖屏繼續、中斷處理是 C3；救回是 C4；權限被拒的畫面是 C2。
-/// 畫面只讀 `isRecording`、`elapsedSeconds`、`level`、`levels`，不碰引擎。
+/// 方塊 M1：開始、停止、計時、音量；邊錄邊寫 WAV（C1），鎖屏繼續、被打斷不自動續錄（C3）。
+/// 畫面只讀 `isRecording`、`isInterrupted`、`elapsedSeconds`、`level`、`levels`，不碰引擎。
 @Observable
 final class Recorder {
     enum Failure: Error, Equatable {
@@ -13,13 +12,6 @@ final class Recorder {
         case inputUnavailable
         case fileFailed
         case notRecording
-    }
-
-    /// 系統的中斷通知翻成三種：開始（來電、Siri）、結束可續、結束不可續。
-    enum InterruptionKind: Equatable {
-        case began
-        case endedCanResume
-        case endedCannotResume
     }
 
     /// 波形每秒更新次數（手感參數表：約 20 次）。
@@ -49,22 +41,8 @@ final class Recorder {
     @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
     private let fileManager = FileManager.default
 
-    /// 錄音中的檔先放這裡（救回檔的家，C4 在重開時來撿）；停止後呼叫端搬去待轉錄。
-    static func inProgressDirectoryURL() throws -> URL {
-        let fileManager = FileManager.default
-        let base = try fileManager.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        let directory = base.appending(path: "Recording", directoryHint: .isDirectory)
-        try fileManager.createDirectory(
-            at: directory,
-            withIntermediateDirectories: true,
-            attributes: [.protectionKey: Self.fileProtection]
-        )
-        return directory
+    deinit {
+        stopObservingInterruptions()
     }
 
     /// 問權限（第一次會跳系統框）、開收音、開始寫檔。失敗就拋，什麼都不留。
@@ -182,7 +160,7 @@ final class Recorder {
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] notification in
-            self?.handleInterruption(Self.interruptionKind(from: notification.userInfo))
+            self?.handleInterruption(AudioInterruption(userInfo: notification.userInfo))
         }
     }
 
@@ -194,7 +172,7 @@ final class Recorder {
     }
 
     /// 開始中斷：系統已經把引擎停了，我們只記下來讓面板換字。結束時不自動續錄，等使用者按。
-    private func handleInterruption(_ kind: InterruptionKind?) {
+    private func handleInterruption(_ kind: AudioInterruption?) {
         guard isRecording, let kind else {
             return
         }
@@ -202,27 +180,31 @@ final class Recorder {
             isInterrupted = true
         }
     }
+}
 
-    static func interruptionKind(from userInfo: [AnyHashable: Any]?) -> InterruptionKind? {
-        guard let rawType = userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt else {
-            return nil
-        }
-        guard let type = AVAudioSession.InterruptionType(rawValue: rawType) else {
-            return nil
-        }
-        switch type {
-        case .began:
-            return .began
-        case .ended:
-            let rawOptions = userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-            let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
-            return options.contains(.shouldResume) ? .endedCanResume : .endedCannotResume
-        @unknown default:
-            return nil
-        }
+extension Recorder {
+    /// 錄音中的檔先放這裡（救回檔的家，C4 在重開時來撿）；停止後呼叫端搬去待轉錄。
+    static func inProgressDirectoryURL() throws -> URL {
+        let fileManager = FileManager.default
+        let base = try fileManager.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let directory = base.appending(path: "Recording", directoryHint: .isDirectory)
+        try fileManager.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true,
+            attributes: [.protectionKey: fileProtection]
+        )
+        return directory
     }
+}
 
-    private func activateAudioSession() throws {
+/// 收音的細節：音訊工作階段、目標格式、檔名、音訊執行緒的轉檔與音量。
+private extension Recorder {
+    func activateAudioSession() throws {
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.record, mode: .default)
@@ -232,7 +214,7 @@ final class Recorder {
         }
     }
 
-    private static func targetFormat() throws -> AVAudioFormat {
+    static func targetFormat() throws -> AVAudioFormat {
         guard let format = AVAudioFormat(
             commonFormat: .pcmFormatInt16,
             sampleRate: Double(WAVFileWriter.sampleRate),
@@ -244,7 +226,7 @@ final class Recorder {
         return format
     }
 
-    private static func fileName() -> String {
+    static func fileName() -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd-HHmmss"
@@ -252,7 +234,7 @@ final class Recorder {
     }
 
     /// 在音訊執行緒跑：轉成 16 kHz Int16、落地、算音量，再把數字丟回主執行緒給畫面。
-    private func handle(_ buffer: AVAudioPCMBuffer, targetFormat: AVAudioFormat) {
+    func handle(_ buffer: AVAudioPCMBuffer, targetFormat: AVAudioFormat) {
         guard let converter else {
             return
         }
@@ -295,7 +277,7 @@ final class Recorder {
         }
     }
 
-    private func publish(level: Double, elapsed: Double) {
+    func publish(level: Double, elapsed: Double) {
         self.level = level
         elapsedSeconds = elapsed
         levels.removeFirst()
@@ -303,7 +285,7 @@ final class Recorder {
     }
 
     /// RMS 換成 0 到 1；到 loudSpeechRMS 就截掉，柱子才不會老是貼頂或貼底。
-    private static func level(of samples: UnsafeBufferPointer<Int16>) -> Double {
+    static func level(of samples: UnsafeBufferPointer<Int16>) -> Double {
         guard !samples.isEmpty else {
             return 0
         }

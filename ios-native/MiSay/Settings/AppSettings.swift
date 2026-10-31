@@ -15,6 +15,7 @@ final class AppSettings {
         static let vocabulary = "vocabulary"
         static let polishPrompt = "polishPrompt"
         static let polishModel = "polishModel"
+        static let hasSeenCostNotice = "hasSeenCostNotice"
     }
 
     private let defaults: UserDefaults
@@ -26,6 +27,12 @@ final class AppSettings {
         polishPrompt = defaults.string(forKey: Key.polishPrompt) ?? Polisher.defaultPrompt
         let storedModel = defaults.string(forKey: Key.polishModel) ?? Polisher.defaultModel
         polishModel = Self.polishModels.contains(storedModel) ? storedModel : Polisher.defaultModel
+        hasSeenCostNotice = defaults.bool(forKey: Key.hasSeenCostNotice)
+    }
+
+    /// 錄音面板「整理中」那句費用說明只出現第一次（06-首次體驗 錄音面板「第一次」）。
+    var hasSeenCostNotice: Bool {
+        didSet { defaults.set(hasSeenCostNotice, forKey: Key.hasSeenCostNotice) }
     }
 
     /// 整理完自動複製（F1）。預設開。
