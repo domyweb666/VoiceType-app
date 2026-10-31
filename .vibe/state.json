@@ -102,9 +102,9 @@
     },
     {
       "piece": "B2",
-      "gate": "spec-standards 真實情境走查＋plan-readback 對齊確認",
+      "gate": "spec-standards 真實情境走查",
       "date": "2026-11-01",
-      "reason": "米不在線，前一會話授權接續到立即驗"
+      "reason": "米不在線時授權接續；plan-readback 事後對齊（米：對，繼續做）"
     }
   ]
 }
