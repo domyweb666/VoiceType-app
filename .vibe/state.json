@@ -1,11 +1,11 @@
 {
-  "station": "audit-immediate",
+  "station": "spec-standards",
   "updated_at": "2026-10-31T07:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
     "todo": 31,
     "machine_verified": 1,
-    "human_verified": 0
+    "human_verified": 1
   },
   "chunks": [
     {
@@ -74,9 +74,7 @@
       "note": "等方向測試"
     }
   ],
-  "pending_immediate_verify": [
-    "A1"
-  ],
+  "pending_immediate_verify": [],
   "skipped_gates": [
     {
       "piece": "A1",
