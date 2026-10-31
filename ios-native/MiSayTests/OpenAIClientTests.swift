@@ -147,7 +147,7 @@ final class OpenAIClientTests: XCTestCase {
             contentType: "application/json",
             timeoutSeconds: OpenAIClient.requestTimeoutSeconds
         )
-        XCTAssertEqual(String(decoding: returned, as: UTF8.self), #"{"ok":true}"#)
+        XCTAssertEqual(returned, Data(#"{"ok":true}"#.utf8))
         let request = try XCTUnwrap(FakeOpenAIServer.lastRequest)
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
@@ -198,11 +198,11 @@ final class FakeOpenAIServer: URLProtocol {
         lastRequest = nil
     }
 
-    override class func canInit(with _: URLRequest) -> Bool {
+    override static func canInit(with _: URLRequest) -> Bool {
         true
     }
 
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
         request
     }
 

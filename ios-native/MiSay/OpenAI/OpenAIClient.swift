@@ -178,21 +178,21 @@ struct OpenAIClient {
 
     /// `GET /v1/models` 成功時的形狀（官方文件：object 固定是 "list"）。只用來驗證，不存、不畫。
     private struct ModelList: Decodable {
-        struct Model: Decodable {
-            let id: String
-        }
-
         let object: String
-        let data: [Model]
+        let data: [ModelEntry]
+    }
+
+    private struct ModelEntry: Decodable {
+        let id: String
     }
 
     /// OpenAI 錯誤正文裡我們唯一會看的兩個欄位；message 刻意不解，裡面可能有金鑰。
     private struct ErrorEnvelope: Decodable {
-        struct Detail: Decodable {
-            let code: String?
-            let type: String?
-        }
+        let error: ErrorDetail
+    }
 
-        let error: Detail
+    private struct ErrorDetail: Decodable {
+        let code: String?
+        let type: String?
     }
 }
