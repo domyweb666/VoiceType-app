@@ -1,5 +1,5 @@
 {
-  "station": "audit-immediate",
+  "station": "impl",
   "updated_at": "2026-11-01T04:10:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
@@ -74,7 +74,7 @@
       "note": "等方向測試"
     }
   ],
-  "pending_immediate_verify": ["B2"],
+  "pending_immediate_verify": [],
   "skipped_gates": [
     {
       "piece": "A1",
@@ -105,6 +105,18 @@
       "gate": "spec-standards 真實情境走查",
       "date": "2026-11-01",
       "reason": "米不在線時授權接續；plan-readback 事後對齊（米：對，繼續做）"
+    },
+    {
+      "piece": "B2",
+      "gate": "vibe-audit 立即驗",
+      "date": "2026-11-01",
+      "reason": "米：跳過開 B3"
+    },
+    {
+      "piece": "B3",
+      "gate": "spec-standards 真實情境走查",
+      "date": "2026-11-01",
+      "reason": "米：對，開工（沒答走查）"
     }
   ]
 }
