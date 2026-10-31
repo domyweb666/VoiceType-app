@@ -18,9 +18,16 @@ targets:
       path: MiSay/Info.plist
       properties:
         CFBundleDisplayName: 米說
+        # 版本與 build 號由 CI 從 tag 與流水號帶入（ios-release.yml）；本機預設值只是佔位
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # 只用 HTTPS，出口合規免申報；沒這行每個 build 都要進 App Store Connect 手動回答
+        ITSAppUsesNonExemptEncryption: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay
+        MARKETING_VERSION: "0.0.0"
+        CURRENT_PROJECT_VERSION: "1"
 
   MiSayTests:
     type: bundle.unit-test

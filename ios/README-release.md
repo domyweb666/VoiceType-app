@@ -1,12 +1,12 @@
 # 米說 iOS 上架設定
 
-這條管線的目標是：推一個 `v*` tag，GitHub 的 macOS runner 就把 App 編譯、簽章、送到 TestFlight。
+這條管線的目標是：推一個 `v*` tag，GitHub 的 macOS runner 就把 `ios-native/`（SwiftUI 版米說）編譯、簽章、送到 TestFlight。
 開發機是 Windows，沒有 Xcode，所以 iOS 的每一次編譯都只能走這條 CI。
+日常 commit 走 `ios-native-ci.yml`（不簽章，只編譯、測試、檢查規矩）。
 
 ## 現在的狀態
 
-CI 檔案 `.github/workflows/ios-release.yml` 已經寫好，但現在推 tag 會在第二個步驟就失敗，
-因為簽章用的六個 GitHub secret 一個都還沒設：
+2026-11-01：六個 GitHub secret 已設好，`.github/workflows/ios-release.yml` 已改成編 `ios-native/`。
 
 | secret | 內容 |
 |---|---|
@@ -26,10 +26,10 @@ CI 檔案 `.github/workflows/ios-release.yml` 已經寫好，但現在推 tag �
 
 | 項目 | 值 | 寫在哪 |
 |---|---|---|
-| Bundle ID | `org.domyweb.misay` | `ios/Runner.xcodeproj/project.pbxproj`、`ios/ExportOptions.plist` |
-| Team ID | `3ZT74P4WM2` | `ios/ExportOptions.plist` |
-| Provisioning profile 名稱 | `MiSay App Store` | 同上兩個檔案 |
-| 最低 iOS 版本 | 16.0 | `project.pbxproj` |
+| Bundle ID | `org.domyweb.misay` | `ios-native/project.yml`、`ios-native/ExportOptions.plist` |
+| Team ID | `3ZT74P4WM2` | `ios-native/ExportOptions.plist`、`ios-release.yml` |
+| Provisioning profile 名稱 | `MiSay App Store` | `ios-native/ExportOptions.plist`、`ios-release.yml` |
+| 最低 iOS 版本 | 17.0 | `ios-native/project.yml` |
 | App Group | `group.org.domyweb.misay` | 還沒用到，第 4 階段的錄音小工具要 |
 | iCloud container | `iCloud.org.domyweb.misay` | 還沒用到，第 5 階段的同步要 |
 
@@ -108,9 +108,8 @@ App ID 選 `org.domyweb.misay`，憑證選第 1 步辦的那張 Apple Distributi
 
 ## 每次發版要注意
 
-`CFBundleVersion` 是跟著 `pubspec.yaml` 的 build number 走的（`version: 1.0.0+1` 的 `+1`）。
-App Store Connect 不收重複的 build number，所以**每次推 tag 前都要把 `+1` 往上加**，
-否則編譯會成功、上傳會被退。
+版本號跟 tag 走（`v0.1.0` → 0.1.0），build 號用 GitHub Actions 的流水號，永遠不會重複，不用手動加。
+推 tag 的指令：`git tag v0.1.0 && git push origin v0.1.0`。
 
 ## 之後還會再來一輪
 

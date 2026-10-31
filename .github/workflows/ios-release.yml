@@ -1,60 +1,102 @@
 name: iOS Release
 
-# 觸發方式：推 v* tag，或手動觸發。
-# 簽章素材全部來自 GitHub secrets（見 ios/README-release.md）。
-# secrets 未設定時 build 會在簽章步驟失敗，不會產出未簽章的 IPA。
+# 片 A3：推 v* tag（或手動），雲端 Mac 把 ios-native/ 的米說簽章、封裝、送到 TestFlight。
+# 簽章素材全部來自 GitHub Secrets（見 ios/README-release.md），不 echo、不存 artifact。
+# 日常 commit 走 ios-native-ci.yml（不簽章）；只有 tag 才會送 Apple。
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  XCODEGEN_VERSION: "2.46.0"
+  XCODEGEN_SHA256: "4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806"
+  TEAM_ID: "3ZT74P4WM2"
+  PROFILE_NAME: "MiSay App Store"
+
 jobs:
-  build-ios:
-    runs-on: macos-latest
+  release:
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: ios-native
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.41.6"
-          channel: stable
-          cache: true
+      - name: 安裝 XcodeGen（釘版本、驗 SHA-256）
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"
+          echo "${XCODEGEN_SHA256}  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          test -x "$RUNNER_TEMP/xcodegen/bin/xcodegen"
 
-      # 匯入 Apple Distribution 憑證到暫時 keychain
-      - uses: apple-actions/import-codesign-certs@v3
+      # 版本號跟 tag 走（v0.1.0 → 0.1.0）；build 號用 Actions 流水號，Apple 不收重複 build 號，流水號永遠不撞。
+      - name: 決定版本號與 build 號
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            MARKETING_VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            MARKETING_VERSION="0.0.0"
+          fi
+          echo "MARKETING_VERSION=${MARKETING_VERSION}" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "版本 ${MARKETING_VERSION}，build ${GITHUB_RUN_NUMBER}"
+
+      - name: 產生 Xcode 專案
+        run: |
+          xcodebuild -version
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" generate --spec project.yml
+          test -d MiSay.xcodeproj
+
+      - name: 匯入憑證
+        uses: apple-actions/import-codesign-certs@v7.2.0
         with:
           p12-file-base64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
           p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
 
-      # 安裝 App Store provisioning profile
-      - name: Install provisioning profile
+      - name: 安裝 profile
         run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode \
-            > ~/Library/MobileDevice/Provisioning\ Profiles/misay-appstore.mobileprovision
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          UUID=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | plutil -extract UUID raw -o - -)
+          test -n "$UUID"
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${UUID}.mobileprovision"
+          echo "profile 已裝：${UUID}"
 
-      - name: Build IPA
+      - name: 封裝
         run: |
-          flutter pub get
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          xcodebuild archive \
+            -project MiSay.xcodeproj \
+            -scheme MiSay \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/MiSay.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="${TEAM_ID}" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="${PROFILE_NAME}" \
+            MARKETING_VERSION="${MARKETING_VERSION}" \
+            CURRENT_PROJECT_VERSION="${BUILD_NUMBER}"
 
-      - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
+      - name: 匯出 IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/MiSay.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/ipa"
+          ls "$RUNNER_TEMP/ipa"
+          echo "IPA_PATH=$(ls "$RUNNER_TEMP"/ipa/*.ipa | head -1)" >> "$GITHUB_ENV"
+
+      # IPA 直接送 Apple，不留在 GitHub（安全標準八）
+      - name: 上傳 TestFlight
+        uses: apple-actions/upload-testflight-build@v5.9.0
         with:
-          name: misay-ios-ipa
-          path: build/ios/ipa/*.ipa
-
-      # flutter build ipa 的檔名跟著 app 顯示名稱走，用 glob 解析避免猜錯
-      - name: Locate IPA
-        id: ipa
-        run: echo "path=$(ls build/ios/ipa/*.ipa | head -1)" >> "$GITHUB_OUTPUT"
-
-      # 上傳到 App Store Connect（TestFlight / 送審都從這裡開始）
-      - name: Upload to App Store Connect
-        uses: apple-actions/upload-testflight-build@v3
-        with:
-          app-path: ${{ steps.ipa.outputs.path }}
+          app-path: ${{ env.IPA_PATH }}
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
           api-private-key: ${{ secrets.ASC_API_PRIVATE_KEY }}
