@@ -35,23 +35,17 @@ final class TranscriptionQueue {
     private let store = TranscriptStore()
     private let transcriber: Transcriber
     private let polisher: Polisher
-    private let vocabulary: [String]
-    private let polishModel: String
-    private let polishPrompt: String
+    private let settings: AppSettings
 
-    /// 模型、提示詞、詞彙先用 M4／M3 的預設；組塊 F 的設定接上後從 M7 讀。
+    /// 模型、提示詞、詞彙每一筆開始時才從 M7 讀（片 F2～F4）：改了設定，下一筆就照新的走。
     init(
         transcriber: Transcriber = Transcriber(),
         polisher: Polisher = Polisher(),
-        vocabulary: [String] = [],
-        polishModel: String = Polisher.defaultModel,
-        polishPrompt: String = Polisher.defaultPrompt
+        settings: AppSettings = .shared
     ) {
         self.transcriber = transcriber
         self.polisher = polisher
-        self.vocabulary = vocabulary
-        self.polishModel = polishModel
-        self.polishPrompt = polishPrompt
+        self.settings = settings
     }
 
     /// 整理一筆。已經在飛的那一筆直接回 nil（不重送）。
@@ -70,7 +64,10 @@ final class TranscriptionQueue {
             return .noAPIKey
         }
 
-        let job = RecordingTranscriptionJob(transcriber: transcriber, vocabulary: vocabulary)
+        let job = RecordingTranscriptionJob(
+            transcriber: transcriber,
+            vocabulary: settings.vocabulary
+        )
         let rawText: String
         do {
             rawText = try await job.transcribe(recordingAt: url) { [weak self] segment, total in
@@ -115,14 +112,15 @@ final class TranscriptionQueue {
 
     private func polishAndSave(_ transcript: Transcript) async -> Outcome {
         var polished = transcript
+        let model = settings.polishModel
         do {
             polished.draftText = try await polisher.polish(
                 rawText: transcript.rawText,
-                model: polishModel,
-                systemPrompt: polishPrompt,
-                vocabulary: vocabulary
+                model: model,
+                systemPrompt: settings.effectivePolishPrompt,
+                vocabulary: settings.vocabulary
             )
-            polished.polishModel = polishModel
+            polished.polishModel = model
             polished.updatedAt = Date()
         } catch let failure as OpenAIClient.Failure {
             return .polishFailed(transcript, failure)

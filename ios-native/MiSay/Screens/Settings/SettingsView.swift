@@ -61,6 +61,7 @@ struct SettingsView: View {
     @State private var isRevealed = false
     @State private var isVerifying = false
     @State private var status: KeyStatus?
+    @Bindable private var settings = AppSettings.shared
 
     var body: some View {
         Form {
@@ -82,6 +83,9 @@ struct SettingsView: View {
                 }
             }
             .listRowBackground(Token.Colors.rowBackground)
+            polishSection
+            habitsSection
+            aboutSection
         }
         .scrollContentBackground(.hidden)
         .background(Token.Colors.groupedBackground)
@@ -207,5 +211,67 @@ struct SettingsView: View {
         } catch {
             status = .deleteFailed
         }
+    }
+}
+
+/// 金鑰以外的三區（片 F1～F5）。改了馬上存（M7），下一筆整理就照新的走。
+private extension SettingsView {
+    var polishSection: some View {
+        Section {
+            Picker("模型", selection: $settings.polishModel) {
+                ForEach(AppSettings.polishModels, id: \.self) { model in
+                    Text(model).tag(model)
+                }
+            }
+            NavigationLink("自訂詞彙") { VocabularyView() }
+            NavigationLink("潤飾提示詞") { PolishPromptView() }
+        } header: {
+            Text("潤飾")
+        } footer: {
+            Text(Self.modelNote)
+                .font(Token.Fonts.footnote)
+        }
+        .font(Token.Fonts.body)
+        .listRowBackground(Token.Colors.rowBackground)
+    }
+
+    /// 字級與深色模式不給開關：跟 iPhone 的設定走（片 F5），這裡只講一句讓人知道去哪調。
+    var habitsSection: some View {
+        Section {
+            Toggle("整理好自動複製", isOn: $settings.autoCopy)
+                .tint(Token.Colors.link)
+        } header: {
+            Text("使用習慣")
+        } footer: {
+            Text("關掉後，整理好不會動到剪貼簿。文字大小和深色模式跟著 iPhone 的設定走。")
+                .font(Token.Fonts.footnote)
+        }
+        .font(Token.Fonts.body)
+        .listRowBackground(Token.Colors.rowBackground)
+    }
+
+    var aboutSection: some View {
+        Section {
+            LabeledContent("版本", value: Self.versionText)
+        } header: {
+            Text("關於米說")
+        }
+        .font(Token.Fonts.body)
+        .listRowBackground(Token.Colors.rowBackground)
+    }
+
+    /// 模型名稱與狀態 2026-11-01 查證（見 `Polisher`）；價格會變，這裡不寫數字。
+    static var modelNote: String {
+        "\(Polisher.defaultModel) 是預設，跟網頁版一樣。"
+            + "\(Polisher.alternativeModel) 比較便宜，但 OpenAI 已經說要停用。"
+            + "這篇用哪個模型，文字稿詳情看得到。"
+    }
+
+    /// 「0.1.4（5）」：版本號＋建置號，回報問題時對得上 TestFlight 那一版。
+    static var versionText: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(version)（\(build)）"
     }
 }
