@@ -32,6 +32,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay.MiSayTests
+        # 模擬器版改 ad-hoc 自簽後，測試套件也要有 Info.plist 才簽得了；讓 Xcode 自己產
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   MiSay:
