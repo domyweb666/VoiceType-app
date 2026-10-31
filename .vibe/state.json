@@ -1,18 +1,18 @@
 {
-  "station": "audit-immediate",
+  "station": "spec-standards",
   "updated_at": "2026-10-31T07:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
     "todo": 28,
     "machine_verified": 4,
-    "human_verified": 1
+    "human_verified": 4
   },
   "chunks": [
     {
       "name": "A 建置上架",
       "total": 3,
       "machine_done": 3,
-      "human_verified": false,
+      "human_verified": true,
       "approved": true
     },
     {
@@ -74,10 +74,7 @@
       "note": "等方向測試"
     }
   ],
-  "pending_immediate_verify": [
-    "A3（含組塊 A 批次）",
-    "B1"
-  ],
+  "pending_immediate_verify": [],
   "skipped_gates": [
     {
       "piece": "A1",
