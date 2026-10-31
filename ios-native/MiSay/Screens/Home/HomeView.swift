@@ -1,9 +1,10 @@
 import SwiftUI
 
 /// 首頁：米 2026-10-31 鎖定的骨架，正中央超大錄音鈕，其他全搬走。
-/// 片 A2 只做殼：鈕按了沒動作（錄音是組塊 C），待轉錄 0 個時整列不出現（所以這裡沒畫）。
+/// 片 A2 的殼；片 C1 把鈕接上錄音面板（方向 D：點一下升起半頁）。待轉錄列是片 C6。
 struct HomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isRecordingSheetShown = false
 
     var body: some View {
         VStack {
@@ -17,6 +18,11 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Token.Colors.groupedBackground)
+        .sheet(isPresented: $isRecordingSheetShown) {
+            RecordingSheetView()
+                .presentationDetents([.medium])
+                .presentationCornerRadius(Token.Shape.radiusSheet)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 NavigationLink("文字稿") { TranscriptListView() }
@@ -31,7 +37,7 @@ struct HomeView: View {
     @ViewBuilder
     private var recordButton: some View {
         let button = Button {
-            // 片 A2 刻意沒有動作；錄音在組塊 C 接上
+            isRecordingSheetShown = true
         } label: {
             Text("說")
                 .font(Token.Fonts.largeTitle)

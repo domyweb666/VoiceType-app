@@ -27,6 +27,8 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UILaunchScreen: {}
+        # 片 C1：沒有這一句，第一次收音 iOS 會直接把 App 殺掉。文字照 .uiux/06-首次體驗.md 權限時刻表。
+        NSMicrophoneUsageDescription: 米說需要用麥克風，把你說的話變成文字。
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay
