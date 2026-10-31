@@ -20,14 +20,14 @@
       "total": 3,
       "machine_done": 0,
       "human_verified": false,
-      "approved": false
+      "approved": true
     },
     {
       "name": "C 錄音與救回",
       "total": 6,
       "machine_done": 0,
       "human_verified": false,
-      "approved": false
+      "approved": true
     },
     {
       "name": "D 說話變草稿",
