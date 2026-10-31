@@ -1,12 +1,13 @@
 import SwiftUI
 
 /// 錄音面板（半頁模態，不可下滑關閉：03-線框「錄到一半誤滑就丟掉」）。
-/// 片 C1：錄音中、失敗、停止；片 C2：麥克風被拒。整理中、完成、沒聲音是 D6。
+/// 片 C1：錄音中、失敗、停止；片 C2：麥克風被拒；片 C3：被來電打斷。整理中、完成、沒聲音是 D6。
 struct RecordingSheetView: View {
     enum Phase: Equatable {
         case starting
         case recording
         case stopped
+        case interrupted
         case microphoneDenied
         case failed(String)
     }
@@ -23,6 +24,8 @@ struct RecordingSheetView: View {
             switch phase {
             case .starting, .recording, .stopped:
                 recordingContent
+            case .interrupted:
+                interruptedContent
             case .microphoneDenied:
                 deniedContent
             case let .failed(message):
@@ -37,6 +40,11 @@ struct RecordingSheetView: View {
             Self.feedback(from: old, to: new)
         }
         .task { await startRecording() }
+        .onChange(of: recorder.isInterrupted) { _, interrupted in
+            if interrupted {
+                phase = .interrupted
+            }
+        }
     }
 
     /// 手感參數表：開始、停止各一下且不同；失敗一下警告。
@@ -48,9 +56,50 @@ struct RecordingSheetView: View {
             return old == .recording ? Token.Haptics.recordStop : nil
         case .microphoneDenied, .failed:
             return Token.Haptics.failed
-        case .starting:
+        case .starting, .interrupted:
             return nil
         }
+    }
+
+    /// 片 C3：來電等中斷結束後，由使用者決定續錄還是收檔（首次體驗檔「被打斷回來」那一列）。
+    private var interruptedContent: some View {
+        VStack(spacing: Token.Space.m) {
+            Text("通話時暫停了，已錄到的 \(Self.formatSpoken(recorder.elapsedSeconds)) 都在。")
+                .font(Token.Fonts.body)
+                .foregroundStyle(Token.Colors.textPrimary)
+                .multilineTextAlignment(.center)
+            Button {
+                resumeRecording()
+            } label: {
+                Text("繼續錄")
+                    .font(Token.Fonts.rowTitle)
+                    .frame(maxWidth: .infinity, minHeight: Token.Shape.primaryTap)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Token.Colors.link)
+            Button("停止") {
+                stopRecording()
+            }
+            .font(Token.Fonts.body)
+            .tint(Token.Colors.link)
+        }
+    }
+
+    /// 給人唸的：「2 分 17 秒」；不到一分鐘「17 秒」；超過一小時「1 小時 2 分 17 秒」。
+    static func formatSpoken(_ seconds: Double) -> String {
+        let total = Int(seconds)
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+        var parts: [String] = []
+        if hours > 0 {
+            parts.append("\(hours) 小時")
+        }
+        if minutes > 0 {
+            parts.append("\(minutes) 分")
+        }
+        parts.append("\(secs) 秒")
+        return parts.joined(separator: " ")
     }
 
     private var recordingContent: some View {
@@ -205,6 +254,16 @@ struct RecordingSheetView: View {
             phase = .microphoneDenied
         } catch {
             phase = .failed("錄音沒有開始，再試一次。")
+        }
+    }
+
+    @MainActor
+    private func resumeRecording() {
+        do {
+            try recorder.resume()
+            phase = .recording
+        } catch {
+            phase = .failed("接不回去了。已錄到的都在，按停止會收進待轉錄。")
         }
     }
 

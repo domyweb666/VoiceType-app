@@ -1,10 +1,12 @@
 import SwiftUI
 
 /// 首頁：米 2026-10-31 鎖定的骨架，正中央超大錄音鈕，其他全搬走。
-/// 片 A2 的殼；片 C1 把鈕接上錄音面板（方向 D：點一下升起半頁）。待轉錄列是片 C6。
+/// 片 A2 的殼；片 C1 把鈕接上錄音面板（方向 D：點一下升起半頁）；片 C6 的待轉錄列在鈕下方，0 個時整列不出現。
+/// 片 C4：第一次出現時先把上次被殺掉留下的救回檔撿進待轉錄。
 struct HomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isRecordingSheetShown = false
+    @State private var pendingCount = 0
 
     var body: some View {
         VStack {
@@ -15,6 +17,9 @@ struct HomeView: View {
             Spacer()
                 .frame(maxWidth: .infinity)
                 .overlay(alignment: .top) { firstTimeHint }
+            if pendingCount > 0 {
+                pendingRow
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Token.Colors.groupedBackground)
@@ -22,6 +27,12 @@ struct HomeView: View {
             RecordingSheetView()
                 .presentationDetents([.medium])
                 .presentationCornerRadius(Token.Shape.radiusSheet)
+        }
+        .task { recoverThenReloadPending() }
+        .onChange(of: isRecordingSheetShown) { _, shown in
+            if !shown {
+                reloadPending()
+            }
         }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -54,6 +65,47 @@ struct HomeView: View {
         } else {
             button.buttonStyle(RecordButtonStyle())
         }
+    }
+
+    /// 待轉錄列（03-線框首頁 D）：整列可點，推入待轉錄清單。
+    private var pendingRow: some View {
+        NavigationLink {
+            PendingListView(onChange: reloadPending)
+        } label: {
+            HStack(spacing: Token.Space.m) {
+                VStack(alignment: .leading, spacing: Token.Space.xs) {
+                    Text("待轉錄 \(pendingCount) 個")
+                        .font(Token.Fonts.rowTitle)
+                        .foregroundStyle(Token.Colors.textPrimary)
+                    Text("沒網路或沒金鑰時收在這裡，不會丟")
+                        .font(Token.Fonts.secondary)
+                        .foregroundStyle(Token.Colors.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Token.Colors.textSecondary)
+                    .accessibilityHidden(true)
+            }
+            .padding(Token.Space.l)
+            .background(
+                Token.Colors.rowBackground,
+                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+            )
+        }
+        .padding(.horizontal, Token.Space.l)
+        .padding(.bottom, Token.Space.l)
+    }
+
+    /// 撿回只在第一次出現時做，而且在任何錄音開始之前；錄音中的檔不能被當成救回檔。
+    private func recoverThenReloadPending() {
+        // 撿不回來不擋首頁：檔還留在原地，下次再試。
+        _ = try? PendingRecordings().recoverAbandonedRecordings()
+        reloadPending()
+    }
+
+    private func reloadPending() {
+        // 讀不到清單時列就不出現；進清單頁會看到讀取失敗的字。
+        pendingCount = (try? PendingRecordings().list().count) ?? 0
     }
 
     private var firstTimeHint: some View {

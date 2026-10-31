@@ -52,6 +52,33 @@ final class WAVFileWriterTests: XCTestCase {
         XCTAssertEqual(bytes.count, 44 + 3200)
         XCTAssertEqual(bytes.littleEndianUInt32(at: 40), 0)
     }
+
+    func test錄音重開時用檔案大小把檔頭補回來() throws {
+        // 片 C4：被殺掉的檔長度欄是 0，修完要等於實際資料長度。
+        let url = directory.appending(path: "d.wav")
+        var writer = try WAVFileWriter(creatingAt: url)
+        try writer.append(pcm: Data(repeating: 2, count: 6400))
+
+        let repaired = try WAVFileWriter.repairHeader(at: url)
+        XCTAssertEqual(repaired, 6400)
+        let bytes = try Data(contentsOf: url)
+        XCTAssertEqual(bytes.littleEndianUInt32(at: 40), 6400)
+        XCTAssertEqual(bytes.littleEndianUInt32(at: 4), 36 + 6400)
+    }
+
+    func test錄音35分鐘的檔檔頭長度正確() throws {
+        // 片 C5：一秒一段寫 35 分鐘，檔頭的長度要對得上；記憶體用量只有真機看得到。
+        let url = directory.appending(path: "e.wav")
+        var writer = try WAVFileWriter(creatingAt: url)
+        let oneSecond = Data(repeating: 0, count: 32000)
+        for _ in 0 ..< (35 * 60) {
+            try writer.append(pcm: oneSecond)
+        }
+        try writer.finish()
+        let bytes = try Data(contentsOf: url)
+        XCTAssertEqual(bytes.littleEndianUInt32(at: 40), UInt32(35 * 60 * 32000))
+        XCTAssertEqual(writer.elapsedSeconds, 35 * 60, accuracy: 0.001)
+    }
 }
 
 extension Data {

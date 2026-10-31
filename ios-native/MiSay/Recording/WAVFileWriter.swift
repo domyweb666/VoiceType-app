@@ -63,6 +63,26 @@ struct WAVFileWriter {
         return Double(dataByteCount) / Double(bytesPerSecond)
     }
 
+    /// 片 C4：App 被殺掉後檔頭長度欄是 0，用檔案大小把它補回來。回補完的資料位元組數。
+    static func repairHeader(at url: URL) throws -> UInt32 {
+        let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+        let fileSize = (attributes[.size] as? NSNumber)?.int64Value ?? 0
+        let payload = fileSize - Int64(headerByteCount)
+        guard payload >= 0, payload <= Int64(UInt32.max) else {
+            throw Failure.cannotOpen
+        }
+        let dataByteCount = UInt32(payload)
+        do {
+            let handle = try FileHandle(forUpdating: url)
+            try handle.seek(toOffset: 0)
+            try handle.write(contentsOf: header(dataByteCount: dataByteCount))
+            try handle.close()
+        } catch {
+            throw Failure.writeFailed
+        }
+        return dataByteCount
+    }
+
     static func header(dataByteCount: UInt32) -> Data {
         let bytesPerFrame = UInt16(channelCount * bitsPerSample / 8)
         let bytesPerSecond = UInt32(sampleRate) * UInt32(bytesPerFrame)

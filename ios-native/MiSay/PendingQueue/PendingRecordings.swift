@@ -1,12 +1,23 @@
 import Foundation
 
-/// 方塊 M2 的第一塊磚：待轉錄資料夾。片 C1 只有「建資料夾」與「收一個錄音檔進來」；
+/// 方塊 M2 的待轉錄資料夾：收錄音檔（C1）、重開時撿回救回檔（C4）、列出與刪掉（C6）。
 /// 判斷條件、自動續轉、失敗就停是 D5。
 /// 資料夾在 App 自己的 Application Support 裡，開檔案保護（安全標準二）。
 struct PendingRecordings {
     enum Failure: Error, Equatable {
         case cannotCreateDirectory
         case cannotMoveIn
+        case cannotList
+        case cannotDelete
+    }
+
+    /// 待轉錄清單的一列：時間從檔案建立時間來、長度從檔案大小算，不另外存索引。
+    struct Recording: Identifiable, Equatable {
+        let url: URL
+        let recordedAt: Date
+        let durationSeconds: Double
+
+        var id: String { url.lastPathComponent }
     }
 
     private let fileManager = FileManager.default
@@ -45,5 +56,67 @@ struct PendingRecordings {
             throw Failure.cannotMoveIn
         }
         return destination
+    }
+
+    /// 片 C4：重開時把錄到一半被殺掉的檔撿回來：補檔頭、搬進待轉錄。
+    /// 一個 byte 都沒錄到的空檔直接丟（它從沒裝過資料）。只准在開始任何錄音之前呼叫。
+    func recoverAbandonedRecordings() throws -> [URL] {
+        let abandonedDirectory = try Recorder.inProgressDirectoryURL()
+        let files: [URL]
+        do {
+            files = try fileManager.contentsOfDirectory(
+                at: abandonedDirectory,
+                includingPropertiesForKeys: nil
+            )
+        } catch {
+            throw Failure.cannotList
+        }
+        var recovered: [URL] = []
+        for file in files where file.pathExtension == "wav" {
+            let dataByteCount = try WAVFileWriter.repairHeader(at: file)
+            if dataByteCount == 0 {
+                try? fileManager.removeItem(at: file)
+                continue
+            }
+            recovered.append(try accept(recordingAt: file))
+        }
+        return recovered
+    }
+
+    /// 片 C6：最新的在最上面。
+    func list() throws -> [Recording] {
+        let directory = try directoryURL()
+        let keys: [URLResourceKey] = [.creationDateKey, .fileSizeKey]
+        let files: [URL]
+        do {
+            files = try fileManager.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: keys
+            )
+        } catch {
+            throw Failure.cannotList
+        }
+        let bytesPerFrame = WAVFileWriter.channelCount * WAVFileWriter.bitsPerSample / 8
+        let bytesPerSecond = Double(WAVFileWriter.sampleRate * bytesPerFrame)
+        let recordings = files.filter { $0.pathExtension == "wav" }.map { file -> Recording in
+            let values = try? file.resourceValues(forKeys: Set(keys))
+            let size = Double(values?.fileSize ?? WAVFileWriter.headerByteCount)
+            let seconds = max(0, size - Double(WAVFileWriter.headerByteCount)) / bytesPerSecond
+            return Recording(
+                url: file,
+                recordedAt: values?.creationDate ?? .distantPast,
+                durationSeconds: seconds
+            )
+        }
+        return recordings.sorted { $0.recordedAt > $1.recordedAt }
+    }
+
+    /// 片 C6「刪掉這一個」。畫面要先用系統動作表確認過才准呼叫（⚠️ 刪檔）。
+    func delete(_ recording: Recording) throws {
+        do {
+            try fileManager.removeItem(at: recording.url)
+        } catch {
+            throw Failure.cannotDelete
+        }
     }
 }

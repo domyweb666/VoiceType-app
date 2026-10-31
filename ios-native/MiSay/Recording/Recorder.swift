@@ -15,6 +15,13 @@ final class Recorder {
         case notRecording
     }
 
+    /// 系統的中斷通知翻成三種：開始（來電、Siri）、結束可續、結束不可續。
+    enum InterruptionKind: Equatable {
+        case began
+        case endedCanResume
+        case endedCannotResume
+    }
+
     /// 波形每秒更新次數（手感參數表：約 20 次）。
     static let levelsPerSecond = Token.Motion.waveformHz
     /// 畫面上柱子的根數；滿了從左邊掉出去。
@@ -27,6 +34,8 @@ final class Recorder {
     private static let loudSpeechRMS = 0.25
 
     private(set) var isRecording = false
+    /// 來電等中斷時 true：系統已把收音暫停，檔案與已錄的都在；等使用者按「繼續錄」或「停止」。
+    private(set) var isInterrupted = false
     private(set) var elapsedSeconds: Double = 0
     /// 最近一段的音量，0 到 1。
     private(set) var level: Double = 0
@@ -37,10 +46,12 @@ final class Recorder {
     @ObservationIgnored private var writer: WAVFileWriter?
     /// 音訊執行緒寫不進去或轉不過去時記一筆，停止時報出來，不在回呼裡默默吞掉。
     @ObservationIgnored private var hasWriteFailure = false
+    @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
     private let fileManager = FileManager.default
 
-    /// 錄音中的檔先放這裡（救回檔的家，C4 會來撿）；停止後呼叫端搬去待轉錄。
-    func inProgressDirectoryURL() throws -> URL {
+    /// 錄音中的檔先放這裡（救回檔的家，C4 在重開時來撿）；停止後呼叫端搬去待轉錄。
+    static func inProgressDirectoryURL() throws -> URL {
+        let fileManager = FileManager.default
         let base = try fileManager.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
@@ -74,6 +85,22 @@ final class Recorder {
             throw error
         }
         isRecording = true
+        observeInterruptions()
+    }
+
+    /// 中斷結束後由使用者決定續錄（片 C3）。引擎已被系統停掉，tap 還在，重開就接著寫同一個檔。
+    @MainActor
+    func resume() throws {
+        guard isRecording, isInterrupted else {
+            throw Failure.notRecording
+        }
+        try activateAudioSession()
+        do {
+            try engine.start()
+        } catch {
+            throw Failure.inputUnavailable
+        }
+        isInterrupted = false
     }
 
     private func startEngine() throws {
@@ -89,7 +116,7 @@ final class Recorder {
         self.converter = converter
         hasWriteFailure = false
 
-        let fileURL = try inProgressDirectoryURL().appending(path: Self.fileName())
+        let fileURL = try Self.inProgressDirectoryURL().appending(path: Self.fileName())
         do {
             writer = try WAVFileWriter(creatingAt: fileURL)
         } catch {
@@ -110,6 +137,7 @@ final class Recorder {
     }
 
     private func abandonStart() {
+        stopObservingInterruptions()
         converter = nil
         if let writer {
             try? fileManager.removeItem(at: writer.url)
@@ -128,7 +156,9 @@ final class Recorder {
         // 先拆 tap、停引擎，之後才拿 writer 的副本：不然最後一段還在寫，檔頭會少算它。
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+        stopObservingInterruptions()
         isRecording = false
+        isInterrupted = false
         guard let writer else {
             throw Failure.notRecording
         }
@@ -144,6 +174,52 @@ final class Recorder {
             throw Failure.fileFailed
         }
         return writer.url
+    }
+
+    private func observeInterruptions() {
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            self?.handleInterruption(Self.interruptionKind(from: notification.userInfo))
+        }
+    }
+
+    private func stopObservingInterruptions() {
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+        }
+        interruptionObserver = nil
+    }
+
+    /// 開始中斷：系統已經把引擎停了，我們只記下來讓面板換字。結束時不自動續錄，等使用者按。
+    private func handleInterruption(_ kind: InterruptionKind?) {
+        guard isRecording, let kind else {
+            return
+        }
+        if kind == .began {
+            isInterrupted = true
+        }
+    }
+
+    static func interruptionKind(from userInfo: [AnyHashable: Any]?) -> InterruptionKind? {
+        guard let rawType = userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt else {
+            return nil
+        }
+        guard let type = AVAudioSession.InterruptionType(rawValue: rawType) else {
+            return nil
+        }
+        switch type {
+        case .began:
+            return .began
+        case .ended:
+            let rawOptions = userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+            return options.contains(.shouldResume) ? .endedCanResume : .endedCannotResume
+        @unknown default:
+            return nil
+        }
     }
 
     private func activateAudioSession() throws {

@@ -29,6 +29,9 @@ targets:
         UILaunchScreen: {}
         # 片 C1：沒有這一句，第一次收音 iOS 會直接把 App 殺掉。文字照 .uiux/06-首次體驗.md 權限時刻表。
         NSMicrophoneUsageDescription: 米說需要用麥克風，把你說的話變成文字。
+        # 片 C3：鎖屏、切 App 照樣在錄（PRD「不弄丟剛講的話」）。只有 audio，沒有別的背景模式。
+        UIBackgroundModes:
+          - audio
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay

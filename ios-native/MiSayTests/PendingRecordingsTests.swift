@@ -27,4 +27,47 @@ final class PendingRecordingsTests: XCTestCase {
         let protection = attributes[.protectionKey] as? FileProtectionType
         XCTAssertEqual(protection, .completeUntilFirstUserAuthentication)
     }
+
+    func test錄音重開撿回沒補檔頭的檔並搬進待轉錄() throws {
+        // 片 C4：錄到一半被殺掉的檔長度欄是 0，撿回時補檔頭、搬進待轉錄。
+        let abandonedName = "recover-\(UUID().uuidString).wav"
+        let abandoned = try Recorder.inProgressDirectoryURL().appending(path: abandonedName)
+        var writer = try WAVFileWriter(creatingAt: abandoned)
+        try writer.append(pcm: Data(repeating: 3, count: 32000))
+
+        let recovered = try pending.recoverAbandonedRecordings()
+        defer { recovered.forEach { try? FileManager.default.removeItem(at: $0) } }
+
+        XCTAssertEqual(recovered.map(\.lastPathComponent), [abandoned.lastPathComponent])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: abandoned.path))
+        let bytes = try Data(contentsOf: try XCTUnwrap(recovered.first))
+        XCTAssertEqual(bytes.littleEndianUInt32(at: 40), 32000)
+    }
+
+    func test錄音重開撿回時一個byte都沒錄到的空檔會被丟掉() throws {
+        let emptyName = "empty-\(UUID().uuidString).wav"
+        let empty = try Recorder.inProgressDirectoryURL().appending(path: emptyName)
+        _ = try WAVFileWriter(creatingAt: empty)
+
+        let recovered = try pending.recoverAbandonedRecordings()
+        XCTAssertFalse(recovered.map(\.lastPathComponent).contains(empty.lastPathComponent))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: empty.path))
+    }
+
+    func test錄音待轉錄清單有長度而且刪掉這一個後少一個() throws {
+        let sourceName = "list-\(UUID().uuidString).wav"
+        let source = FileManager.default.temporaryDirectory.appending(path: sourceName)
+        var writer = try WAVFileWriter(creatingAt: source)
+        try writer.append(pcm: Data(repeating: 0, count: 64000))
+        try writer.finish()
+        let accepted = try pending.accept(recordingAt: source)
+
+        let all = try pending.list()
+        let listed = try XCTUnwrap(all.first { $0.id == accepted.lastPathComponent })
+        XCTAssertEqual(listed.durationSeconds, 2, accuracy: 0.001)
+
+        try pending.delete(listed)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: accepted.path))
+        XCTAssertFalse(try pending.list().contains(listed))
+    }
 }
