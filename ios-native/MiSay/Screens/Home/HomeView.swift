@@ -9,8 +9,10 @@ struct HomeView: View {
         VStack {
             Spacer()
             recordButton
-            // 下半的 Spacer 讓鈕停在正中央；文案掛在它上緣，不把鈕往上擠
+            // 下半的 Spacer 讓鈕停在正中央；文案掛在它上緣，不把鈕往上擠。
+            // Spacer 在 VStack 裡寬度是 0，要先撐到整寬，overlay 的文字才有地方換行。
             Spacer()
+                .frame(maxWidth: .infinity)
                 .overlay(alignment: .top) { firstTimeHint }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -74,7 +74,7 @@ enum Token {
         static let minTap: CGFloat = 44 // 一般點擊範圍底線
         static let primaryTap: CGFloat = 60 // 主要動作（完成面板「分享到…」這一級）
         static let stopTap: CGFloat = 80 // 錄音面板停止鈕
-        static let recordTap: CGFloat = 220 // 首頁錄音鈕（SE 線框是 180，實作由畫面依寬度縮）
+        static let recordTap: CGFloat = 220 // 首頁錄音鈕（SE 線框是 180；怎麼縮未定，見切片帳本）
     }
 
     /// 動態（事件命名；每個都有減少動態版，是替換不是關掉）

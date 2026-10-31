@@ -6,4 +6,4 @@
 --wrapcollections before-first
 --stripunusedargs closure-only
 --self remove
---header ignore
+--header strip
