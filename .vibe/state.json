@@ -1,10 +1,10 @@
 {
-  "station": "impl",
-  "updated_at": "2026-11-01T03:30:00+08:00",
+  "station": "audit-immediate",
+  "updated_at": "2026-11-01T04:10:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
-    "todo": 28,
-    "machine_verified": 4,
+    "todo": 27,
+    "machine_verified": 5,
     "human_verified": 4
   },
   "chunks": [
@@ -18,7 +18,7 @@
     {
       "name": "B 金鑰與連線",
       "total": 3,
-      "machine_done": 1,
+      "machine_done": 2,
       "human_verified": false,
       "approved": true
     },
@@ -74,7 +74,7 @@
       "note": "等方向測試"
     }
   ],
-  "pending_immediate_verify": [],
+  "pending_immediate_verify": ["B2"],
   "skipped_gates": [
     {
       "piece": "A1",
