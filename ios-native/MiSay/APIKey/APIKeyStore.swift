@@ -19,7 +19,9 @@ struct APIKeyStore {
     /// 存之前去掉前後空白：貼上時多帶一個換行是「金鑰明明對卻說錯」最常見的原因。
     func save(_ rawKey: String) throws {
         let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { throw Failure.emptyKey }
+        guard !key.isEmpty else {
+            throw Failure.emptyKey
+        }
 
         // 先刪舊的再加新的，比 SecItemUpdate 少一條分支；兩步都要成功才算存好。
         let deleteStatus = SecItemDelete(Self.query as CFDictionary)
@@ -32,7 +34,9 @@ struct APIKeyStore {
         // 只在這台裝置、解鎖後可用：不進 iCloud 備份，換手機要重貼（PRD 備份那條）。
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let status = SecItemAdd(attributes as CFDictionary, nil)
-        guard status == errSecSuccess else { throw Failure.saveFailed(status) }
+        guard status == errSecSuccess else {
+            throw Failure.saveFailed(status)
+        }
     }
 
     /// 沒存過回 nil（第一次打開本來就沒有，不算錯）；Keychain 出錯才拋。
@@ -42,8 +46,12 @@ struct APIKeyStore {
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess else { throw Failure.readFailed(status) }
+        if status == errSecItemNotFound {
+            return nil
+        }
+        guard status == errSecSuccess else {
+            throw Failure.readFailed(status)
+        }
         guard let data = result as? Data, let key = String(data: data, encoding: .utf8) else {
             throw Failure.readFailed(errSecDecode)
         }
