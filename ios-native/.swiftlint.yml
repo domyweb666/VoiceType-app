@@ -54,6 +54,10 @@ identifier_name:
     - l
     - xl
 
+# SwiftFormat 的 trailingCommas 會在多行集合結尾加逗號，SwiftLint 預設禁；兩邊要一致，以 SwiftFormat 為準
+trailing_comma:
+  mandatory_comma: true
+
 # 規矩檔第 3 節：錯誤要大聲
 force_cast: error
 force_try: error
