@@ -22,7 +22,7 @@ struct OpenAIClient {
         case rejected(statusCode: Int)
         /// 回來的不是 HTTP、或成功卻不是說好的 JSON 形狀。
         case malformedResponse
-        /// 等超過逾時秒數沒回音（含 OpenAI 回 408）。
+        /// 等超過逾時秒數沒回音。
         case timedOut
         /// 連線層的錯（沒網路、找不到主機、憑證不對、被取消…）；哪些能再試看 `isRetryable`。
         case transport(URLError.Code)
@@ -58,8 +58,6 @@ struct OpenAIClient {
             switch statusCode {
             case 401, 403:
                 self = .invalidAPIKey(statusCode: statusCode)
-            case 408:
-                self = .timedOut
             case 429:
                 self = Self.isQuotaError(body) ? .quotaExhausted : .rateLimited
             case 500...:
@@ -179,11 +177,6 @@ struct OpenAIClient {
     /// `GET /v1/models` 成功時的形狀（官方文件：object 固定是 "list"）。只用來驗證，不存、不畫。
     private struct ModelList: Decodable {
         let object: String
-        let data: [ModelEntry]
-    }
-
-    private struct ModelEntry: Decodable {
-        let id: String
     }
 
     /// OpenAI 錯誤正文裡我們唯一會看的兩個欄位；message 刻意不解，裡面可能有金鑰。

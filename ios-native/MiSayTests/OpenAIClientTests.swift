@@ -114,8 +114,9 @@ final class OpenAIClientTests: XCTestCase {
 
     func test連線錯誤裡找不到金鑰() async {
         // 假伺服器故意把金鑰回聲在錯誤訊息裡，App 拋出的錯誤仍不准帶它（安全標準一）。
-        let body = #"{"error":{"message":"Incorrect API key provided: "# + fakeKey + #""}}"#
-        FakeOpenAIServer.reply = .http(status: 401, body: body)
+        // 走 429：這是唯一會解析錯誤正文的路徑，解完也不准把正文帶出來。
+        let body = #"{"error":{"message":"Rate limit for "# + fakeKey + #"","type":"rate_limit_error"}}"#
+        FakeOpenAIServer.reply = .http(status: 429, body: body)
         do {
             try await makeClient().verifyAPIKey()
             XCTFail("應該要拋錯")
