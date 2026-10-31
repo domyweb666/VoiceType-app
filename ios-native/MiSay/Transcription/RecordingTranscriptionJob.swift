@@ -25,11 +25,16 @@ struct RecordingTranscriptionJob {
     }
 
     /// 回整篇口語稿（各段直接接起來，舊版也是）。中途哪一段失敗就拋出那一段的錯，已成功的段留在進度檔。
-    func transcribe(recordingAt recordingURL: URL) async throws -> String {
+    /// `onSegment` 在每段開始送之前叫（第幾段／共幾段），給面板畫「第 2／3 段」。
+    func transcribe(
+        recordingAt recordingURL: URL,
+        onSegment: (Int, Int) -> Void = { _, _ in }
+    ) async throws -> String {
         let segmentsDirectory = Self.segmentsDirectory(for: recordingURL)
         let segments = try WAVSegmenter.split(recordingURL, into: segmentsDirectory)
         var progress = loadProgress(for: recordingURL)
         for (index, segment) in segments.enumerated() where progress.segmentTexts[index] == nil {
+            onSegment(index + 1, segments.count)
             let previousText = (0 ..< index).compactMap { progress.segmentTexts[$0] }.joined()
             let prompt = TranscriptionPrompt.build(
                 vocabulary: vocabulary,
