@@ -150,7 +150,8 @@ final class Recorder {
         }
         let ratio = targetFormat.sampleRate / buffer.format.sampleRate
         let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 16
-        guard let converted = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else {
+        let output = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity)
+        guard let converted = output else {
             return
         }
         var consumed = false

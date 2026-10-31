@@ -6,7 +6,8 @@ final class PendingRecordingsTests: XCTestCase {
     private let pending = PendingRecordings()
 
     func test錄音收進待轉錄後原檔不在了() throws {
-        let source = FileManager.default.temporaryDirectory.appending(path: "move-\(UUID().uuidString).wav")
+        let name = "move-\(UUID().uuidString).wav"
+        let source = FileManager.default.temporaryDirectory.appending(path: name)
         try Data(repeating: 0, count: 44).write(to: source)
 
         let destination = try pending.accept(recordingAt: source)

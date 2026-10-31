@@ -113,7 +113,8 @@ struct RecordingSheetView: View {
             guard !reduceMotion else {
                 return
             }
-            withAnimation(.easeInOut(duration: Token.Motion.recordingPulse).repeatForever(autoreverses: true)) {
+            let breathing = Animation.easeInOut(duration: Token.Motion.recordingPulse)
+            withAnimation(breathing.repeatForever(autoreverses: true)) {
                 isPulsing = true
             }
         }
