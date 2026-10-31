@@ -193,11 +193,48 @@ final class FakeOpenAIServer: URLProtocol {
     }
 
     nonisolated(unsafe) static var reply: Reply = .http(status: 200, body: "")
+    /// 排好幾個回答依序給（例如先 500 再 200）；用完了就一直給 `reply`。
+    nonisolated(unsafe) static var queuedReplies: [Reply] = []
     nonisolated(unsafe) static var lastRequest: URLRequest?
+    nonisolated(unsafe) static var lastBody: Data?
+    nonisolated(unsafe) static var requestCount = 0
 
     static func reset() {
         reply = .http(status: 200, body: "")
+        queuedReplies = []
         lastRequest = nil
+        lastBody = nil
+        requestCount = 0
+    }
+
+    private static func nextReply() -> Reply {
+        if queuedReplies.isEmpty {
+            return reply
+        }
+        return queuedReplies.removeFirst()
+    }
+
+    /// URLSession 送出去的正文在 URLProtocol 這邊只看得到串流，整個讀出來給測試比對。
+    private static func body(of request: URLRequest) -> Data? {
+        if let body = request.httpBody {
+            return body
+        }
+        guard let stream = request.httpBodyStream else {
+            return nil
+        }
+        stream.open()
+        defer { stream.close() }
+        let chunkSize = 64 * 1024
+        var buffer = [UInt8](repeating: 0, count: chunkSize)
+        var data = Data()
+        while stream.hasBytesAvailable {
+            let read = stream.read(&buffer, maxLength: chunkSize)
+            if read <= 0 {
+                break
+            }
+            data.append(buffer, count: read)
+        }
+        return data
     }
 
     override static func canInit(with _: URLRequest) -> Bool {
@@ -210,7 +247,9 @@ final class FakeOpenAIServer: URLProtocol {
 
     override func startLoading() {
         Self.lastRequest = request
-        switch Self.reply {
+        Self.lastBody = Self.body(of: request)
+        Self.requestCount += 1
+        switch Self.nextReply() {
         case let .http(status, body):
             guard let url = request.url else {
                 client?.urlProtocol(self, didFailWithError: URLError(.badURL))

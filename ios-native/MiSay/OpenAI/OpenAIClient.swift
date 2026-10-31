@@ -174,6 +174,25 @@ struct OpenAIClient {
         return data
     }
 
+    /// 片 D2／D4 共用的重試迴圈：只對 `Failure.isRetryable` 的錯重試，次數與起始間隔由呼叫端給
+    /// （轉錄 4 次、潤飾 3 次，PRD），間隔每次加倍（舊版）。不可重試的錯第一次就拋出去。
+    static func retrying<Result>(
+        maxAttempts: Int,
+        baseDelaySeconds: Double,
+        _ operation: () async throws -> Result
+    ) async throws -> Result {
+        var attempt = 1
+        while true {
+            do {
+                return try await operation()
+            } catch let failure as Failure where failure.isRetryable && attempt < maxAttempts {
+                let delay = baseDelaySeconds * pow(2, Double(attempt - 1))
+                try await Task.sleep(for: .seconds(delay))
+                attempt += 1
+            }
+        }
+    }
+
     /// `GET /v1/models` 成功時的形狀（官方文件：object 固定是 "list"）。只用來驗證，不存、不畫。
     private struct ModelList: Decodable {
         let object: String
