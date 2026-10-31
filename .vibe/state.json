@@ -1,6 +1,6 @@
 {
-  "station": "spec-standards",
-  "updated_at": "2026-11-01T02:20:00+08:00",
+  "station": "impl",
+  "updated_at": "2026-11-01T03:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
     "todo": 28,
@@ -99,6 +99,12 @@
       "gate": "spec-standards 真實情境走查",
       "date": "2026-11-01",
       "reason": "米：對，開工（沒答走查）"
+    },
+    {
+      "piece": "B2",
+      "gate": "spec-standards 真實情境走查＋plan-readback 對齊確認",
+      "date": "2026-11-01",
+      "reason": "米不在線，前一會話授權接續到立即驗"
     }
   ]
 }
