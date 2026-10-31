@@ -1,17 +1,17 @@
 {
-  "station": "impl",
+  "station": "idle",
   "updated_at": "2026-10-31T07:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
-    "todo": 31,
-    "machine_verified": 1,
+    "todo": 30,
+    "machine_verified": 2,
     "human_verified": 1
   },
   "chunks": [
     {
       "name": "A 建置上架",
       "total": 3,
-      "machine_done": 1,
+      "machine_done": 2,
       "human_verified": false,
       "approved": true
     },
