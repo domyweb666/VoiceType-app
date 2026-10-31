@@ -30,9 +30,10 @@ final class TranscriptionQueue {
         case recordingNotDeleted(Transcript)
     }
 
-    /// `Result` 的失敗那一邊要是 Error；包一層讓「存口語稿那一步」能把要停下來的結局帶回來。
+    /// `Result` 的失敗那一邊要是 Error；包一層讓轉錄、存口語稿這兩步能把要停下來的結局帶回來。
+    /// `value` 是 nil 表示被取消：不給結局，呼叫端當沒發生。
     private struct StoppedOutcome: Error {
-        let value: Outcome
+        let value: Outcome?
     }
 
     private(set) var activity = Activity.idle
@@ -78,20 +79,11 @@ final class TranscriptionQueue {
             vocabulary: settings.vocabulary
         )
         let rawText: String
-        do {
-            rawText = try await job.transcribe(recordingAt: url) { [weak self] segment, total in
-                self?.activity = .transcribing(
-                    recording: name,
-                    segment: segment,
-                    totalSegments: total
-                )
-            }
-        } catch let failure as OpenAIClient.Failure {
-            return .transcriptionFailed(failure)
-        } catch is CancellationError {
-            return nil
-        } catch {
-            return .recordingUnreadable
+        switch await transcribe(url, with: job) {
+        case let .success(text):
+            rawText = text
+        case let .failure(stopped):
+            return stopped.value
         }
 
         let transcript: Transcript
@@ -103,6 +95,30 @@ final class TranscriptionQueue {
         }
         activity = .polishing(recording: name)
         return await polishAndSave(transcript)
+    }
+
+    /// 轉錄這一步。OpenAI 的錯原樣帶回；讀不到錄音、切不了段是 `.recordingUnreadable`；被取消時不給結局。
+    private func transcribe(
+        _ url: URL,
+        with job: RecordingTranscriptionJob
+    ) async -> Result<String, StoppedOutcome> {
+        let name = url.lastPathComponent
+        do {
+            let text = try await job.transcribe(recordingAt: url) { [weak self] segment, total in
+                self?.activity = .transcribing(
+                    recording: name,
+                    segment: segment,
+                    totalSegments: total
+                )
+            }
+            return .success(text)
+        } catch let failure as OpenAIClient.Failure {
+            return .failure(StoppedOutcome(value: .transcriptionFailed(failure)))
+        } catch is CancellationError {
+            return .failure(StoppedOutcome(value: nil))
+        } catch {
+            return .failure(StoppedOutcome(value: .recordingUnreadable))
+        }
     }
 
     /// 口語稿落地之後才准刪錄音檔（安全標準二：存好才准刪）；錄音檔刪掉之後才清切段與進度檔，
