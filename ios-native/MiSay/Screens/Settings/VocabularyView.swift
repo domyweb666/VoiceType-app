@@ -21,7 +21,7 @@ struct VocabularyView: View {
                         .disabled(Self.cleaned(newWord, existing: settings.vocabulary) == nil)
                 }
             } footer: {
-                Text("常講的人名、品牌、專有名詞。轉錄和潤飾時會照這裡的寫法。")
+                Text("常講的人名、品牌、專有名詞。整理時會照這裡的寫法。")
                     .font(Token.Fonts.footnote)
                     .foregroundStyle(Token.Colors.textSecondary)
             }

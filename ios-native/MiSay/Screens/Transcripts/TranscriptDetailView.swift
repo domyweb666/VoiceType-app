@@ -242,18 +242,20 @@ private extension TranscriptDetailView {
         polishFailed = false
         isPolishing = true
         let settings = AppSettings.shared
+        // 開始時就記下模型：潤飾中途改了設定，記在這篇上的仍是實際送出去的那個。
+        let model = settings.polishModel
         let source = transcript
         polishTask = Task { @MainActor in
             do {
                 let draft = try await Polisher().polish(
                     rawText: source.rawText,
-                    model: settings.polishModel,
+                    model: model,
                     systemPrompt: settings.effectivePolishPrompt,
                     vocabulary: settings.vocabulary
                 )
                 // 回應回來、還沒套用的那一瞬間按了取消，也不准蓋掉。
                 try Task.checkCancellation()
-                try applyRepolish(draft, mode: mode, model: settings.polishModel)
+                try applyRepolish(draft, mode: mode, model: model)
             } catch is CancellationError {
                 // 使用者自己按取消，不跳訊息（詞彙表語氣規則）。
             } catch OpenAIClient.Failure.transport(.cancelled) {

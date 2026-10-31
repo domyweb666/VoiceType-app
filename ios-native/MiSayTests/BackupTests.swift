@@ -20,6 +20,9 @@ final class BackupTests: XCTestCase {
         let backup = Backup(transcripts: [first, second])
         XCTAssertEqual(backup.newTranscripts(existingIDs: [first.id]), [second])
         XCTAssertEqual(backup.newTranscripts(existingIDs: []), [first, second])
+
+        let duplicated = Backup(transcripts: [first, first, second])
+        XCTAssertEqual(duplicated.newTranscripts(existingIDs: []), [first, second])
     }
 
     func test備份不是米說的檔不收() {

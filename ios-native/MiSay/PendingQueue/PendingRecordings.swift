@@ -122,6 +122,10 @@ struct PendingRecordings {
     /// 片 C6「刪掉這一個」。畫面要先用系統動作表確認過才准呼叫（⚠️ 刪檔）。
     func delete(_ recording: Recording) throws {
         try delete(recordingAt: recording.url)
+        // 轉到一半的長錄音旁邊還有切段與進度檔，清單看不到，一起清掉；清不掉只是佔空間，不影響資料。
+        let segments = RecordingTranscriptionJob.segmentsDirectory(for: recording.url)
+        try? fileManager.removeItem(at: segments)
+        try? fileManager.removeItem(at: RecordingTranscriptionJob.progressURL(for: recording.url))
     }
 
     /// D5：口語稿存進歷史之後由流水呼叫；畫面上的刪除走上面那個。

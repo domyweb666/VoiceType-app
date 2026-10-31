@@ -23,8 +23,8 @@ struct TranscriptStatusStrip: View {
         polishFailed: Bool,
         hasDraft: Bool,
         saveFailed: Bool,
-        isEmpty: Bool,
-        showsCopied: Bool
+        isEmpty: Bool = false,
+        showsCopied: Bool = false
     ) -> Kind {
         if isPolishing {
             return .polishing

@@ -10,6 +10,8 @@ struct RecordingResultView: View {
         case transcriptionFailed(reason: String, needsNewKey: Bool)
         case storageFailed
         case polishFailed(Transcript)
+        /// 潤飾好了但文字稿存不進去：再按一次會重新潤飾、再算一次錢，所以跟潤飾失敗分開講。
+        case draftNotSaved(Transcript)
         case recordingNotDeleted(Transcript)
         case finished(Transcript, isCopied: Bool)
     }
@@ -43,11 +45,16 @@ struct RecordingResultView: View {
                 // 這時已經轉好、已經扣款，所以不說「沒有被扣款」。
                 failedContent(
                     lead: "錄音還在待轉錄。",
-                    reason: "轉好的字存不進去，再試一次。",
+                    reason: "口語稿存不進去，再試一次。",
                     needsNewKey: false
                 )
             case let .polishFailed(transcript):
-                polishFailedContent(transcript)
+                polishFailedContent(transcript, message: "口語稿已經存好，潤飾沒有成功。")
+            case let .draftNotSaved(transcript):
+                polishFailedContent(
+                    transcript,
+                    message: "口語稿已經存好，文字稿存不進去。再試一次會重新潤飾。"
+                )
             case let .recordingNotDeleted(transcript):
                 recordingNotDeletedContent(transcript)
             case let .finished(transcript, isCopied):
@@ -62,7 +69,6 @@ struct RecordingResultView: View {
                 return
             }
             hasStarted = true
-            AppSettings.shared.hasSeenCostNotice = true
             process()
         }
         .onDisappear { isShown = false }
@@ -73,7 +79,8 @@ struct RecordingResultView: View {
         switch status {
         case .finished:
             Token.Haptics.transcriptReady
-        case .noAPIKey, .transcriptionFailed, .storageFailed, .polishFailed, .recordingNotDeleted:
+        case .noAPIKey, .transcriptionFailed, .storageFailed, .polishFailed, .draftNotSaved,
+             .recordingNotDeleted:
             Token.Haptics.failed
         case .processing:
             nil
@@ -127,6 +134,10 @@ struct RecordingResultView: View {
     }
 
     private func apply(_ outcome: TranscriptionQueue.Outcome?) {
+        // 費用說明要等真的送出去過才算看過：沒金鑰時面板一閃就換掉，不能算。
+        if let outcome, outcome != .noAPIKey {
+            AppSettings.shared.hasSeenCostNotice = true
+        }
         switch outcome {
         case nil:
             // 背景那一輪已經在整理這一筆，交給它；面板收起，好了會出現在文字稿。
@@ -141,8 +152,10 @@ struct RecordingResultView: View {
             status = .transcriptionFailed(reason: "這段錄音讀不出來，再試一次。", needsNewKey: false)
         case let .recordingNotDeleted(transcript):
             status = .recordingNotDeleted(transcript)
-        case let .polishFailed(transcript, _), let .draftNotSaved(transcript):
+        case let .polishFailed(transcript, _):
             status = .polishFailed(transcript)
+        case let .draftNotSaved(transcript):
+            status = .draftNotSaved(transcript)
         case let .finished(transcript):
             status = .finished(transcript, isCopied: copyIfWanted(transcript))
         }
@@ -205,11 +218,11 @@ private extension RecordingResultView {
         }
     }
 
-    func polishFailedContent(_ transcript: Transcript) -> some View {
+    func polishFailedContent(_ transcript: Transcript, message text: String) -> some View {
         VStack(spacing: Token.Space.m) {
             failureIcon
-            message("口語稿已經存好，潤飾沒有成功。")
-            primaryButton("重試潤飾") { retryPolish(transcript) }
+            message(text)
+            primaryButton("再試一次") { retryPolish(transcript) }
             textButton("打開這篇") { onOpenTranscript(transcript) }
             textButton("完成") { dismiss() }
         }

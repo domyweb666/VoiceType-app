@@ -20,11 +20,24 @@ struct BackupSection: View {
             }
             .tint(Token.Colors.link)
             .disabled(transcriptCount == 0)
+            // 讀篇數、選檔、確認框掛在這顆鈕上：掛在 Section 上，SwiftUI 可能每一列各套一次。
             Button("匯入備份") {
                 resultMessage = nil
                 isImporting = true
             }
             .tint(Token.Colors.link)
+            .task { reloadCount() }
+            .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json]) { result in
+                prepareImport(result)
+            }
+            .confirmationDialog(
+                Self.confirmTitle(adding: pendingImport.count, skipping: skippedCount),
+                isPresented: $isConfirmingImport,
+                titleVisibility: .visible
+            ) {
+                Button("加入 \(pendingImport.count) 篇") { commitImport() }
+                Button("取消", role: .cancel) { pendingImport = [] }
+            }
             if let resultMessage {
                 Text(resultMessage)
                     .font(Token.Fonts.secondary)
@@ -38,18 +51,6 @@ struct BackupSection: View {
         }
         .font(Token.Fonts.body)
         .listRowBackground(Token.Colors.rowBackground)
-        .task { reloadCount() }
-        .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json]) { result in
-            prepareImport(result)
-        }
-        .confirmationDialog(
-            Self.confirmTitle(adding: pendingImport.count, skipping: skippedCount),
-            isPresented: $isConfirmingImport,
-            titleVisibility: .visible
-        ) {
-            Button("加入 \(pendingImport.count) 篇") { commitImport() }
-            Button("取消", role: .cancel) { pendingImport = [] }
-        }
     }
 
     /// 沒東西時按鈕變灰，這裡說為什麼。
@@ -69,13 +70,13 @@ struct BackupSection: View {
     static func message(for failure: Backup.Failure) -> String {
         switch failure {
         case .tooLarge:
-            "這個檔超過 50 MB，不像米說的備份，沒有匯入。"
+            "沒有匯入：這個檔超過 50 MB，不像米說的備份。"
         case .notABackup:
-            "這不是米說的備份檔，沒有匯入。"
+            "沒有匯入：這不是米說的備份檔。"
         case .newerVersion:
-            "這個備份是新版米說做的，先更新米說再匯入。"
+            "沒有匯入：這個備份是新版米說做的，先更新米說。"
         case .unreadable:
-            "備份檔裡面壞了，讀不出文字稿，沒有匯入。"
+            "沒有匯入：備份檔裡面壞了，讀不出文字稿。"
         }
     }
 
@@ -97,7 +98,7 @@ struct BackupSection: View {
             resultMessage = Self.message(for: failure)
             return
         } catch {
-            resultMessage = "讀不到這個檔，沒有匯入。"
+            resultMessage = "沒有匯入：讀不到這個檔。"
             return
         }
         let existingIDs: Set<UUID>
@@ -105,7 +106,7 @@ struct BackupSection: View {
             existingIDs = try Set(TranscriptStore().loadAll().transcripts.map(\.id))
         } catch {
             // 不知道手機上有哪些，就不知道會不會重複，寧可不匯。
-            resultMessage = "手機上的文字稿讀不到，先不匯入。"
+            resultMessage = "沒有匯入：手機上的文字稿讀不到，不知道會不會重複。"
             return
         }
         pendingImport = backup.newTranscripts(existingIDs: existingIDs)

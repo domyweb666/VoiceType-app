@@ -26,7 +26,7 @@ final class TranscriptionQueue {
         case draftNotSaved(Transcript)
         /// 錄音檔讀不到或切不了段（不是 OpenAI 的事）：檔還在待轉錄，沒送出去的不扣款。
         case recordingUnreadable
-        /// 口語稿存好了但錄音檔刪不掉：不停下來的話下一輪會整段重轉、重扣一次錢。
+        /// 口語稿存好了但錄音檔刪不掉：下一輪會從進度檔接回同一篇再存一次、再潤飾一次（潤飾會再扣款）。
         case recordingNotDeleted(Transcript)
     }
 
@@ -130,7 +130,11 @@ final class TranscriptionQueue {
     ) -> Result<Transcript, StoppedOutcome> {
         let name = url.lastPathComponent
         let duration = (try? pending.list().first { $0.id == name }?.durationSeconds) ?? 0
-        let transcript = Transcript(durationSeconds: duration, rawText: rawText)
+        let transcript = Transcript(
+            id: job.transcriptID(forRecordingAt: url),
+            durationSeconds: duration,
+            rawText: rawText
+        )
         do {
             try store.save(transcript)
         } catch {

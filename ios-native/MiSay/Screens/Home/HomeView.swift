@@ -43,7 +43,8 @@ struct HomeView: View {
         .navigationDestination(isPresented: $isSettingsOpen) { SettingsView() }
         .task {
             recoverThenReloadPending()
-            await queue.processPending()
+            // 不用 .task 自己的工作：推頁時首頁會消失、.task 被取消，整理到一半的那筆會被當成失敗。
+            Task { await queue.processPending() }
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else {

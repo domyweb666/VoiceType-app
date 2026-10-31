@@ -50,7 +50,7 @@ struct Backup: Codable, Equatable {
         } catch {
             throw Failure.notABackup
         }
-        guard header.app == appIdentifier else {
+        guard header.app == appIdentifier, header.version >= 1 else {
             throw Failure.notABackup
         }
         guard header.version <= currentVersion else {
@@ -63,9 +63,10 @@ struct Backup: Codable, Equatable {
         }
     }
 
-    /// 合併不覆蓋（PRD）：同一個 id 已經在手機上的跳過，只回要加進來的那些。
+    /// 合併不覆蓋（PRD）：同一個 id 已經在手機上的跳過；備份裡自己重複的也只算第一篇，「加入 N 篇」才準。
     func newTranscripts(existingIDs: Set<UUID>) -> [Transcript] {
-        transcripts.filter { !existingIDs.contains($0.id) }
+        var seen = existingIDs
+        return transcripts.filter { seen.insert($0.id).inserted }
     }
 
     /// 只解開頭兩欄，用來分辨「不是米說的檔」和「米說的檔但壞了」。

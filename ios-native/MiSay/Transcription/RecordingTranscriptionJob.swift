@@ -8,9 +8,11 @@ struct RecordingTranscriptionJob {
         case cannotSaveProgress
     }
 
-    /// 進度檔：哪幾段已經有口語稿。放在錄音檔旁邊，錄音刪掉時一起刪。
+    /// 進度檔：哪幾段已經有口語稿，以及這段錄音存進歷史時用哪個 id。放在錄音檔旁邊，錄音刪掉時一起刪。
+    /// id 先定好：口語稿存好但錄音刪不掉時，下一輪存回同一篇，不會多一篇重複的。
     struct Progress: Codable, Equatable {
         var segmentTexts: [Int: String] = [:]
+        var transcriptID = UUID()
     }
 
     static let progressExtension = "progress.json"
@@ -52,6 +54,11 @@ struct RecordingTranscriptionJob {
     func cleanUp(recordingAt recordingURL: URL) {
         try? fileManager.removeItem(at: Self.segmentsDirectory(for: recordingURL))
         try? fileManager.removeItem(at: Self.progressURL(for: recordingURL))
+    }
+
+    /// 轉錄完之後呼叫；進度檔讀不到時給新的 id（最壞是多一篇，不會丟）。
+    func transcriptID(forRecordingAt recordingURL: URL) -> UUID {
+        loadProgress(for: recordingURL).transcriptID
     }
 
     static func segmentsDirectory(for recordingURL: URL) -> URL {
