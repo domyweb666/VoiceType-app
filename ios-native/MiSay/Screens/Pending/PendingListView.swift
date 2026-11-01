@@ -6,6 +6,7 @@ struct PendingListView: View {
     /// 刪掉一個之後通知首頁重算數字。
     let onChange: () -> Void
 
+    @Environment(TranscriptionQueue.self) private var queue
     @State private var recordings: [PendingRecordings.Recording] = []
     @State private var loadFailed = false
     @State private var deleteFailed = false
@@ -21,6 +22,12 @@ struct PendingListView: View {
                 Text(RecordingSheetView.formatSpoken(recording.durationSeconds))
                     .font(Token.Fonts.secondary)
                     .foregroundStyle(Token.Colors.textSecondary)
+                // 自動整理跳過它，要使用者自己決定刪不刪（不自動刪：檔裡可能有他要的話）。
+                if queue.refusedRecordings.contains(recording.id) {
+                    Text("OpenAI 沒收下這段，自動整理會跳過它。不要的話左滑刪掉。")
+                        .font(Token.Fonts.secondary)
+                        .foregroundStyle(Token.Colors.danger)
+                }
             }
             .listRowBackground(Token.Colors.rowBackground)
             .swipeActions {

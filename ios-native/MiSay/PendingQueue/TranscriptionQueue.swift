@@ -37,6 +37,9 @@ final class TranscriptionQueue {
     }
 
     private(set) var activity = Activity.idle
+    /// OpenAI 拒收（4xx）或讀不出來的錄音檔名：再送一次也一樣，自動續轉跳過它們，待轉錄清單標出來給使用者刪。
+    /// 只記在記憶體：重開米說會再試一次（2026-11-02 米：照建議，不讓一筆擋住後面的）。
+    private(set) var refusedRecordings: Set<String> = []
     private var inFlight: Set<String> = []
     private var isProcessingPending = false
 
@@ -204,15 +207,17 @@ final class TranscriptionQueue {
         defer { isProcessingPending = false }
         for recording in recordings.reversed() {
             // 清單是開跑時拍的照：這段時間面板可能已經整理完那一筆、錄音檔已刪。
-            guard FileManager.default.fileExists(atPath: recording.url.path) else {
+            let exists = FileManager.default.fileExists(atPath: recording.url.path)
+            guard exists, !refusedRecordings.contains(recording.id) else {
                 continue
             }
             let outcome = await process(recordingAt: recording.url)
             switch outcome {
             case .finished, .polishFailed, .draftNotSaved, nil:
                 continue
-            case .noAPIKey, .transcriptionFailed, .storageFailed, .recordingUnreadable,
-                 .recordingNotDeleted:
+            case .transcriptionFailed(.rejected), .recordingUnreadable:
+                refusedRecordings.insert(recording.id)
+            case .noAPIKey, .transcriptionFailed, .storageFailed, .recordingNotDeleted:
                 return
             }
         }
