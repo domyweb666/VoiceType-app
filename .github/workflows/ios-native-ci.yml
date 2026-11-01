@@ -21,6 +21,9 @@ env:
   # runner 映像沒預裝 SwiftLint（2026-10-31 實跑確認），同樣從官方 release 釘版本下載。
   SWIFTLINT_VERSION: "0.65.1"
   SWIFTLINT_SHA256: "c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0"
+  # 2026-11-02 發現 SwiftFormat 一直用 runner 預裝的版本（規矩檔不准）；改成釘 0.64.0，跟本機 Windows 版同一版。
+  SWIFTFORMAT_VERSION: "0.64.0"
+  SWIFTFORMAT_SHA256: "95ea62625d0b898a7af870293311ae6f09e4a3147ecd900593687e4b9ab2fd98"
   SIMULATOR: "platform=iOS Simulator,name=iPhone 17"
 
 jobs:
@@ -51,24 +54,38 @@ jobs:
           test -x "$RUNNER_TEMP/swiftlint/swiftlint"
           "$RUNNER_TEMP/swiftlint/swiftlint" version
 
+      - name: 安裝 SwiftFormat（釘版本、驗 SHA-256）
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/swiftformat.zip"             "https://github.com/nicklockwood/SwiftFormat/releases/download/${SWIFTFORMAT_VERSION}/swiftformat.zip"
+          echo "${SWIFTFORMAT_SHA256}  $RUNNER_TEMP/swiftformat.zip" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/swiftformat"
+          unzip -q "$RUNNER_TEMP/swiftformat.zip" -d "$RUNNER_TEMP/swiftformat"
+          chmod +x "$RUNNER_TEMP/swiftformat/swiftformat"
+          "$RUNNER_TEMP/swiftformat/swiftformat" --version
+
       - name: 產生 Xcode 專案
         run: |
           xcodebuild -version
           "$RUNNER_TEMP/xcodegen/bin/xcodegen" generate --spec project.yml
           test -d MiSay.xcodeproj
 
+      # 下面四步都跑完才判紅（!cancelled()）：一輪就看到格式、規矩、編譯、測試的全部問題，
+      # 不用格式紅一次、修完再推才看到編譯紅（macOS 分鐘要錢，2026-11-02）。
       - name: 格式檢查（SwiftFormat）
+        if: ${{ !cancelled() }}
         run: |
-          swiftformat --version
-          swiftformat --lint .
+          "$RUNNER_TEMP/swiftformat/swiftformat" --lint .
 
       - name: 規矩檢查（SwiftLint）
+        if: ${{ !cancelled() }}
         run: |
           "$RUNNER_TEMP/swiftlint/swiftlint" lint --strict
 
       # 模擬器版用本機自簽（ad-hoc，不需要任何憑證或 secret）。
       # 2026-10-31 B1 踩到：完全不簽章的 App 沒有身分，模擬器上 Keychain 回 -34018，測試全紅。
       - name: 編譯模擬器版
+        id: build
+        if: ${{ !cancelled() }}
         run: |
           xcodebuild build \
             -project MiSay.xcodeproj \
@@ -77,7 +94,9 @@ jobs:
             -derivedDataPath DerivedData \
             CODE_SIGN_IDENTITY=-
 
+      # 編譯沒過就不跑測試：測試會再編一次、紅在同一個地方，白燒分鐘。
       - name: 跑單元測試
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           xcodebuild test \
             -project MiSay.xcodeproj \

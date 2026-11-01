@@ -18,7 +18,9 @@ struct PendingRecordings {
         let recordedAt: Date
         let durationSeconds: Double
 
-        var id: String { url.lastPathComponent }
+        var id: String {
+            url.lastPathComponent
+        }
     }
 
     /// 只記檔名（時間戳，不含內容），規矩檔第 3 節。

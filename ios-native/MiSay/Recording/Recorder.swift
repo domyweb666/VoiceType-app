@@ -85,10 +85,10 @@ final class Recorder {
         let targetFormat = try Self.targetFormat()
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
-        guard inputFormat.sampleRate > 0 else {
-            throw Failure.inputUnavailable
-        }
-        guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
+        guard inputFormat.sampleRate > 0, let converter = AVAudioConverter(
+            from: inputFormat,
+            to: targetFormat
+        ) else {
             throw Failure.inputUnavailable
         }
         self.converter = converter

@@ -8,10 +8,9 @@ enum AudioInterruption: Equatable {
     case endedCannotResume
 
     init?(userInfo: [AnyHashable: Any]?) {
-        guard let rawType = userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt else {
-            return nil
-        }
-        guard let type = AVAudioSession.InterruptionType(rawValue: rawType) else {
+        guard let rawType = userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: rawType)
+        else {
             return nil
         }
         switch type {

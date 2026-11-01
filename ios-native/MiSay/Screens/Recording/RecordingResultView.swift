@@ -108,10 +108,9 @@ struct RecordingResultView: View {
         for activity: TranscriptionQueue.Activity,
         recording: String
     ) -> String? {
-        guard case let .transcribing(name, segment, total) = activity else {
-            return nil
-        }
-        guard name == recording, total > 1 else {
+        guard case let .transcribing(name, segment, total) = activity, name == recording,
+              total > 1
+        else {
             return nil
         }
         return "第 \(segment)／\(total) 段"

@@ -151,13 +151,13 @@ struct TranscriptStore {
     }
 
     private static func decrypt(_ file: URL, using key: SymmetricKey) -> Transcript? {
-        guard let combined = try? Data(contentsOf: file) else {
-            return nil
-        }
-        guard let box = try? AES.GCM.SealedBox(combined: combined) else {
-            return nil
-        }
-        guard let plaintext = try? AES.GCM.open(box, using: key) else {
+        guard let combined = try? Data(contentsOf: file),
+              let box = try? AES.GCM.SealedBox(combined: combined),
+              let plaintext = try? AES.GCM.open(
+                  box,
+                  using: key
+              )
+        else {
             return nil
         }
         return try? decoder.decode(Transcript.self, from: plaintext)
