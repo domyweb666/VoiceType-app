@@ -24,7 +24,10 @@ final class PendingRecordingsTests: XCTestCase {
         let directory = try pending.directoryURL()
         XCTAssertTrue(directory.path.contains("Application Support"))
         let attributes = try FileManager.default.attributesOfItem(atPath: directory.path)
-        let protection = attributes[.protectionKey] as? FileProtectionType
+        // 模擬器不實作資料保護，讀回來是 nil（2026-11-02 CI 實跑確認）；只有真機驗得到這條。
+        guard let protection = attributes[.protectionKey] as? FileProtectionType else {
+            throw XCTSkip("模擬器不回報檔案保護等級，真機才驗得到")
+        }
         XCTAssertEqual(protection, .completeUntilFirstUserAuthentication)
     }
 
