@@ -1,8 +1,10 @@
-# Handoff: C～G 程式全部寫完、三位審查員都審過也修了；全部沒編譯過，等 CI 預算與米的決定
+# Handoff: C～G 全部寫完、CI 綠、v0.1.4（build 5）已上 TestFlight；等米照總待驗清單驗
 
 > 產出時間：2026-11-01 13:00
 > 前一份（2026-11-01 07:40）在 `handoff/archive/2026-11-01-0740.md`。
-> **最重要的一句**：從 C1 起所有程式都沒有編譯過（GitHub Actions 預算用完）。只有本機行長／行數掃描＋三位乾淨審查員的靜態審查。米說「直接往下做，做到剩我實測」。
+> **最重要的一句**：2026-11-02 補：CI 綠（run 41328398620，73 測試）、v0.1.4 build 5 上 TestFlight。總待驗清單在 `操作清單-待驗.md`。
+> **CI 要錢**（macOS 0.062 美元／分鐘，米看過帳單）：一批做完才推一次。格式先在本機用 Windows 版 SwiftFormat 0.64.0 跑（讀資料夾會當掉，要一個檔一個檔從 stdin 餵：`swiftformat.exe stdin --config .swiftformat < 檔`）；SwiftLint Windows 版要 Swift 工具鏈，本機跑不動。
+> 本機有一個沒推的 commit `ae3c1d7`（CI 只吃分支推送、推 tag 不重跑），跟下一批程式一起推，單獨推會白跑一輪。
 
 ## ✅ 這次完成了什麼（commit 由舊到新）
 
