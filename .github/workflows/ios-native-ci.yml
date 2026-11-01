@@ -6,6 +6,9 @@ name: iOS Native CI
 # 一批做完才推一次；手動按 Run workflow 也會跑。
 on:
   push:
+    # 只看分支：推 tag 時 GitHub 不管 paths，會再跑一次同一個 commit（2026-11-02 v0.1.4 踩到）。
+    branches:
+      - "**"
     paths:
       - "ios-native/**"
       - ".github/workflows/ios-native-ci.yml"
