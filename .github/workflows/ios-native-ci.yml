@@ -2,9 +2,13 @@ name: iOS Native CI
 
 # 片 A1：證明沒有 Mac 也編得過。
 # 不需要任何 secret、不簽章、不上傳 TestFlight（簽章版是 ios-release.yml，片 A3 才改）。
-# 推任何分支、或手動按 Run workflow 都會跑。
+# 只在 iOS 程式或這個檔有改動時跑：macOS 分鐘要錢，改 .vibe/ 文件不用叫機器起來（2026-11-02 米看帳單後）。
+# 一批做完才推一次；手動按 Run workflow 也會跑。
 on:
   push:
+    paths:
+      - "ios-native/**"
+      - ".github/workflows/ios-native-ci.yml"
   workflow_dispatch:
 
 permissions:

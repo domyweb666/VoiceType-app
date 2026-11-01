@@ -3,10 +3,8 @@ name: Desktop Release (macOS)
 # macOS 桌面版：建置 → Developer ID 簽章 → DMG → 公證 → staple。
 # Windows 桌面版在本機建（不需簽章），不走 CI。
 # 簽章素材見 code-signing playbook；secrets 與 Topoi 同一套值。
+# 只留手動：v* tag 是 iOS 米說的版本號，推 tag 時不要順便在 macOS 上建桌面版（2026-11-02）。
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
 jobs:
