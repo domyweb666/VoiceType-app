@@ -18,6 +18,10 @@ targets:
       path: MiSay/Info.plist
       properties:
         CFBundleDisplayName: 米說
+        # 2026-11-02 米真機截圖：日期顯示成「Nov 2, 2026 at 1:26 AM」。沒宣告語言時 App 用英文格式與系統按鈕字。
+        CFBundleDevelopmentRegion: zh-Hant
+        CFBundleLocalizations:
+          - zh-Hant
         # 版本與 build 號由 CI 從 tag 與流水號帶入（ios-release.yml）；本機預設值只是佔位
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)

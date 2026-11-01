@@ -3,15 +3,17 @@ import SwiftUI
 /// 首頁：米 2026-10-31 鎖定的骨架，正中央超大錄音鈕，其他全搬走。
 /// 片 A2 的殼；片 C1 把鈕接上錄音面板（方向 D：點一下升起半頁）；片 C6 的待轉錄列在鈕下方，0 個時整列不出現。
 /// 片 C4：出現時先把上次被殺掉留下的救回檔撿進待轉錄。
-/// 片 D6：出現時、回到前景時自動續轉待轉錄；面板的「打開這篇」「去設定」從這裡推頁。
+/// 片 D6：出現時、回到前景時自動續轉待轉錄。
+/// 2026-11-02 米：左右滑換頁（`RootPagerView`），首頁不再有「文字稿」「⋯」兩顆鈕；面板的「打開這篇」「去設定」交給外層換頁。
 struct HomeView: View {
+    let onOpenTranscript: (Transcript) -> Void
+    let onOpenSettings: () -> Void
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(TranscriptionQueue.self) private var queue
     @State private var isRecordingSheetShown = false
     @State private var pendingCount = 0
-    @State private var openedTranscript: Transcript?
-    @State private var isSettingsOpen = false
 
     var body: some View {
         VStack {
@@ -37,10 +39,6 @@ struct HomeView: View {
             .presentationDetents([.medium])
             .presentationCornerRadius(Token.Shape.radiusSheet)
         }
-        .navigationDestination(item: $openedTranscript) { transcript in
-            TranscriptListView(opening: transcript)
-        }
-        .navigationDestination(isPresented: $isSettingsOpen) { SettingsView() }
         .task {
             recoverThenReloadPending()
             // 不用 .task 自己的工作：推頁時首頁會消失、.task 被取消，整理到一半的那筆會被當成失敗。
@@ -61,15 +59,6 @@ struct HomeView: View {
             // 背景整理完一筆（或面板收起後才整理完）就重算待轉錄數。
             if activity == .idle {
                 reloadPending()
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                NavigationLink("文字稿") { TranscriptListView() }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink { SettingsView() } label: { Image(systemName: "ellipsis") }
-                    .accessibilityLabel("更多")
             }
         }
     }
@@ -130,15 +119,15 @@ struct HomeView: View {
         .padding(.bottom, Token.Space.l)
     }
 
-    /// 面板先收起再推頁，推到「文字稿」清單上的那一篇。
+    /// 面板先收起，再請外層換到「文字稿」那頁、推到這一篇。
     private func openFromSheet(_ transcript: Transcript) {
         isRecordingSheetShown = false
-        openedTranscript = transcript
+        onOpenTranscript(transcript)
     }
 
     private func openSettingsFromSheet() {
         isRecordingSheetShown = false
-        isSettingsOpen = true
+        onOpenSettings()
     }
 
     /// 首頁每次出現（含從別頁返回）都會跑；這時面板一定是收起的，不會有錄音中的檔被當成救回檔。
