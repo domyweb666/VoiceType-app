@@ -110,6 +110,8 @@ struct HomeView: View {
                         .font(Token.Fonts.secondary)
                         .foregroundStyle(Token.Colors.textSecondary)
                 }
+                // 按鈕裡的字預設置中，第二行會跑到中間（2026-11-02 米真機截圖）。
+                .multilineTextAlignment(.leading)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .foregroundStyle(Token.Colors.textSecondary)
@@ -121,6 +123,9 @@ struct HomeView: View {
                 in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
             )
         }
+        // iOS 26 會替 NavigationLink 套一層灰色的系統按鈕底，比白卡片大一圈、看起來像被蓋住；
+        // 卡片自己有底，關掉系統那層（2026-11-02 米真機截圖）。
+        .buttonStyle(.plain)
         .padding(.horizontal, Token.Space.l)
         .padding(.bottom, Token.Space.l)
     }
