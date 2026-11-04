@@ -43,7 +43,18 @@ struct RecordingTranscriptionJob {
                 vocabulary: vocabulary,
                 previousText: previousText
             )
-            let text = try await transcriber.transcribe(fileURL: segment, prompt: prompt)
+            let label = "轉錄第 \(index + 1)/\(segments.count) 段"
+            let startedAt = Date()
+            let text: String
+            do {
+                text = try await transcriber.transcribe(fileURL: segment, prompt: prompt)
+            } catch {
+                let waited = Int(Date().timeIntervalSince(startedAt))
+                DiagnosticLog.shared.record("\(label)失敗，等了 \(waited) 秒：\(error)")
+                throw error
+            }
+            let waited = Int(Date().timeIntervalSince(startedAt))
+            DiagnosticLog.shared.record("\(label)，等了 \(waited) 秒，\(text.count) 字")
             progress.segmentTexts[index] = text
             try saveProgress(progress, for: recordingURL)
         }

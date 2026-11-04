@@ -12,6 +12,7 @@ struct HomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(TranscriptionQueue.self) private var queue
+    @Environment(Recorder.self) private var recorder
     @State private var isRecordingSheetShown = false
     @State private var pendingCount = 0
 
@@ -33,6 +34,7 @@ struct HomeView: View {
         .sheet(isPresented: $isRecordingSheetShown) {
             RecordingSheetView(
                 queue: queue,
+                recorder: recorder,
                 onOpenTranscript: openFromSheet,
                 onOpenSettings: openSettingsFromSheet
             )
@@ -130,10 +132,13 @@ struct HomeView: View {
         onOpenSettings()
     }
 
-    /// 首頁每次出現（含從別頁返回）都會跑；這時面板一定是收起的，不會有錄音中的檔被當成救回檔。
+    /// 首頁每次出現（含從別頁返回）都會跑。正在錄的檔也放在救回資料夾裡，
+    /// 撿走就會被轉錄、刪掉，後面講的話全沒了，所以錄音中不撿（組塊 S 片 S5）。
     private func recoverThenReloadPending() {
-        // 撿不回來不擋首頁：檔還留在原地，下次再試。
-        _ = try? PendingRecordings().recoverAbandonedRecordings()
+        if !recorder.isRecording {
+            // 撿不回來不擋首頁：檔還留在原地，下次再試。
+            _ = try? PendingRecordings().recoverAbandonedRecordings()
+        }
         reloadPending()
     }
 

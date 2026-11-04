@@ -254,8 +254,18 @@ private extension SettingsView {
     var aboutSection: some View {
         Section {
             LabeledContent("版本", value: Self.versionText)
+            ShareLink(
+                item: DiagnosticFile(),
+                preview: SharePreview(DiagnosticFile.fileName)
+            ) {
+                Text("匯出診斷紀錄")
+            }
+            .tint(Token.Colors.link)
         } header: {
             Text("關於米說")
+        } footer: {
+            Text("診斷紀錄只有時間、事件和數字，沒有金鑰、錄音和文字稿，查問題時用。")
+                .font(Token.Fonts.footnote)
         }
         .font(Token.Fonts.body)
         .listRowBackground(Token.Colors.rowBackground)

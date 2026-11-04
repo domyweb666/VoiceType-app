@@ -2,7 +2,7 @@ import Foundation
 
 /// 方塊 M11：只通到 OpenAI 的那條線。藍圖裡 M3 轉錄、M4 潤飾送請求、M6 驗證金鑰都走這裡。
 /// 只做三件事：從 Keychain 拿金鑰帶在請求上、等太久就放棄、把回應分成「可以再試／再試也沒用」。
-/// 不重試（次數與間隔是 D2、D4 的事）、不記 log、沒有畫面。
+/// 不重試（次數與間隔是 D2、D4 的事）、不記請求內容（診斷紀錄只有錯誤種類）、沒有畫面。
 /// 錯誤只帶狀態碼與分類；OpenAI 回的錯誤正文一律不往外帶，因為正文可能把金鑰回聲出來（安全標準一）。
 struct OpenAIClient {
     enum Failure: Error, Equatable {
@@ -186,6 +186,7 @@ struct OpenAIClient {
             do {
                 return try await operation()
             } catch let failure as Failure where failure.isRetryable && attempt < maxAttempts {
+                DiagnosticLog.shared.record("第 \(attempt) 次沒成功，再試：\(failure)")
                 let delay = baseDelaySeconds * pow(2, Double(attempt - 1))
                 try await Task.sleep(for: .seconds(delay))
                 attempt += 1

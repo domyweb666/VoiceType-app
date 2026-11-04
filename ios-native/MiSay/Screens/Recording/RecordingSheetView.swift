@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// 錄音面板（半頁模態，不可下滑關閉：03-線框「錄到一半誤滑就丟掉」）。
-/// 片 C1：錄音中、失敗、停止；片 C2：麥克風被拒；片 C3：被來電打斷；片 D6：停止後交給 `RecordingResultView`。
+/// 片 C1：錄音中、失敗、停止；片 C2：麥克風被拒；片 D6：停止後交給 `RecordingResultView`。
+/// 組塊 S：錄音狀態在 App 層的 `Recorder`，這裡只讀；被打斷時換字，接回來就換回去。
 struct RecordingSheetView: View {
     enum Phase: Equatable {
         case starting
@@ -14,15 +15,16 @@ struct RecordingSheetView: View {
     }
 
     let queue: TranscriptionQueue
+    let recorder: Recorder
     let onOpenTranscript: (Transcript) -> Void
     let onOpenSettings: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var recorder = Recorder()
     @State private var phase = Phase.starting
     @State private var isPulsing = false
+    /// 按「繼續錄」沒成功時那一句；留在同一個畫面，等一下還能再按。
+    @State private var resumeFailure: String?
 
     var body: some View {
         VStack(spacing: Token.Space.xl) {
@@ -32,13 +34,14 @@ struct RecordingSheetView: View {
             case .interrupted:
                 interruptedContent
             case .microphoneDenied:
-                deniedContent
+                MicrophoneDeniedContent { dismiss() }
             case let .failed(message):
                 failedContent(message)
             case let .processing(recordingURL):
                 RecordingResultView(
                     queue: queue,
                     recordingURL: recordingURL,
+                    captureGaps: recorder.lastGaps,
                     onOpenTranscript: onOpenTranscript,
                     onOpenSettings: onOpenSettings
                 )
@@ -52,9 +55,12 @@ struct RecordingSheetView: View {
             Self.feedback(from: old, to: new)
         }
         .task { await startRecording() }
-        .onChange(of: recorder.isInterrupted) { _, interrupted in
-            if interrupted {
+        .onChange(of: recorder.isPaused) { _, paused in
+            if paused {
                 phase = .interrupted
+            } else if recorder.isRecording {
+                resumeFailure = nil
+                phase = .recording
             }
         }
     }
@@ -102,13 +108,37 @@ struct RecordingSheetView: View {
         return String(format: "%02d:%02d", minutes, secs)
     }
 
+    /// 沒在收音時那一句。第一句回答有沒有損失之前先講發生什麼，因為使用者是回頭才看到這裡。
+    static func pausedMessage(for reason: Recorder.PauseReason?, elapsed: Double) -> String {
+        let saved = "已錄到的 \(formatSpoken(elapsed)) 都在。"
+        switch reason {
+        case .outOfSpace:
+            return "手機空間快滿了，先停了。\(saved)清出空間可以按繼續錄。"
+        case .lostInput:
+            return "收音斷了，正在接回去。\(saved)"
+        case .interrupted, nil:
+            return "被打斷了，結束後會自己接回去。\(saved)"
+        }
+    }
+
+    /// 完成面板那一行；沒斷過是 nil。
+    static func gapText(for gaps: CaptureWatch.Gaps) -> String? {
+        guard gaps.times > 0 else {
+            return nil
+        }
+        let length = gaps.seconds < 1 ? "不到 1 秒" : formatSpoken(gaps.seconds)
+        return "中間斷過 \(gaps.times) 次，共 \(length)。"
+    }
+
     @MainActor
     private func startRecording() async {
         do {
             try await recorder.start()
-            phase = .recording
+            phase = recorder.isPaused ? .interrupted : .recording
         } catch Recorder.Failure.microphoneDenied {
             phase = .microphoneDenied
+        } catch Recorder.Failure.notEnoughSpace {
+            phase = .failed("手機空間不夠，先清一點再錄。")
         } catch {
             phase = .failed("錄音沒有開始，再試一次。")
         }
@@ -118,9 +148,12 @@ struct RecordingSheetView: View {
     private func resumeRecording() {
         do {
             try recorder.resume()
+            resumeFailure = nil
             phase = .recording
+        } catch Recorder.Failure.notEnoughSpace {
+            resumeFailure = "手機空間還是不夠，清出空間再按一次。"
         } catch {
-            phase = .failed("接不回去了。已錄到的都在，按『停止』會收進待轉錄。")
+            resumeFailure = "現在還接不回去，等一下再按一次。"
         }
     }
 
@@ -136,7 +169,7 @@ struct RecordingSheetView: View {
     }
 }
 
-/// 錄音前半段的內容：錄音中、被打斷、被拒、失敗。
+/// 錄音前半段的內容：錄音中、被打斷、失敗。
 private extension RecordingSheetView {
     var recordingContent: some View {
         VStack(spacing: Token.Space.m) {
@@ -144,10 +177,10 @@ private extension RecordingSheetView {
                 .font(Token.Fonts.timer)
                 .foregroundStyle(Token.Colors.textPrimary)
                 .accessibilityLabel("已錄 \(Self.formatElapsed(recorder.elapsedSeconds))")
-            Text("正在聽")
+            Text(recorder.isWaitingForSound ? "接回去了，還沒聽到聲音" : "正在聽")
                 .font(Token.Fonts.secondary)
                 .foregroundStyle(Token.Colors.textSecondary)
-            waveform
+            RecordingWaveform(recorder: recorder)
             HStack(spacing: Token.Space.m) {
                 if reduceMotion {
                     Circle()
@@ -157,36 +190,15 @@ private extension RecordingSheetView {
                 }
                 stopButton
             }
-            Text("鎖住螢幕也會繼續錄")
-                .font(Token.Fonts.footnote)
-                .foregroundStyle(Token.Colors.textSecondary)
-        }
-    }
-
-    /// 減少動態時不畫一排會跳的柱子，改成一條固定位置的音量條（手感參數表）。
-    @ViewBuilder
-    var waveform: some View {
-        if reduceMotion {
-            GeometryReader { geometry in
-                RoundedRectangle(cornerRadius: Token.Space.xs)
-                    .fill(Token.Colors.waveform)
-                    .frame(width: geometry.size.width * recorder.level)
+            if let minutes = recorder.minutesLeftOnDisk {
+                Text("手機空間只夠再錄約 \(minutes) 分鐘")
+                    .font(Token.Fonts.footnote)
+                    .foregroundStyle(Token.Colors.danger)
+            } else {
+                Text("鎖住螢幕也會繼續錄")
+                    .font(Token.Fonts.footnote)
+                    .foregroundStyle(Token.Colors.textSecondary)
             }
-            .frame(height: Token.Space.s)
-            .accessibilityHidden(true)
-        } else {
-            HStack(alignment: .center, spacing: Token.Space.xs) {
-                ForEach(Array(recorder.levels.enumerated()), id: \.offset) { _, level in
-                    RoundedRectangle(cornerRadius: Token.Space.xs)
-                        .fill(Token.Colors.waveform)
-                        .frame(
-                            width: Token.Space.xs,
-                            height: max(Token.Space.xs, Token.Shape.primaryTap * level)
-                        )
-                }
-            }
-            .frame(height: Token.Shape.primaryTap)
-            .accessibilityHidden(true)
         }
     }
 
@@ -219,12 +231,14 @@ private extension RecordingSheetView {
                 isPulsing = true
             }
         }
+        // 被打斷再接回時這顆鈕會重新出現；不歸零的話值沒變，外圈就不再呼吸。
+        .onDisappear { isPulsing = false }
     }
 
-    /// 片 C3：來電等中斷結束後，由使用者決定續錄還是收檔（首次體驗檔「被打斷回來」那一列）。
+    /// 被打斷、接不回去、空間滿時：會自己接回，也可以自己按（2026-11-04 米點頭，取代 C3 的不自動續錄）。
     var interruptedContent: some View {
         VStack(spacing: Token.Space.m) {
-            Text("通話時暫停了，已錄到的 \(Self.formatSpoken(recorder.elapsedSeconds)) 都在。")
+            Text(Self.pausedMessage(for: recorder.pauseReason, elapsed: recorder.elapsedSeconds))
                 .font(Token.Fonts.body)
                 .foregroundStyle(Token.Colors.textPrimary)
                 .multilineTextAlignment(.center)
@@ -237,6 +251,12 @@ private extension RecordingSheetView {
             }
             .buttonStyle(.borderedProminent)
             .tint(Token.Colors.link)
+            if let resumeFailure {
+                Text(resumeFailure)
+                    .font(Token.Fonts.secondary)
+                    .foregroundStyle(Token.Colors.danger)
+                    .multilineTextAlignment(.center)
+            }
             Button("停止") {
                 stopRecording()
             }
@@ -245,37 +265,7 @@ private extension RecordingSheetView {
         }
     }
 
-    /// 片 C2：文案照首次體驗檔權限時刻表；「打開『設定』」直接開系統設定的米說頁。
-    var deniedContent: some View {
-        VStack(spacing: Token.Space.m) {
-            Text("米說聽不到你的聲音")
-                .font(Token.Fonts.rowTitle)
-                .foregroundStyle(Token.Colors.textPrimary)
-            Text("麥克風權限是關的。到『設定』打開米說的麥克風，回來就能錄。")
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .multilineTextAlignment(.center)
-            Button {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    openURL(url)
-                }
-                dismiss()
-            } label: {
-                Text("打開『設定』")
-                    .font(Token.Fonts.rowTitle)
-                    .frame(maxWidth: .infinity, minHeight: Token.Shape.primaryTap)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Token.Colors.link)
-            Button("先不要") {
-                dismiss()
-            }
-            .font(Token.Fonts.body)
-            .tint(Token.Colors.link)
-        }
-    }
-
-    /// 還在錄（續錄失敗）時給「停止」把已錄的收進待轉錄；不在錄才只有「完成」。
+    /// 開不起來或收不進去：走到這裡時已經沒在錄了，只剩「完成」。
     func failedContent(_ message: String) -> some View {
         VStack(spacing: Token.Space.m) {
             Image(systemName: "exclamationmark.circle.fill")
@@ -286,12 +276,8 @@ private extension RecordingSheetView {
                 .font(Token.Fonts.body)
                 .foregroundStyle(Token.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-            Button(recorder.isRecording ? "停止" : "完成") {
-                if recorder.isRecording {
-                    stopRecording()
-                } else {
-                    dismiss()
-                }
+            Button("完成") {
+                dismiss()
             }
             .font(Token.Fonts.body)
             .tint(Token.Colors.link)

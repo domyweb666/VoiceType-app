@@ -19,7 +19,7 @@ struct WAVFileWriter {
 
     let url: URL
     private let handle: FileHandle
-    private var dataByteCount: UInt32 = 0
+    private(set) var dataByteCount: UInt32 = 0
 
     /// 建新檔、寫入佔位檔頭。同名檔會被蓋掉：呼叫端用時間戳命名，不會撞。
     init(creatingAt url: URL) throws {
@@ -41,6 +41,9 @@ struct WAVFileWriter {
         do {
             try handle.write(contentsOf: pcm)
         } catch {
+            // 空間滿時可能只寫進半段；退回上一個完整位置，接回後的聲音才不會錯一個 byte 變雜音。
+            // 退不回去也照常報失敗：`Recorder` 會停收音，不會再往後寫。
+            try? handle.truncate(atOffset: UInt64(Self.headerByteCount) + UInt64(dataByteCount))
             throw Failure.writeFailed
         }
         dataByteCount += UInt32(pcm.count)

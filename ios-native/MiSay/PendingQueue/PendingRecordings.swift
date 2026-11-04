@@ -86,6 +86,7 @@ struct PendingRecordings {
                     continue
                 }
                 try recovered.append(accept(recordingAt: file))
+                DiagnosticLog.shared.record("撿回 \(file.lastPathComponent)，\(dataByteCount) bytes")
             } catch {
                 Self.logger.error("救回檔撿不回來，留在原地：\(file.lastPathComponent, privacy: .public)")
             }

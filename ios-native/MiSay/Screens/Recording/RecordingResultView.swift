@@ -18,6 +18,7 @@ struct RecordingResultView: View {
 
     let queue: TranscriptionQueue
     let recordingURL: URL
+    let captureGaps: CaptureWatch.Gaps
     let onOpenTranscript: (Transcript) -> Void
     let onOpenSettings: () -> Void
 
@@ -30,6 +31,9 @@ struct RecordingResultView: View {
 
     var body: some View {
         VStack(spacing: Token.Space.m) {
+            if let gapText = RecordingSheetView.gapText(for: captureGaps) {
+                message(gapText)
+            }
             switch status {
             case .processing:
                 processingContent
@@ -246,6 +250,7 @@ private extension RecordingResultView {
             message(isCopied ? "好了，已經複製" : "好了")
             primaryButton("打開這篇") { onOpenTranscript(transcript) }
             textButton("完成") { dismiss() }
+            RecordingAlarmPrompt()
         }
     }
 

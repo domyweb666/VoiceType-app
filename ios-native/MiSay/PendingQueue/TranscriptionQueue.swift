@@ -175,18 +175,26 @@ final class TranscriptionQueue {
     private func polishAndSave(_ transcript: Transcript) async -> Outcome {
         var polished = transcript
         let model = settings.polishModel
+        let startedAt = Date()
         do {
-            polished.draftText = try await polisher.polish(
+            let draft = try await polisher.polish(
                 rawText: transcript.rawText,
                 model: model,
                 systemPrompt: settings.effectivePolishPrompt,
                 vocabulary: settings.vocabulary
             )
+            polished.draftText = draft
             polished.polishModel = model
             polished.updatedAt = Date()
+            let waited = Int(Date().timeIntervalSince(startedAt))
+            DiagnosticLog.shared.record(
+                "潤飾 \(model)，等了 \(waited) 秒，\(transcript.rawText.count) 字變 \(draft.count) 字"
+            )
         } catch let failure as OpenAIClient.Failure {
+            logPolishFailure(failure, model: model, startedAt: startedAt)
             return .polishFailed(transcript, failure)
         } catch {
+            logPolishFailure(error, model: model, startedAt: startedAt)
             return .polishFailed(transcript, .malformedResponse)
         }
         do {
@@ -195,6 +203,11 @@ final class TranscriptionQueue {
             return .draftNotSaved(transcript)
         }
         return .finished(polished)
+    }
+
+    private func logPolishFailure(_ error: Error, model: String, startedAt: Date) {
+        let waited = Int(Date().timeIntervalSince(startedAt))
+        DiagnosticLog.shared.record("潤飾 \(model) 失敗，等了 \(waited) 秒：\(error)")
     }
 
     /// 自動續轉：從最舊的開始，一筆一筆；哪一筆失敗就停，等下次條件齊了再來。
