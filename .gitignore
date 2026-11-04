@@ -69,3 +69,6 @@ dist/
 ios-native/*.xcodeproj/
 ios-native/MiSay/Info.plist
 ios-native/DerivedData/
+
+# 只留在這台機器的工具與量測結果（結果含米的講話內容，repo 是 public，絕不進版控）
+.vibe/local/
