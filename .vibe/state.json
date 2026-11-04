@@ -1,12 +1,11 @@
 {
   "station": "self-review",
-  "updated_at": "2026-11-01T12:00:00+08:00",
+  "updated_at": "2026-11-04T09:08:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
     "todo": 0,
     "machine_verified": 6,
-    "human_verified": 4,
-    "written_not_compiled": 27
+    "human_verified": 4
   },
   "chunks": [
     {
@@ -120,5 +119,5 @@
       "reason": "米：對，開工（沒答走查）"
     }
   ],
-  "note": "C～G 程式都寫完，沒有 CI 編譯證據；等第三位審查員（D6＋F＋G＋修正），之後等米調高 Actions 預算"
+  "note": "C～G 寫完、CI 綠、v0.1.5 build 6 在 TestFlight；米核心流程回「都ok」；等米回滑動與金鑰欄，之後審查介面"
 }
