@@ -54,7 +54,7 @@
 2. 米有回報第一批：收診斷紀錄檔，對照「收音接上」「打斷」「接回失敗」的行數判斷。紅的修，再一批，版本 `v0.1.7` 順延。
 3. 米給了音檔和備份檔就跑第 0 步：
    - 先用 Bash 把兩個檔複製成 `.vibe/local/input/audio.<原副檔名>`、`.vibe/local/input/backup.json`。`run_in_terminal` 只收 ASCII，中文路徑打不進去。
-   - 用 `run_in_terminal`（標題 `Stage 0`）跑 `python .vibe/local/stage0.py all .vibe/local/input/audio.<原副檔名> .vibe/local/input/backup.json`，告訴米終端機會問金鑰、畫面不顯示字。不要讀那個分頁問金鑰之前的內容以外的東西，也不准要米把金鑰貼進對話。
+   - 用 `run_in_terminal`（標題 `Stage 0`）跑 `python .vibe/local/stage0.py all .vibe/local/input/audio.<原副檔名> .vibe/local/input/backup.json`，告訴米終端機會問金鑰、畫面不顯示字。不准要米把金鑰貼進對話。
    - 跑完讀 `.vibe/local/stage0-out/summary.txt`（只有數字）。`提示詞對照.md` 含米講的話，給米讀，不准進 repo。
    - `languages[]` 這個欄位名稱沒打過真 API，回 400 就先改腳本。
    - 把數字寫回 `.vibe/穩定性改進方案.md`，確認 5 分鐘切段、180 秒等待要不要調。
