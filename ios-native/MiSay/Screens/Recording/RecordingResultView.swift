@@ -3,6 +3,7 @@ import SwiftUI
 /// 錄音面板的後半段（片 D6）：停止之後的整理中、完成、失敗、沒金鑰、潤飾失敗。文案照 06-首次體驗「錄音面板」。
 /// 整理跑在不跟畫面綁的 Task 裡：按「先放著」收起面板，流水照樣在背景跑完；錄音檔在口語稿存好前都在待轉錄。
 /// 完成面板「收成第 N 根」的位置留在「好了」那行下面，穀倉還沒做，不畫。
+/// 2026-11-07 統一風格：完成面板多三行文字稿預覽；純判斷搬到 `RecordingResultView+Status.swift`。
 struct RecordingResultView: View {
     enum Status: Equatable {
         case processing
@@ -15,6 +16,9 @@ struct RecordingResultView: View {
         case recordingNotDeleted(Transcript)
         case finished(Transcript, isCopied: Bool)
     }
+
+    /// 完成面板預覽幾行（03-線框）。
+    static let previewLines = 3
 
     let queue: TranscriptionQueue
     let recordingURL: URL
@@ -65,6 +69,7 @@ struct RecordingResultView: View {
                 finishedContent(transcript, isCopied: isCopied)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sensoryFeedback(trigger: status) { _, new in
             Self.feedback(for: new)
         }
@@ -76,48 +81,6 @@ struct RecordingResultView: View {
             process()
         }
         .onDisappear { isShown = false }
-    }
-
-    /// 手感參數表：整理好一下成功；失敗一下警告。
-    static func feedback(for status: Status) -> SensoryFeedback? {
-        switch status {
-        case .finished:
-            Token.Haptics.transcriptReady
-        case .noAPIKey, .transcriptionFailed, .storageFailed, .polishFailed, .draftNotSaved,
-             .recordingNotDeleted:
-            Token.Haptics.failed
-        case .processing:
-            nil
-        }
-    }
-
-    /// 錯誤第二句講原因（06-首次體驗「錯誤」列）；只有金鑰的問題才給「去設定」。
-    static func failedStatus(for failure: OpenAIClient.Failure) -> Status {
-        switch failure {
-        case .timedOut, .transport:
-            .transcriptionFailed(reason: "現在沒有網路，連上後會自動整理。", needsNewKey: false)
-        case .invalidAPIKey, .missingAPIKey:
-            .transcriptionFailed(reason: "金鑰沒有用，到設定換一把。", needsNewKey: true)
-        case .quotaExhausted:
-            .transcriptionFailed(reason: "OpenAI 說額度用完了，到 OpenAI 後台處理。", needsNewKey: false)
-        case .rateLimited, .serverError:
-            .transcriptionFailed(reason: "OpenAI 現在忙，等一下再按重試。", needsNewKey: false)
-        case .rejected, .malformedResponse, .invalidPath:
-            .transcriptionFailed(reason: "OpenAI 沒有收下這段錄音，再試一次。", needsNewKey: false)
-        }
-    }
-
-    /// 「第 2／3 段」：只有這一筆在轉、而且切成兩段以上才說。
-    static func segmentText(
-        for activity: TranscriptionQueue.Activity,
-        recording: String
-    ) -> String? {
-        guard case let .transcribing(name, segment, total) = activity, name == recording,
-              total > 1
-        else {
-            return nil
-        }
-        return "第 \(segment)／\(total) 段"
     }
 
     private func process() {
@@ -174,14 +137,14 @@ struct RecordingResultView: View {
     }
 }
 
-/// 各狀態的內容。按鈕樣式跟錄音前半段一樣：主要動作填滿、其他是文字鈕。
+/// 各狀態的內容。主要動作玉米黃膠囊、其他文字鈕金色（使用規則第 2、11 條）。
 private extension RecordingResultView {
     var processingContent: some View {
         VStack(spacing: Token.Space.m) {
-            ProgressView()
+            spinner
             Text("整理中…")
-                .font(Token.Fonts.secondary)
-                .foregroundStyle(Token.Colors.textSecondary)
+                .font(Token.Fonts.rowTitle)
+                .foregroundStyle(Token.Colors.textPrimary)
             if let segment = Self.segmentText(
                 for: queue.activity,
                 recording: recordingURL.lastPathComponent
@@ -196,28 +159,44 @@ private extension RecordingResultView {
                     .foregroundStyle(Token.Colors.textSecondary)
                     .multilineTextAlignment(.center)
             }
-            textButton("先放著") { dismiss() }
+            Spacer(minLength: Token.Space.s)
+            Button("先放著") { dismiss() }
+            .buttonStyle(TextButtonStyle())
         }
     }
 
     var noAPIKeyContent: some View {
         VStack(spacing: Token.Space.m) {
-            message("錄音收好了，在待轉錄。設定金鑰後會自動整理")
-            primaryButton("去設定金鑰") { onOpenSettings() }
-            textButton("完成") { dismiss() }
+            IconCircle(systemName: "key.fill", tint: Token.Colors.link)
+            Text("錄音收好了，在待轉錄。")
+                .font(Token.Fonts.rowTitle)
+                .foregroundStyle(Token.Colors.textPrimary)
+            message("設定金鑰後會自動整理。")
+            Spacer(minLength: Token.Space.s)
+            Button("去設定金鑰") { onOpenSettings() }
+            .buttonStyle(PrimaryButtonStyle())
+            Button("完成") { dismiss() }
+            .buttonStyle(TextButtonStyle())
         }
     }
 
     func failedContent(lead: String, reason: String, needsNewKey: Bool) -> some View {
         VStack(spacing: Token.Space.m) {
             failureIcon
-            message(lead)
+            Text(lead)
+                .font(Token.Fonts.rowTitle)
+                .foregroundStyle(Token.Colors.textPrimary)
+                .multilineTextAlignment(.center)
             message(reason)
-            primaryButton("重試") { process() }
+            Spacer(minLength: Token.Space.s)
+            Button("重試") { process() }
+            .buttonStyle(PrimaryButtonStyle())
             if needsNewKey {
-                textButton("去設定") { onOpenSettings() }
+                Button("去設定") { onOpenSettings() }
+                .buttonStyle(TextButtonStyle())
             }
-            textButton("完成") { dismiss() }
+            Button("完成") { dismiss() }
+            .buttonStyle(TextButtonStyle())
         }
     }
 
@@ -225,9 +204,13 @@ private extension RecordingResultView {
         VStack(spacing: Token.Space.m) {
             failureIcon
             message(text)
-            primaryButton("再試一次") { retryPolish(transcript) }
-            textButton("打開這篇") { onOpenTranscript(transcript) }
-            textButton("完成") { dismiss() }
+            Spacer(minLength: Token.Space.s)
+            Button("再試一次") { retryPolish(transcript) }
+            .buttonStyle(PrimaryButtonStyle())
+            Button("打開這篇") { onOpenTranscript(transcript) }
+            .buttonStyle(TextButtonStyle())
+            Button("完成") { dismiss() }
+            .buttonStyle(TextButtonStyle())
         }
     }
 
@@ -236,22 +219,54 @@ private extension RecordingResultView {
         VStack(spacing: Token.Space.m) {
             failureIcon
             message("口語稿已經存好，但錄音檔刪不掉，還在待轉錄。到待轉錄把它刪掉，不然會再整理一次。")
-            primaryButton("打開這篇") { onOpenTranscript(transcript) }
-            textButton("完成") { dismiss() }
+            Spacer(minLength: Token.Space.s)
+            Button("打開這篇") { onOpenTranscript(transcript) }
+            .buttonStyle(PrimaryButtonStyle())
+            Button("完成") { dismiss() }
+            .buttonStyle(TextButtonStyle())
         }
     }
 
     func finishedContent(_ transcript: Transcript, isCopied: Bool) -> some View {
         VStack(spacing: Token.Space.m) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(Token.Fonts.largeTitle)
-                .foregroundStyle(Token.Colors.link)
-                .accessibilityHidden(true)
-            message(isCopied ? "好了，已經複製" : "好了")
-            primaryButton("打開這篇") { onOpenTranscript(transcript) }
-            textButton("完成") { dismiss() }
+            HStack(spacing: Token.Space.s) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(Token.Fonts.icon)
+                    .foregroundStyle(Token.Colors.link)
+                    .accessibilityHidden(true)
+                Text(isCopied ? "好了，已經複製" : "好了")
+                    .font(Token.Fonts.sectionTitle)
+                    .foregroundStyle(Token.Colors.textPrimary)
+            }
+            previewCard(transcript.displayText)
+            Button("打開這篇") { onOpenTranscript(transcript) }
+            .buttonStyle(PrimaryButtonStyle())
+            Button("完成") { dismiss() }
+            .buttonStyle(TextButtonStyle())
+            Spacer(minLength: Token.Space.xs)
             RecordingAlarmPrompt()
         }
+    }
+
+    /// 完成面板的三行預覽（03-線框）：看得到字，想細看再「打開這篇」。
+    func previewCard(_ text: String) -> some View {
+        Text(text)
+            .font(Token.Fonts.secondary)
+            .foregroundStyle(Token.Colors.textPrimary)
+            .lineLimit(Self.previewLines)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Token.Space.l)
+            .background(
+                Token.Colors.sunkenBackground,
+                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+            )
+    }
+
+    var spinner: some View {
+        ProgressView()
+            .tint(Token.Colors.link)
+            .frame(width: Token.Shape.iconCircle, height: Token.Shape.iconCircle)
+            .background(Token.Colors.sunkenBackground, in: Circle())
     }
 
     var failureIcon: some View {
@@ -263,24 +278,8 @@ private extension RecordingResultView {
 
     func message(_ text: String) -> some View {
         Text(text)
-            .font(Token.Fonts.body)
+            .font(Token.Fonts.secondary)
             .foregroundStyle(Token.Colors.textPrimary)
             .multilineTextAlignment(.center)
-    }
-
-    func primaryButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(Token.Fonts.rowTitle)
-                .frame(maxWidth: .infinity, minHeight: Token.Shape.primaryTap)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(Token.Colors.link)
-    }
-
-    func textButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
-            .font(Token.Fonts.body)
-            .tint(Token.Colors.link)
     }
 }

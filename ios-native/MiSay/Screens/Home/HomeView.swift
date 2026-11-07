@@ -5,7 +5,10 @@ import SwiftUI
 /// 片 C4：出現時先把上次被殺掉留下的救回檔撿進待轉錄。
 /// 片 D6：出現時、回到前景時自動續轉待轉錄。
 /// 2026-11-02 米：左右滑換頁（`RootPagerView`），首頁不再有「文字稿」「⋯」兩顆鈕；面板的「打開這篇」「去設定」交給外層換頁。
+/// 2026-11-07 統一風格：錄音鈕改快門式（`RecordButtonLabel`）、提示改「按中間的鈕」、沒金鑰時鈕上方多一張卡。
 struct HomeView: View {
+    /// 外層的三頁現在停在首頁。從設定頁滑回來時要重看金鑰在不在。
+    let isCurrentPage: Bool
     let onOpenTranscript: (Transcript) -> Void
     let onOpenSettings: () -> Void
 
@@ -15,9 +18,13 @@ struct HomeView: View {
     @Environment(Recorder.self) private var recorder
     @State private var isRecordingSheetShown = false
     @State private var pendingCount = 0
+    @State private var hasAPIKey = true
 
     var body: some View {
         VStack {
+            if !hasAPIKey {
+                noKeyCard
+            }
             Spacer()
             recordButton
             // 下半的 Spacer 讓鈕停在正中央；文案掛在它上緣，不把鈕往上擠。
@@ -43,6 +50,7 @@ struct HomeView: View {
         }
         .task {
             recoverThenReloadPending()
+            reloadKey()
             // 不用 .task 自己的工作：推頁時首頁會消失、.task 被取消，整理到一半的那筆會被當成失敗。
             Task { await queue.processPending() }
         }
@@ -50,11 +58,18 @@ struct HomeView: View {
             guard phase == .active else {
                 return
             }
+            reloadKey()
             Task { await queue.processPending() }
+        }
+        .onChange(of: isCurrentPage) { _, isShown in
+            if isShown {
+                reloadKey()
+            }
         }
         .onChange(of: isRecordingSheetShown) { _, shown in
             if !shown {
                 reloadPending()
+                reloadKey()
             }
         }
         .onChange(of: queue.activity) { _, activity in
@@ -65,21 +80,51 @@ struct HomeView: View {
         }
     }
 
+    /// 面板先收起，再請外層換到「文字稿」那頁、推到這一篇。
+    private func openFromSheet(_ transcript: Transcript) {
+        isRecordingSheetShown = false
+        onOpenTranscript(transcript)
+    }
+
+    private func openSettingsFromSheet() {
+        isRecordingSheetShown = false
+        onOpenSettings()
+    }
+
+    /// 首頁每次出現（含從別頁返回）都會跑。正在錄的檔也放在救回資料夾裡，
+    /// 撿走就會被轉錄、刪掉，後面講的話全沒了，所以錄音中不撿（組塊 S 片 S5）。
+    private func recoverThenReloadPending() {
+        if !recorder.isRecording {
+            // 撿不回來不擋首頁：檔還留在原地，下次再試。
+            _ = try? PendingRecordings().recoverAbandonedRecordings()
+        }
+        reloadPending()
+    }
+
+    private func reloadPending() {
+        // 讀不到清單時列就不出現；進清單頁會看到讀取失敗的字。
+        pendingCount = (try? PendingRecordings().list().count) ?? 0
+    }
+
+    /// 讀不到 Keychain 就當沒金鑰：卡片多出現一次不傷人，設定頁會講讀取失敗。
+    private func reloadKey() {
+        let key = (try? APIKeyStore().read()) ?? ""
+        hasAPIKey = !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+/// 首頁的四塊：沒金鑰的卡、錄音鈕、提示、待轉錄列。
+private extension HomeView {
     @ViewBuilder
-    private var recordButton: some View {
+    var recordButton: some View {
         let button = Button {
             isRecordingSheetShown = true
         } label: {
-            Text("說")
-                .font(Token.Fonts.largeTitle)
-                .foregroundStyle(Token.Colors.actionInk)
-                .frame(width: Token.Shape.recordTap, height: Token.Shape.recordTap)
-                .background(Token.Colors.actionFill, in: Circle())
+            RecordButtonLabel()
         }
         .accessibilityLabel("開始錄音")
 
-        // 減少動態時不縮放，用系統預設的按壓回饋（變淡）。代號檔寫的「底色加深」還沒有數值，
-        // 等設計代號補了再換，不在這裡發明數字。
+        // 減少動態時不縮放，用系統預設的按壓回饋（變淡）。
         if reduceMotion {
             button
         } else {
@@ -87,8 +132,55 @@ struct HomeView: View {
         }
     }
 
+    /// 06-首次體驗：金鑰橫幅在鈕上方。整張可點，去設定頁。
+    var noKeyCard: some View {
+        Button(action: onOpenSettings) {
+            HStack(spacing: Token.Space.m) {
+                Image(systemName: "key.fill")
+                    .font(Token.Fonts.icon)
+                    .foregroundStyle(Token.Colors.link)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: Token.Space.xs) {
+                    Text("還沒有金鑰")
+                        .font(Token.Fonts.rowTitle)
+                        .foregroundStyle(Token.Colors.textPrimary)
+                    Text("沒金鑰也能錄，錄完先收在待轉錄。貼上金鑰後會自動整理。")
+                        .font(Token.Fonts.secondary)
+                        .foregroundStyle(Token.Colors.textSecondary)
+                }
+                .multilineTextAlignment(.leading)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Token.Colors.textSecondary)
+                    .accessibilityHidden(true)
+            }
+            .padding(Token.Space.l)
+            .background(
+                Token.Colors.rowBackground,
+                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Token.Space.l)
+        .padding(.top, Token.Space.s)
+    }
+
+    var firstTimeHint: some View {
+        VStack(spacing: Token.Space.s) {
+            Text("按中間的鈕，說一段話")
+                .font(Token.Fonts.rowTitle)
+                .foregroundStyle(Token.Colors.textPrimary)
+            Text("說完會變成可以直接貼上的文字，自動幫你複製。")
+                .font(Token.Fonts.secondary)
+                .foregroundStyle(Token.Colors.textSecondary)
+        }
+        .multilineTextAlignment(.center)
+        .padding(.top, Token.Space.xl)
+        .padding(.horizontal, Token.Space.xl)
+    }
+
     /// 待轉錄列（03-線框首頁 D）：整列可點，推入待轉錄清單。
-    private var pendingRow: some View {
+    var pendingRow: some View {
         NavigationLink {
             PendingListView(onChange: reloadPending)
         } label: {
@@ -119,46 +211,6 @@ struct HomeView: View {
         .buttonStyle(.plain)
         .padding(.horizontal, Token.Space.l)
         .padding(.bottom, Token.Space.l)
-    }
-
-    /// 面板先收起，再請外層換到「文字稿」那頁、推到這一篇。
-    private func openFromSheet(_ transcript: Transcript) {
-        isRecordingSheetShown = false
-        onOpenTranscript(transcript)
-    }
-
-    private func openSettingsFromSheet() {
-        isRecordingSheetShown = false
-        onOpenSettings()
-    }
-
-    /// 首頁每次出現（含從別頁返回）都會跑。正在錄的檔也放在救回資料夾裡，
-    /// 撿走就會被轉錄、刪掉，後面講的話全沒了，所以錄音中不撿（組塊 S 片 S5）。
-    private func recoverThenReloadPending() {
-        if !recorder.isRecording {
-            // 撿不回來不擋首頁：檔還留在原地，下次再試。
-            _ = try? PendingRecordings().recoverAbandonedRecordings()
-        }
-        reloadPending()
-    }
-
-    private func reloadPending() {
-        // 讀不到清單時列就不出現；進清單頁會看到讀取失敗的字。
-        pendingCount = (try? PendingRecordings().list().count) ?? 0
-    }
-
-    private var firstTimeHint: some View {
-        VStack(spacing: Token.Space.s) {
-            Text("按中間的玉米，說一段話")
-                .font(Token.Fonts.rowTitle)
-                .foregroundStyle(Token.Colors.textPrimary)
-            Text("說完會變成可以直接貼上的文字，自動幫你複製。")
-                .font(Token.Fonts.secondary)
-                .foregroundStyle(Token.Colors.textSecondary)
-        }
-        .multilineTextAlignment(.center)
-        .padding(.top, Token.Space.xl)
-        .padding(.horizontal, Token.Space.xl)
     }
 }
 

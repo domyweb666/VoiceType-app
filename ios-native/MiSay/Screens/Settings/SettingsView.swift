@@ -2,57 +2,9 @@ import SwiftUI
 
 /// 設定（推入頁）。片 B3 做金鑰那一區；自動複製、詞彙、提示詞、模型是組塊 F。
 /// 金鑰只在這一頁看得到，而且預設遮住（安全標準一）。存進 M6、驗證走 M11，這頁不碰網路也不碰 Keychain 細節。
+/// 2026-11-07 統一風格：推入列右邊帶現況（幾個詞、提示詞是不是預設），次要字用 `textSecondary`；
+/// `KeyStatus` 搬到 `SettingsView+KeyStatus.swift`。
 struct SettingsView: View {
-    /// 「儲存並驗證」之後那一行字。四句照 `.uiux/06-首次體驗.md`；忙線、額度那兩句在 B3 計畫讀稿米放行；
-    /// 空欄與 Keychain 三句的措辭列在組塊 B 待驗清單給米定。
-    struct KeyStatus: Equatable {
-        let message: String
-        let isGood: Bool
-
-        static let empty = KeyStatus(message: "先貼上金鑰。", isGood: false)
-        static let usable = KeyStatus(message: "可以用了", isGood: true)
-        static let unusable = KeyStatus(
-            message: "OpenAI 說這把金鑰不能用。檢查有沒有少貼一段。",
-            isGood: false
-        )
-        static let quotaExhausted = KeyStatus(
-            message: "金鑰存好了，但 OpenAI 說額度用完了，到 OpenAI 後台處理。",
-            isGood: false
-        )
-        static let offline = KeyStatus(
-            message: "先存起來了，現在沒網路驗證，下次整理時會再試。",
-            isGood: false
-        )
-        static let openAIBusy = KeyStatus(
-            message: "先存起來了，OpenAI 現在忙，下次整理時會再試。",
-            isGood: false
-        )
-        static let saveFailed = KeyStatus(message: "金鑰沒存好，重開米說再試一次。", isGood: false)
-        static let deleteFailed = KeyStatus(message: "金鑰沒刪掉，重開米說再試一次。", isGood: false)
-        static let loadFailed = KeyStatus(message: "讀不到存好的金鑰，重開米說再試一次。", isGood: false)
-
-        /// M11 的兩堆錯誤翻成給人看的一句：金鑰本身的問題講金鑰，線路的問題講「先存起來了」。
-        init(verifyFailure: OpenAIClient.Failure) {
-            switch verifyFailure {
-            case .invalidAPIKey:
-                self = .unusable
-            case .quotaExhausted:
-                self = .quotaExhausted
-            case .timedOut, .transport:
-                self = .offline
-            case .missingAPIKey:
-                self = .loadFailed
-            case .rateLimited, .serverError, .rejected, .malformedResponse, .invalidPath:
-                self = .openAIBusy
-            }
-        }
-
-        private init(message: String, isGood: Bool) {
-            self.message = message
-            self.isGood = isGood
-        }
-    }
-
     /// 首次體驗檔第一節：金鑰欄旁要有「去申請」。網址是 OpenAI 的金鑰頁。
     private static let applyURL = URL(string: "https://platform.openai.com/api-keys")
 
@@ -224,8 +176,16 @@ private extension SettingsView {
                     Text(model).tag(model)
                 }
             }
-            NavigationLink("自訂詞彙") { VocabularyView() }
-            NavigationLink("潤飾提示詞") { PolishPromptView() }
+            NavigationLink {
+                VocabularyView()
+            } label: {
+                detailRow("自訂詞彙", value: "\(settings.vocabulary.count) 個")
+            }
+            NavigationLink {
+                PolishPromptView()
+            } label: {
+                detailRow("潤飾提示詞", value: settings.isPromptDefault ? "預設" : "改過")
+            }
         } header: {
             Text("潤飾")
         } footer: {
@@ -234,6 +194,16 @@ private extension SettingsView {
         }
         .font(Token.Fonts.body)
         .listRowBackground(Token.Colors.rowBackground)
+    }
+
+    /// 推入列右邊帶現況，讓人不用點進去就知道裡面有沒有東西。
+    func detailRow(_ title: String, value: String) -> some View {
+        LabeledContent {
+            Text(value)
+                .foregroundStyle(Token.Colors.textSecondary)
+        } label: {
+            Text(title)
+        }
     }
 
     /// 字級與深色模式不給開關：跟 iPhone 的設定走（片 F5），這裡只講一句讓人知道去哪調。
@@ -253,7 +223,7 @@ private extension SettingsView {
 
     var aboutSection: some View {
         Section {
-            LabeledContent("版本", value: Self.versionText)
+            detailRow("版本", value: Self.versionText)
             ShareLink(
                 item: DiagnosticFile(),
                 preview: SharePreview(DiagnosticFile.fileName)

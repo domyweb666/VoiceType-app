@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 待轉錄清單（片 C6）：時間、長度，「刪掉這一個」要先過系統動作表確認（⚠️ 刪檔）。
 /// 「轉錄這一個」是組塊 D。從首頁待轉錄列推入。
+/// 2026-11-07 統一風格：正在整理的那筆標「整理中」、被拒那行圖示＋紅字、刪不掉用狀態條講。
 struct PendingListView: View {
     /// 刪掉一個之後通知首頁重算數字。
     let onChange: () -> Void
@@ -14,28 +15,24 @@ struct PendingListView: View {
     @State private var isConfirmingDelete = false
 
     var body: some View {
-        List(recordings) { recording in
-            VStack(alignment: .leading, spacing: Token.Space.xs) {
-                Text(recording.recordedAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(Token.Fonts.rowTitle)
-                    .foregroundStyle(Token.Colors.textPrimary)
-                Text(RecordingSheetView.formatSpoken(recording.durationSeconds))
-                    .font(Token.Fonts.secondary)
-                    .foregroundStyle(Token.Colors.textSecondary)
-                // 自動整理跳過它，要使用者自己決定刪不刪（不自動刪：檔裡可能有他要的話）。
-                if queue.refusedRecordings.contains(recording.id) {
-                    Text("OpenAI 沒收下這段，自動整理會跳過它。不要的話左滑刪掉。")
-                        .font(Token.Fonts.secondary)
-                        .foregroundStyle(Token.Colors.danger)
+        List {
+            Section {
+                ForEach(recordings) { recording in
+                    row(recording)
+                        .listRowBackground(Token.Colors.rowBackground)
+                        .swipeActions {
+                            Button("刪除", role: .destructive) {
+                                recordingToDelete = recording
+                                isConfirmingDelete = true
+                            }
+                            .tint(Token.Colors.danger)
+                        }
                 }
-            }
-            .listRowBackground(Token.Colors.rowBackground)
-            .swipeActions {
-                Button("刪除", role: .destructive) {
-                    recordingToDelete = recording
-                    isConfirmingDelete = true
+            } footer: {
+                if !recordings.isEmpty {
+                    Text("這些錄音還沒變成文字，有網路、有金鑰時會自己開始整理。左滑可以刪掉一段，刪之前會再問一次。")
+                        .font(Token.Fonts.footnote)
                 }
-                .tint(Token.Colors.danger)
             }
         }
         .scrollContentBackground(.hidden)
@@ -52,10 +49,9 @@ struct PendingListView: View {
         .safeAreaInset(edge: .bottom) {
             // 清單還有東西時 overlay 不出現，刪不掉要另外講，不然按了像沒反應。
             if deleteFailed {
-                Text("沒刪掉，錄音還在，再試一次。")
-                    .font(Token.Fonts.secondary)
-                    .foregroundStyle(Token.Colors.danger)
-                    .padding(Token.Space.l)
+                StatusStrip(glyph: .failed, message: "沒刪掉，錄音還在，再試一次。")
+                    .padding(.horizontal, Token.Space.l)
+                    .padding(.bottom, Token.Space.s)
             }
         }
         .navigationTitle("待轉錄")
@@ -71,6 +67,59 @@ struct PendingListView: View {
             Button("取消", role: .cancel) {}
         }
         .task { reload() }
+    }
+
+    private func row(_ recording: PendingRecordings.Recording) -> some View {
+        VStack(alignment: .leading, spacing: Token.Space.xs) {
+            HStack(spacing: Token.Space.s) {
+                Text(recording.recordedAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(Token.Fonts.rowTitle)
+                    .foregroundStyle(Token.Colors.textPrimary)
+                Spacer()
+                if isProcessing(recording) {
+                    processingBadge
+                }
+            }
+            Text(RecordingSheetView.formatSpoken(recording.durationSeconds))
+                .font(Token.Fonts.secondary)
+                .foregroundStyle(Token.Colors.textSecondary)
+            // 自動整理跳過它，要使用者自己決定刪不刪（不自動刪：檔裡可能有他要的話）。
+            if queue.refusedRecordings.contains(recording.id) {
+                refusedNote
+            }
+        }
+    }
+
+    /// 流水正在轉或正在潤飾這一筆。
+    private func isProcessing(_ recording: PendingRecordings.Recording) -> Bool {
+        switch queue.activity {
+        case let .transcribing(name, _, _), let .polishing(name):
+            name == recording.id
+        case .idle:
+            false
+        }
+    }
+
+    private var processingBadge: some View {
+        HStack(spacing: Token.Space.xs) {
+            ProgressView()
+                .tint(Token.Colors.link)
+            Text("整理中")
+                .font(Token.Fonts.footnote)
+                .foregroundStyle(Token.Colors.textSecondary)
+        }
+    }
+
+    /// 圖示＋文字一起出現，顏色不單獨承載意義（使用規則第 4 條）。
+    private var refusedNote: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Token.Space.s) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(Token.Colors.danger)
+                .accessibilityHidden(true)
+            Text("OpenAI 沒收下這段，自動整理會跳過它。不要的話左滑刪掉。")
+                .font(Token.Fonts.secondary)
+                .foregroundStyle(Token.Colors.danger)
+        }
     }
 
     private func reload() {

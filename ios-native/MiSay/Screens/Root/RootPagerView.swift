@@ -29,12 +29,16 @@ struct RootPagerView: View {
     var body: some View {
         TabView(selection: $page) {
             NavigationStack {
-                TranscriptListView(opening: openingTranscript)
+                TranscriptListView(opening: openingTranscript, onOpenHome: { go(to: .home) })
                     .id(openingTranscript?.id)
             }
             .tag(Page.transcripts)
             NavigationStack {
-                HomeView(onOpenTranscript: open, onOpenSettings: { go(to: .settings) })
+                HomeView(
+                    isCurrentPage: page == .home,
+                    onOpenTranscript: open,
+                    onOpenSettings: { go(to: .settings) }
+                )
             }
             .tag(Page.home)
             NavigationStack {

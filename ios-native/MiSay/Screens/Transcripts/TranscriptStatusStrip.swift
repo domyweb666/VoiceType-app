@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 詳情頁工具列上方那一行（首次體驗檔詳情狀態表）：潤飾中、潤飾失敗、存不進去、沒有文字、已複製。
-/// 一次只顯示一種，優先順序在 `kind(...)`。
+/// 一次只顯示一種，優先順序在 `kind(...)`；長相交給共用的 `StatusStrip`（2026-11-07 統一風格）。
 struct TranscriptStatusStrip: View {
     enum Kind: Equatable {
         case hidden
@@ -46,63 +46,25 @@ struct TranscriptStatusStrip: View {
         case .hidden:
             EmptyView()
         case .polishing:
-            HStack(spacing: Token.Space.s) {
-                ProgressView()
-                Text("重新潤飾中…舊的文字稿還在")
-                    .font(Token.Fonts.footnote)
-                    .foregroundStyle(Token.Colors.textSecondary)
-                Spacer()
-                Button("取消", action: onCancel)
-                    .font(Token.Fonts.footnote)
-                    .tint(Token.Colors.link)
-            }
-            .modifier(StripBackground())
+            StatusStrip(
+                glyph: .working,
+                message: "重新潤飾中…舊的文字稿還在",
+                actionTitle: "取消",
+                action: onCancel
+            )
         case let .polishFailed(hadDraft):
-            failure(
-                hadDraft ? "重新潤飾沒有成功，文字稿沒有被改動。" : "整理沒有成功，口語稿還在。",
-                showsRetry: true
+            StatusStrip(
+                glyph: .failed,
+                message: hadDraft ? "重新潤飾沒有成功，文字稿沒有被改動。" : "整理沒有成功，口語稿還在。",
+                actionTitle: "再試一次",
+                action: onRetry
             )
         case .saveFailed:
-            failure("改的字沒存進去，字還在這裡。再改一個字會再存一次。", showsRetry: false)
+            StatusStrip(glyph: .failed, message: "改的字沒存進去，字還在這裡。再改一個字會再存一次。")
         case .empty:
-            note("沒有文字可以複製")
+            StatusStrip(glyph: .note, message: "沒有文字可以複製")
         case .copied:
-            note("已複製")
+            StatusStrip(glyph: .done, message: "已複製")
         }
-    }
-
-    /// 圖示＋文字一起出現，顏色不單獨承載意義（使用規則第 4 條）。
-    private func failure(_ message: String, showsRetry: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Token.Space.s) {
-            Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(Token.Colors.danger)
-                .accessibilityHidden(true)
-            Text(message)
-                .font(Token.Fonts.footnote)
-                .foregroundStyle(Token.Colors.textPrimary)
-            Spacer()
-            if showsRetry {
-                Button("再試一次", action: onRetry)
-                    .font(Token.Fonts.footnote)
-                    .tint(Token.Colors.link)
-            }
-        }
-        .modifier(StripBackground())
-    }
-
-    private func note(_ message: String) -> some View {
-        Text(message)
-            .font(Token.Fonts.footnote)
-            .foregroundStyle(Token.Colors.textSecondary)
-            .padding(.vertical, Token.Space.s)
-    }
-}
-
-private struct StripBackground: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, Token.Space.l)
-            .padding(.vertical, Token.Space.s)
-            .background(Token.Colors.rowBackground)
     }
 }

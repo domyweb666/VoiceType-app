@@ -3,6 +3,8 @@ import SwiftUI
 /// 錄音面板（半頁模態，不可下滑關閉：03-線框「錄到一半誤滑就丟掉」）。
 /// 片 C1：錄音中、失敗、停止；片 C2：麥克風被拒；片 D6：停止後交給 `RecordingResultView`。
 /// 組塊 S：錄音狀態在 App 層的 `Recorder`，這裡只讀；被打斷時換字，接回來就換回去。
+/// 2026-11-07 統一風格：面板白底、計時 56、「正在聽」帶紅點、主要按鈕玉米黃膠囊、文字鈕金色；
+/// 給人唸的字串搬到 `RecordingSheetView+Text.swift`。
 struct RecordingSheetView: View {
     enum Phase: Equatable {
         case starting
@@ -21,6 +23,8 @@ struct RecordingSheetView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 計時字級跟著系統字級放大（使用規則第 5 條）。
+    @ScaledMetric(relativeTo: .largeTitle) private var timerSize = Token.Fonts.timerSize
     @State private var phase = Phase.starting
     @State private var isPulsing = false
     /// 按「繼續錄」沒成功時那一句；留在同一個畫面，等一下還能再按。
@@ -48,8 +52,9 @@ struct RecordingSheetView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, Token.Space.l)
-        .background(Token.Colors.groupedBackground)
+        .padding(.horizontal, Token.Space.xl)
+        .padding(.vertical, Token.Space.xl)
+        .background(Token.Colors.rowBackground)
         .interactiveDismissDisabled()
         .sensoryFeedback(trigger: phase) { old, new in
             Self.feedback(from: old, to: new)
@@ -77,57 +82,6 @@ struct RecordingSheetView: View {
         case .starting, .interrupted:
             nil
         }
-    }
-
-    /// 給人唸的：「2 分 17 秒」；不到一分鐘「17 秒」；超過一小時「1 小時 2 分 17 秒」。
-    static func formatSpoken(_ seconds: Double) -> String {
-        let total = Int(seconds)
-        let hours = total / 3600
-        let minutes = (total % 3600) / 60
-        let secs = total % 60
-        var parts: [String] = []
-        if hours > 0 {
-            parts.append("\(hours) 小時")
-        }
-        if minutes > 0 {
-            parts.append("\(minutes) 分")
-        }
-        parts.append("\(secs) 秒")
-        return parts.joined(separator: " ")
-    }
-
-    /// 「02:17」；超過一小時「1:02:17」。
-    static func formatElapsed(_ seconds: Double) -> String {
-        let total = Int(seconds)
-        let hours = total / 3600
-        let minutes = (total % 3600) / 60
-        let secs = total % 60
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, secs)
-        }
-        return String(format: "%02d:%02d", minutes, secs)
-    }
-
-    /// 沒在收音時那一句。第一句回答有沒有損失之前先講發生什麼，因為使用者是回頭才看到這裡。
-    static func pausedMessage(for reason: Recorder.PauseReason?, elapsed: Double) -> String {
-        let saved = "已錄到的 \(formatSpoken(elapsed)) 都在。"
-        switch reason {
-        case .outOfSpace:
-            return "手機空間快滿了，先停了。\(saved)清出空間可以按繼續錄。"
-        case .lostInput:
-            return "收音斷了，正在接回去。\(saved)"
-        case .interrupted, nil:
-            return "被打斷了，結束後會自己接回去。\(saved)"
-        }
-    }
-
-    /// 完成面板那一行；沒斷過是 nil。
-    static func gapText(for gaps: CaptureWatch.Gaps) -> String? {
-        guard gaps.times > 0 else {
-            return nil
-        }
-        let length = gaps.seconds < 1 ? "不到 1 秒" : formatSpoken(gaps.seconds)
-        return "中間斷過 \(gaps.times) 次，共 \(length)。"
     }
 
     @MainActor
@@ -174,42 +128,52 @@ private extension RecordingSheetView {
     var recordingContent: some View {
         VStack(spacing: Token.Space.m) {
             Text(Self.formatElapsed(recorder.elapsedSeconds))
-                .font(Token.Fonts.timer)
+                .font(Token.Fonts.timer(timerSize))
                 .foregroundStyle(Token.Colors.textPrimary)
                 .accessibilityLabel("已錄 \(Self.formatElapsed(recorder.elapsedSeconds))")
-            Text(recorder.isWaitingForSound ? "接回去了，還沒聽到聲音" : "正在聽")
-                .font(Token.Fonts.secondary)
-                .foregroundStyle(Token.Colors.textSecondary)
+            listeningLine
+            Spacer(minLength: Token.Space.s)
             RecordingWaveform(recorder: recorder)
-            HStack(spacing: Token.Space.m) {
-                if reduceMotion {
-                    Circle()
-                        .fill(Token.Colors.recordingFill)
-                        .frame(width: Token.Space.s, height: Token.Space.s)
-                        .accessibilityHidden(true)
-                }
-                stopButton
-            }
-            if let minutes = recorder.minutesLeftOnDisk {
-                Text("手機空間只夠再錄約 \(minutes) 分鐘")
-                    .font(Token.Fonts.footnote)
-                    .foregroundStyle(Token.Colors.danger)
-            } else {
-                Text("鎖住螢幕也會繼續錄")
-                    .font(Token.Fonts.footnote)
-                    .foregroundStyle(Token.Colors.textSecondary)
-            }
+            Spacer(minLength: Token.Space.s)
+            stopButton
+            spaceNote
         }
     }
 
-    /// 80pt 紅鈕；外圈 1.4 秒呼吸一次（4pt → 12pt）。減少動態時不呼吸，由旁邊的紅點代替。
+    /// 錄音中＝紅點＋計時在跳＋「正在聽」三樣一起（使用規則第 4 條）。
+    var listeningLine: some View {
+        HStack(spacing: Token.Space.s) {
+            Circle()
+                .fill(Token.Colors.recordingFill)
+                .frame(width: Token.Space.s, height: Token.Space.s)
+                .accessibilityHidden(true)
+            Text(recorder.isWaitingForSound ? "接回去了，還沒聽到聲音" : "正在聽")
+                .font(Token.Fonts.secondary)
+                .foregroundStyle(Token.Colors.textSecondary)
+        }
+    }
+
+    @ViewBuilder
+    var spaceNote: some View {
+        if let minutes = recorder.minutesLeftOnDisk {
+            Text("手機空間只夠再錄約 \(minutes) 分鐘")
+                .font(Token.Fonts.footnote)
+                .foregroundStyle(Token.Colors.danger)
+        } else {
+            Text("鎖住螢幕也會繼續錄")
+                .font(Token.Fonts.footnote)
+                .foregroundStyle(Token.Colors.textSecondary)
+        }
+    }
+
+    /// 80pt 紅鈕；外圈 1.4 秒呼吸一次（4pt → 12pt）。減少動態時不呼吸，紅點本來就在「正在聽」旁邊。
     var stopButton: some View {
         Button {
             stopRecording()
         } label: {
-            Image(systemName: "stop.fill")
-                .font(Token.Fonts.largeTitle)
-                .foregroundStyle(Token.Colors.recordingGlyph)
+            RoundedRectangle(cornerRadius: Token.Shape.radiusStopGlyph)
+                .fill(Token.Colors.recordingGlyph)
+                .frame(width: Token.Shape.stopGlyph, height: Token.Shape.stopGlyph)
                 .frame(width: Token.Shape.stopTap, height: Token.Shape.stopTap)
                 .background(Token.Colors.recordingFill, in: Circle())
                 .background {
@@ -238,19 +202,16 @@ private extension RecordingSheetView {
     /// 被打斷、接不回去、空間滿時：會自己接回，也可以自己按（2026-11-04 米點頭，取代 C3 的不自動續錄）。
     var interruptedContent: some View {
         VStack(spacing: Token.Space.m) {
+            IconCircle(systemName: "pause.fill")
             Text(Self.pausedMessage(for: recorder.pauseReason, elapsed: recorder.elapsedSeconds))
                 .font(Token.Fonts.body)
                 .foregroundStyle(Token.Colors.textPrimary)
                 .multilineTextAlignment(.center)
-            Button {
+            Spacer(minLength: Token.Space.s)
+            Button("繼續錄") {
                 resumeRecording()
-            } label: {
-                Text("繼續錄")
-                    .font(Token.Fonts.rowTitle)
-                    .frame(maxWidth: .infinity, minHeight: Token.Shape.primaryTap)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Token.Colors.link)
+            .buttonStyle(PrimaryButtonStyle())
             if let resumeFailure {
                 Text(resumeFailure)
                     .font(Token.Fonts.secondary)
@@ -260,8 +221,7 @@ private extension RecordingSheetView {
             Button("停止") {
                 stopRecording()
             }
-            .font(Token.Fonts.body)
-            .tint(Token.Colors.link)
+            .buttonStyle(TextButtonStyle())
         }
     }
 
@@ -276,11 +236,11 @@ private extension RecordingSheetView {
                 .font(Token.Fonts.body)
                 .foregroundStyle(Token.Colors.textPrimary)
                 .multilineTextAlignment(.center)
+            Spacer(minLength: Token.Space.s)
             Button("完成") {
                 dismiss()
             }
-            .font(Token.Fonts.body)
-            .tint(Token.Colors.link)
+            .buttonStyle(TextButtonStyle())
         }
     }
 }

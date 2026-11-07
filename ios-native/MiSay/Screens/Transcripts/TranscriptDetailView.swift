@@ -2,6 +2,8 @@ import SwiftUI
 
 /// 文字稿詳情（片 E1～E5）：正文是主角，口語稿可對照；底部工具列複製、重新潤飾、分享三顆平等。
 /// 改字停下來 1 秒就存（E2）；刪除走「⋯」→ 動作表，復原在清單那邊（E3）；重新潤飾先問蓋掉或另存（E4）。
+/// 2026-11-07 統一風格：正文放白卡片、工具列圖示在上字在下（`TranscriptToolbar`）、狀態條統一；
+/// 改字、潤飾、複製那些動作搬到 `TranscriptDetailView+Editing.swift`，所以狀態不加 private。
 struct TranscriptDetailView: View {
     /// 重新潤飾的兩種落點（詞彙表：「重新潤飾，蓋掉這篇」／「另存一篇」）。
     enum RepolishMode: Equatable {
@@ -9,20 +11,20 @@ struct TranscriptDetailView: View {
         case saveAsNew
     }
 
-    @Environment(\.dismiss) private var dismiss
-    @State private var transcript: Transcript
-    @State private var draftEdit: String
-    @State private var showsRawText = false
-    @State private var autosaveTask: Task<Void, Never>?
-    @State private var polishTask: Task<Void, Never>?
-    @State private var isPolishing = false
-    @State private var polishFailed = false
-    @State private var lastRepolishMode = RepolishMode.overwrite
-    @State private var isConfirmingRepolish = false
-    @State private var isConfirmingDelete = false
-    @State private var copyCount = 0
-    @State private var showsCopied = false
-    @State private var saveFailed = false
+    @Environment(\.dismiss) var dismiss
+    @State var transcript: Transcript
+    @State var draftEdit: String
+    @State var showsRawText = false
+    @State var autosaveTask: Task<Void, Never>?
+    @State var polishTask: Task<Void, Never>?
+    @State var isPolishing = false
+    @State var polishFailed = false
+    @State var lastRepolishMode = RepolishMode.overwrite
+    @State var isConfirmingRepolish = false
+    @State var isConfirmingDelete = false
+    @State var copyCount = 0
+    @State var showsCopied = false
+    @State var saveFailed = false
     @FocusState private var isEditing: Bool
 
     /// 刪除交給清單處理（它要顯示「已刪除・復原」）。
@@ -38,30 +40,21 @@ struct TranscriptDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Token.Space.m) {
-                Text(TranscriptListView.subtitle(for: transcript))
-                    .font(Token.Fonts.secondary)
-                    .foregroundStyle(Token.Colors.textSecondary)
-                // 片 F4：歷史看得出這篇用哪個模型潤飾。
-                if let model = transcript.polishModel {
-                    Text("潤飾模型：\(model)")
-                        .font(Token.Fonts.footnote)
-                        .foregroundStyle(Token.Colors.textSecondary)
-                }
-                if transcript.draftText != nil {
-                    sourcePicker
-                }
-                content
+        VStack(alignment: .leading, spacing: Token.Space.m) {
+            meta
+            if transcript.draftText != nil {
+                sourcePicker
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Token.Space.l)
+            contentCard
         }
+        .padding(.horizontal, Token.Space.l)
+        .padding(.top, Token.Space.xs)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Token.Colors.groupedBackground)
-        .navigationTitle("文字稿")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
-        .safeAreaInset(edge: .bottom) { statusStrip }
+        .safeAreaInset(edge: .bottom) { bottomBar }
         .confirmationDialog(
             "會用現在的提示詞把口語稿重新整理一次。",
             isPresented: $isConfirmingRepolish,
@@ -84,105 +77,8 @@ struct TranscriptDetailView: View {
         .onDisappear { flushAutosave() }
     }
 
-    /// 文字稿｜口語稿（線框詳情頁的分段控制）。
-    private var sourcePicker: some View {
-        Picker("顯示", selection: $showsRawText) {
-            Text("文字稿").tag(false)
-            Text("口語稿").tag(true)
-        }
-        .pickerStyle(.segmented)
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if transcript.draftText == nil {
-            Text("這篇還沒整理成文字稿。")
-                .font(Token.Fonts.secondary)
-                .foregroundStyle(Token.Colors.textSecondary)
-            Text(transcript.rawText)
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .textSelection(.enabled)
-            if !isPolishing {
-                Button("整理這篇") { repolish(.overwrite) }
-                    .font(Token.Fonts.body)
-                    .tint(Token.Colors.link)
-            }
-        } else if showsRawText {
-            Text(transcript.rawText)
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .textSelection(.enabled)
-        } else {
-            TextEditor(text: $draftEdit)
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .scrollContentBackground(.hidden)
-                .focused($isEditing)
-                // 潤飾中不給改：選「蓋掉這篇」時，這段時間打的字會被整篇換掉。
-                .disabled(isPolishing)
-                .frame(minHeight: Token.Shape.recordTap)
-                .accessibilityLabel("文字稿正文")
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Button("刪除這篇文字稿", role: .destructive) { isConfirmingDelete = true }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .accessibilityLabel("更多")
-        }
-        ToolbarItemGroup(placement: .keyboard) {
-            Spacer()
-            Button("完成") { isEditing = false }
-        }
-        ToolbarItemGroup(placement: .bottomBar) {
-            Button {
-                copy()
-            } label: {
-                Label("複製", systemImage: "doc.on.doc")
-            }
-            .disabled(currentText.isEmpty)
-            Spacer()
-            if !transcript.rawText.isEmpty {
-                Button {
-                    isConfirmingRepolish = true
-                } label: {
-                    Label("重新潤飾", systemImage: "sparkles")
-                }
-                .disabled(isPolishing)
-                Spacer()
-            }
-            ShareLink(
-                item: TranscriptTextFile(transcript: transcript, text: currentText),
-                preview: SharePreview(TranscriptListView.subtitle(for: transcript))
-            ) {
-                Label("分享", systemImage: "square.and.arrow.up")
-            }
-            .disabled(currentText.isEmpty)
-        }
-    }
-
-    private var statusStrip: some View {
-        let kind = TranscriptStatusStrip.kind(
-            isPolishing: isPolishing,
-            polishFailed: polishFailed,
-            hasDraft: transcript.draftText != nil,
-            saveFailed: saveFailed,
-            isEmpty: currentText.isEmpty,
-            showsCopied: showsCopied
-        )
-        return TranscriptStatusStrip(kind: kind, onCancel: cancelPolish) {
-            repolish(lastRepolishMode)
-        }
-    }
-
     /// 現在畫面上那份字：編輯中是編輯框的內容。
-    private var currentText: String {
+    var currentText: String {
         if transcript.draftText == nil || showsRawText {
             return transcript.rawText
         }
@@ -190,109 +86,129 @@ struct TranscriptDetailView: View {
     }
 }
 
-/// E2 改字自動存、E4 重新潤飾、複製。
+/// 畫面的各塊：副標、分段控制、正文卡片、工具列。
 private extension TranscriptDetailView {
-    func copy() {
-        UIPasteboard.general.string = currentText
-        copyCount += 1
-        showsCopied = true
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            showsCopied = false
-        }
-    }
-
-    func scheduleAutosave() {
-        guard transcript.draftText != nil, draftEdit != transcript.draftText else {
-            return
-        }
-        autosaveTask?.cancel()
-        autosaveTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(Self.autosaveDelaySeconds))
-            guard !Task.isCancelled else {
-                return
+    var meta: some View {
+        VStack(alignment: .leading, spacing: Token.Space.xs) {
+            Text(TranscriptListView.subtitle(for: transcript))
+                .font(Token.Fonts.secondary)
+                .foregroundStyle(Token.Colors.textSecondary)
+            // 片 F4：歷史看得出這篇用哪個模型潤飾。
+            if let model = transcript.polishModel {
+                Text("潤飾模型：\(model)")
+                    .font(Token.Fonts.footnote)
+                    .foregroundStyle(Token.Colors.textSecondary)
             }
-            flushAutosave()
         }
+        .padding(.horizontal, Token.Space.xs)
     }
 
-    /// 存不進去只能大聲：用潤飾失敗那一行的位置顯示。畫面上的字不會丟（還在編輯框裡）。
-    func flushAutosave() {
-        autosaveTask?.cancel()
-        autosaveTask = nil
-        guard transcript.draftText != nil, draftEdit != transcript.draftText else {
-            return
+    /// 文字稿｜口語稿（線框詳情頁的分段控制）。
+    var sourcePicker: some View {
+        Picker("顯示", selection: $showsRawText) {
+            Text("文字稿").tag(false)
+            Text("口語稿").tag(true)
         }
-        var updated = transcript
-        updated.draftText = draftEdit
-        updated.updatedAt = Date()
-        do {
-            try TranscriptStore().save(updated)
-            transcript = updated
-            saveFailed = false
-        } catch {
-            polishFailed = false
-            saveFailed = true
-        }
+        .pickerStyle(.segmented)
     }
 
-    func repolish(_ mode: RepolishMode) {
-        flushAutosave()
-        lastRepolishMode = mode
-        polishFailed = false
-        isPolishing = true
-        let settings = AppSettings.shared
-        // 開始時就記下模型：潤飾中途改了設定，記在這篇上的仍是實際送出去的那個。
-        let model = settings.polishModel
-        let source = transcript
-        polishTask = Task { @MainActor in
-            do {
-                let draft = try await Polisher().polish(
-                    rawText: source.rawText,
-                    model: model,
-                    systemPrompt: settings.effectivePolishPrompt,
-                    vocabulary: settings.vocabulary
-                )
-                // 回應回來、還沒套用的那一瞬間按了取消，也不准蓋掉。
-                try Task.checkCancellation()
-                try applyRepolish(draft, mode: mode, model: model)
-            } catch is CancellationError {
-                // 使用者自己按取消，不跳訊息（詞彙表語氣規則）。
-            } catch OpenAIClient.Failure.transport(.cancelled) {
-                // 同上：取消在連線層的樣子。
-            } catch {
-                polishFailed = true
-            }
-            isPolishing = false
-        }
-    }
-
-    func applyRepolish(_ draft: String, mode: RepolishMode, model: String) throws {
-        let store = TranscriptStore()
-        switch mode {
-        case .overwrite:
-            var updated = transcript
-            updated.draftText = draft
-            updated.polishModel = model
-            updated.updatedAt = Date()
-            try store.save(updated)
-            transcript = updated
-            draftEdit = draft
-        case .saveAsNew:
-            let copy = Transcript(
-                durationSeconds: transcript.durationSeconds,
-                rawText: transcript.rawText,
-                draftText: draft,
-                polishModel: model
+    /// 正文放白卡片；只有口語稿時先講一句，再給「整理這篇」。
+    var contentCard: some View {
+        content
+            .padding(Token.Space.l)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(
+                Token.Colors.rowBackground,
+                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
             )
-            try store.save(copy)
-            dismiss()
+    }
+
+    @ViewBuilder
+    var content: some View {
+        if transcript.draftText == nil {
+            VStack(alignment: .leading, spacing: Token.Space.m) {
+                Text("這篇還沒整理成文字稿。")
+                    .font(Token.Fonts.secondary)
+                    .foregroundStyle(Token.Colors.textSecondary)
+                rawText
+                if !isPolishing {
+                    Button("整理這篇") { repolish(.overwrite) }
+                        .buttonStyle(TextButtonStyle())
+                }
+            }
+        } else if showsRawText {
+            rawText
+        } else {
+            TextEditor(text: $draftEdit)
+                .font(Token.Fonts.body)
+                .foregroundStyle(Token.Colors.textPrimary)
+                .lineSpacing(Token.Space.lineSpacing)
+                .scrollContentBackground(.hidden)
+                .focused($isEditing)
+                // 潤飾中不給改：選「蓋掉這篇」時，這段時間打的字會被整篇換掉。
+                .disabled(isPolishing)
+                .accessibilityLabel("文字稿正文")
         }
     }
 
-    func cancelPolish() {
-        polishTask?.cancel()
-        polishTask = nil
-        isPolishing = false
+    var rawText: some View {
+        ScrollView {
+            Text(transcript.rawText)
+                .font(Token.Fonts.body)
+                .foregroundStyle(Token.Colors.textPrimary)
+                .lineSpacing(Token.Space.lineSpacing)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ToolbarContentBuilder
+    var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button("刪除這篇文字稿", role: .destructive) { isConfirmingDelete = true }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .tint(Token.Colors.link)
+            .accessibilityLabel("更多")
+        }
+        ToolbarItemGroup(placement: .keyboard) {
+            Spacer()
+            Button("完成") { isEditing = false }
+                .tint(Token.Colors.link)
+        }
+    }
+
+    /// 狀態條在工具列上方，一次只講一件事；工具列三顆平等，沒有主角。
+    var bottomBar: some View {
+        VStack(spacing: Token.Space.s) {
+            TranscriptStatusStrip(kind: statusKind, onCancel: cancelPolish) {
+                repolish(lastRepolishMode)
+            }
+            TranscriptToolbar(
+                canCopy: !currentText.isEmpty,
+                showsRepolish: !transcript.rawText.isEmpty,
+                canRepolish: !isPolishing,
+                shareItem: TranscriptTextFile(transcript: transcript, text: currentText),
+                sharePreview: TranscriptListView.subtitle(for: transcript),
+                onCopy: copy,
+                onRepolish: { isConfirmingRepolish = true }
+            )
+        }
+        .padding(.horizontal, Token.Space.l)
+        .padding(.top, Token.Space.s)
+        .background(Token.Colors.groupedBackground)
+    }
+
+    var statusKind: TranscriptStatusStrip.Kind {
+        TranscriptStatusStrip.kind(
+            isPolishing: isPolishing,
+            polishFailed: polishFailed,
+            hasDraft: transcript.draftText != nil,
+            saveFailed: saveFailed,
+            isEmpty: currentText.isEmpty,
+            showsCopied: showsCopied
+        )
     }
 }

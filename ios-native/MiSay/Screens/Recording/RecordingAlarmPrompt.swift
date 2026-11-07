@@ -8,7 +8,7 @@ struct RecordingAlarmPrompt: View {
 
     var body: some View {
         if isAsking {
-            VStack(spacing: Token.Space.s) {
+            VStack(spacing: Token.Space.xs) {
                 Text("錄音如果中途停了，要發通知給你嗎？")
                     .font(Token.Fonts.footnote)
                     .foregroundStyle(Token.Colors.textSecondary)
@@ -16,8 +16,7 @@ struct RecordingAlarmPrompt: View {
                 Button("要，發通知給我") {
                     Task { await requestPermission() }
                 }
-                .font(Token.Fonts.body)
-                .tint(Token.Colors.link)
+                .buttonStyle(TextButtonStyle())
             }
         } else {
             // 要有一個真的東西在畫面上，.task 才會跑。

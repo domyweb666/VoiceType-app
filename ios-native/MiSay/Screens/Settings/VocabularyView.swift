@@ -16,7 +16,7 @@ struct VocabularyView: View {
                         .submitLabel(.done)
                         .onSubmit(addWord)
                     Button("新增", action: addWord)
-                        .font(Token.Fonts.body)
+                        .font(Token.Fonts.body.weight(.medium))
                         .tint(Token.Colors.link)
                         .disabled(Self.cleaned(newWord, existing: settings.vocabulary) == nil)
                 }
@@ -35,6 +35,12 @@ struct VocabularyView: View {
                 }
                 .onDelete { offsets in
                     settings.vocabulary.remove(atOffsets: offsets)
+                }
+            } footer: {
+                if !settings.vocabulary.isEmpty {
+                    Text("左滑可以刪掉一個。")
+                        .font(Token.Fonts.footnote)
+                        .foregroundStyle(Token.Colors.textSecondary)
                 }
             }
             .listRowBackground(Token.Colors.rowBackground)
