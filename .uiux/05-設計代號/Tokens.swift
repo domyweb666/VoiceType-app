@@ -1,59 +1,68 @@
 import SwiftUI
 
-/// 米說 設計代號（2026-10-31，v1.1）
+/// 米說 設計代號（2026-11-07，v2.0 統一風格）
 ///
 /// 規則：畫面程式只准用這裡的語意代號（Token.*）。色碼、字級、間距、動畫數字
 /// 只准出現在這個檔案與顏色資源裡。提交前自動檢查會擋（見 使用規則.md 最後一節）。
 ///
-/// 數字來源：顏色抄自網頁版 docs/index.html 再依 對比檢查表.md 調過；
-/// 間距、圓角、點擊範圍抄自 03-線框；動態、觸覺抄自 04-手感/參數表.md。
+/// 數字來源：v2 的顏色、圓角、按鈕尺寸抄自 Design 畫布「米說 全畫面統一設計」的風格總表
+/// （https://claude.ai/artifact/S6UsLgtxX9FkFgkHSJXrwV ），再依 對比檢查表.md 跑過；
+/// 間距沿用 03-線框；動態、觸覺沿用 04-手感/參數表.md。色碼全列在 contrast-pairs.json。
 ///
 /// 這份是源頭；`ios-native/MiSay/App/Tokens.swift` 是逐字抄本，兩邊要一模一樣。
-/// v1.1（2026-10-31）：只改排版讓 SwiftFormat／SwiftLint 過，數值一個都沒動；
-/// 加 `Shape.recordTap` 220（首頁重畫，米鎖定正中央超大錄音鈕）。
+/// ⚠️ 2026-11-07：App 抄本與 Assets.xcassets 還停在 v1.1。實作統一風格那一片的第一件事
+/// 就是把這份抄過去、把顏色資源換成 v2 的值（每色淺色／深色／增加對比各一組）。
+/// v2.0（2026-11-07）：米定統一風格。底色改爆米花、字色跟著調、加凹槽與分隔線、
+/// 主要按鈕 56 高膠囊、錄音鈕快門式（金環＋圓盤＋實心麥克風）、計時 56。
+/// v1.1（2026-10-31）：只改排版讓 SwiftFormat／SwiftLint 過；加 `Shape.recordTap` 220。
 ///
 /// ⚠️ 會過時：@ScaledMetric、.sensoryFeedback、彈簧的 duration/bounce 寫法、
 /// 系統文字樣式名稱，引用前查證（書的查證日期 2026-10）。需要 iOS 17。
 enum Token {
-    /// 顏色（值放在 Assets.xcassets，每色淺色／深色／增加對比各一組）
+    /// 顏色（值放在 Assets.xcassets，每色淺色／深色／增加對比各一組；色碼見 contrast-pairs.json）
     enum Colors {
         /// 底
-        static let groupedBackground = Color("底-群組") // F2F2F7 / 000000
-        static let rowBackground = Color("底-列") // FFFFFF / 1C1C1E
+        static let groupedBackground = Color("底-群組") // 爆米花底 F7F4EC / 141210
+        static let rowBackground = Color("底-列") // 卡片、錄音面板底 FFFFFF / 1F1C18
+        /// 凹槽：搜尋框、分段控制的軌道、面板裡的預覽卡與圖示圓 F2EEE4 / 2A2621
+        static let sunkenBackground = Color("底-凹槽")
+        static let separator = Color("分隔線") // E9E4D8 / 332E27（不再用系統 separator）
         /// 字
-        static let textPrimary = Color("文字-主") // 000000 / FFFFFF
-        /// 6C6C70 / 98989F（系統 secondaryLabel 淺色只有 3.44:1，不用）
+        static let textPrimary = Color("文字-主") // 1C1A16 / F4F0E8
+        /// 6B665C / A49E93（白卡 5.7:1、爆米花底 5.2:1；系統 secondaryLabel 淺色只有 3.44:1，不用）
         static let textSecondary = Color("文字-次")
-        /// 8F6200 / F2C14E（網頁版 B98000 淺色只有 3.41:1，不用）
+        /// 金色。所有能按的字、開關、分段選中、工具列圖示都用它 8F6200 / F2C14E
         static let link = Color("強調-可點")
-        static let danger = Color("警示-文字") // D70015 / FF6961
+        static let danger = Color("警示-文字") // D70015 / FF6961，只給刪除與失敗
         /// 主要動作（每個畫面只出現一次）
         static let actionFill = Color("動作-底玉米") // F2C14E
         static let actionInk = Color("動作-字玉米") // 2B2000
+        /// 錄音鈕外圈那一環，裝飾用，不入對比表 D9A62E 55% / F2C14E 45%
+        static let actionRing = Color("動作-外環")
         /// 錄音
         static let recordingFill = Color("錄音-紅底") // FF3B30 / FF453A
         /// 380000（白色在增加對比・深色下只有 2.82:1）
         static let recordingGlyph = Color("錄音-字圖形")
         static let waveform = Color("強調-可點")
-        /// 首頁統計方塊：3A2800，底是 F6CF63→E3A922 漸層
+        /// 穀倉方塊（第二批才做）：3A2800，底是 F6CF63→E3A922 漸層
         static let harvestTileInk = Color("方塊-收成字")
         /// 0E2206，底是 9CC46A→6E9C3E 漸層（白字只有 2.00:1）
         static let pendingTileInk = Color("方塊-待轉字")
-        static let separator = Color(uiColor: .separator)
     }
 
     /// 文字（全部是系統文字樣式，跟著動態字級走；不寫死字級）
     enum Fonts {
-        static let largeTitle = Font.largeTitle.bold() // 首頁「米說」
-        static let sectionTitle = Font.title3.bold() // 「今天」「本週」
-        static let rowTitle = Font.headline // 清單列標題
-        static let body = Font.body // 文字稿正文
-        static let secondary = Font.subheadline // 列預覽、副標
-        static let footnote = Font.footnote // 區段下方說明
-        /// 錄音計時
-        static let timer = Font.system(.largeTitle, design: .rounded)
-            .monospacedDigit()
-            .weight(.light)
+        static let largeTitle = Font.largeTitle.bold() // 「文字稿」「設定」「待轉錄」大標
+        static let sectionTitle = Font.title3.bold() // 「今天」「本週」、面板的「好了，已經複製」
+        static let rowTitle = Font.headline // 清單列標題、首頁提示第一行、主要按鈕的字
+        static let body = Font.body // 文字稿正文、列預覽
+        static let secondary = Font.subheadline // 列副標、說明第二行、狀態條
+        static let footnote = Font.footnote // 區段標題與下方說明、日期
+        /// 錄音計時 56：畫面用 @ScaledMetric(relativeTo: .largeTitle) 包 `timerSize` 再丟進 `timer(_:)`
+        static let timerSize: CGFloat = 56
+        static func timer(_ size: CGFloat) -> Font {
+            Font.system(size: size, weight: .light, design: .rounded).monospacedDigit()
+        }
     }
 
     /// 間距（六個刻度）。靠近文字的間距在畫面裡用 @ScaledMetric(relativeTo:) 包一次，跟著字級放大
@@ -61,20 +70,36 @@ enum Token {
         static let xs: CGFloat = 4
         static let s: CGFloat = 8
         static let m: CGFloat = 12
-        static let l: CGFloat = 16 // 畫面左右邊距
+        static let l: CGFloat = 16 // 畫面左右邊距、卡片內距、分隔線左縮
         static let xl: CGFloat = 24
         static let xxl: CGFloat = 32
     }
 
-    /// 形狀
+    /// 形狀。按鈕一律 Capsule()，沒有數字
     enum Shape {
-        static let radiusRow: CGFloat = 16 // 分組列表
-        static let radiusTile: CGFloat = 20 // 首頁統計方塊
+        static let radiusRow: CGFloat = 16 // 卡片、狀態條、分組列表
+        static let radiusField: CGFloat = 12 // 搜尋框、分段控制的軌道
+        static let radiusTile: CGFloat = 20 // 穀倉方塊
         static let radiusSheet: CGFloat = 28 // 錄音面板上緣
-        static let minTap: CGFloat = 44 // 一般點擊範圍底線
-        static let primaryTap: CGFloat = 60 // 主要動作（完成面板「分享到…」這一級）
+        static let minTap: CGFloat = 44 // 一般點擊範圍底線、文字鈕高度
+        static let primaryTap: CGFloat = 56 // 主要按鈕高度，整寬膠囊（v1.1 是 60）
         static let stopTap: CGFloat = 80 // 錄音面板停止鈕
-        static let recordTap: CGFloat = 220 // 首頁錄音鈕（SE 線框是 180；怎麼縮未定，見切片帳本）
+        static let recordTap: CGFloat = 220 // 首頁錄音鈕點擊範圍（SE 線框是 180；怎麼縮未定，見切片帳本）
+        static let recordDisc: CGFloat = 184 // 快門式：裡面那顆玉米黃圓盤
+        static let recordRing: CGFloat = 3 // 快門式：外圈金環線寬
+        static let recordGlyph: CGFloat = 76 // 快門式：中間實心麥克風
+    }
+
+    /// 厚度：錄音鈕圓盤的上亮下暗與陰影，用內陰影與陰影做，不用漸層
+    enum Elevation {
+        static let recordHighlightOpacity: Double = 0.4 // 白，貼上緣
+        static let recordHighlightHeight: CGFloat = 1.5
+        static let recordRimOpacity: Double = 0.16 // actionInk，貼下緣
+        static let recordRimHeight: CGFloat = 3
+        static let recordShadowOpacity: Double = 0.14 // 淺色：黑 14%
+        static let recordShadowOpacityDark: Double = 0.45 // 深色：黑 45%
+        static let recordShadowRadius: CGFloat = 12
+        static let recordShadowY: CGFloat = 10
     }
 
     /// 動態（事件命名；每個都有減少動態版，是替換不是關掉）
@@ -105,7 +130,7 @@ enum Token {
     }
 }
 
-/// 角色色（不進介面語意層：不當文字色、不當按鈕色）
+/// 角色色（不進介面語意層：不當文字色、不當按鈕色）。玉米插圖只在文字稿空清單與收成那一刻
 enum CharacterPalette {
     static let cornKernel = Color(red: 0.95, green: 0.76, blue: 0.31) // 玉米粒
     static let cornHusk = Color(red: 0.43, green: 0.61, blue: 0.24) // 玉米葉
