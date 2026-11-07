@@ -119,7 +119,7 @@ struct TranscriptListView: View {
         var groups: [TranscriptGroup] = []
         for transcript in visibleTranscripts {
             let title = Self.groupTitle(for: transcript.createdAt)
-            if let index = groups.firstIndex(where: { $0.title == title }) {
+            if let index = groups.firstIndex { $0.title == title } {
                 groups[index].transcripts.append(transcript)
             } else {
                 groups.append(TranscriptGroup(title: title, transcripts: [transcript]))

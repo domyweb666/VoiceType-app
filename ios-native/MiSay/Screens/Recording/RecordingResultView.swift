@@ -161,7 +161,7 @@ private extension RecordingResultView {
             }
             Spacer(minLength: Token.Space.s)
             Button("先放著") { dismiss() }
-            .buttonStyle(TextButtonStyle())
+                .buttonStyle(TextButtonStyle())
         }
     }
 
@@ -174,9 +174,9 @@ private extension RecordingResultView {
             message("設定金鑰後會自動整理。")
             Spacer(minLength: Token.Space.s)
             Button("去設定金鑰") { onOpenSettings() }
-            .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
             Button("完成") { dismiss() }
-            .buttonStyle(TextButtonStyle())
+                .buttonStyle(TextButtonStyle())
         }
     }
 
@@ -190,13 +190,13 @@ private extension RecordingResultView {
             message(reason)
             Spacer(minLength: Token.Space.s)
             Button("重試") { process() }
-            .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
             if needsNewKey {
                 Button("去設定") { onOpenSettings() }
-                .buttonStyle(TextButtonStyle())
+                    .buttonStyle(TextButtonStyle())
             }
             Button("完成") { dismiss() }
-            .buttonStyle(TextButtonStyle())
+                .buttonStyle(TextButtonStyle())
         }
     }
 
@@ -206,11 +206,11 @@ private extension RecordingResultView {
             message(text)
             Spacer(minLength: Token.Space.s)
             Button("再試一次") { retryPolish(transcript) }
-            .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
             Button("打開這篇") { onOpenTranscript(transcript) }
-            .buttonStyle(TextButtonStyle())
+                .buttonStyle(TextButtonStyle())
             Button("完成") { dismiss() }
-            .buttonStyle(TextButtonStyle())
+                .buttonStyle(TextButtonStyle())
         }
     }
 
@@ -221,9 +221,9 @@ private extension RecordingResultView {
             message("口語稿已經存好，但錄音檔刪不掉，還在待轉錄。到待轉錄把它刪掉，不然會再整理一次。")
             Spacer(minLength: Token.Space.s)
             Button("打開這篇") { onOpenTranscript(transcript) }
-            .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
             Button("完成") { dismiss() }
-            .buttonStyle(TextButtonStyle())
+                .buttonStyle(TextButtonStyle())
         }
     }
 
@@ -240,9 +240,9 @@ private extension RecordingResultView {
             }
             previewCard(transcript.displayText)
             Button("打開這篇") { onOpenTranscript(transcript) }
-            .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
             Button("完成") { dismiss() }
-            .buttonStyle(TextButtonStyle())
+                .buttonStyle(TextButtonStyle())
             Spacer(minLength: Token.Space.xs)
             RecordingAlarmPrompt()
         }
