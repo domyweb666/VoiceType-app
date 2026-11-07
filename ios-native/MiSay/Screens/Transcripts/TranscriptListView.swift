@@ -198,7 +198,6 @@ private extension TranscriptListView {
     }
 
     /// 玉米只在這裡出現（使用規則第 3 條）。讀不到時不裝可愛，只講讀取失敗。
-    @ViewBuilder
     var emptyState: some View {
         VStack(spacing: Token.Space.l) {
             if loadFailed {
