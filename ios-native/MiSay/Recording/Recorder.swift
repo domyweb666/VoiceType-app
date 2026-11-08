@@ -23,8 +23,6 @@ final class Recorder {
     private(set) var lastGaps = CaptureWatch.Gaps()
 
     @ObservationIgnored private var capture: MicrophoneCapture?
-    /// 正在寫的錄音檔（S4-1 邊錄邊轉只讀它，不寫）。沒在錄是 nil。
-    var liveRecordingURL: URL? { capture?.url }
     @ObservationIgnored private var watch = CaptureWatch(startedAt: Date())
     @ObservationIgnored private var watchTimer: Timer?
     private let systemEvents = RecordingSystemEvents()
@@ -34,6 +32,11 @@ final class Recorder {
     /// App 被殺時來不及收掉的那則通知，重開就不用再響了。
     init() {
         alarm.cancel()
+    }
+
+    /// 正在寫的錄音檔（S4-1 邊錄邊轉只讀它，不寫）。沒在錄是 nil。
+    var liveRecordingURL: URL? {
+        capture?.url
     }
 
     /// 檔案開著、但現在沒在收音。面板要換字、要給「繼續錄」。
