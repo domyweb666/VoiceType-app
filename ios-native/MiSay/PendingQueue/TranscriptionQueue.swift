@@ -108,7 +108,8 @@ final class TranscriptionQueue {
         return await polishAndSave(transcript)
     }
 
-    /// 轉錄這一步。OpenAI 的錯原樣帶回；讀不到錄音、切不了段是 `.recordingUnreadable`；被取消時不給結局。
+    /// 轉錄這一步。OpenAI 的錯原樣帶回；讀不到錄音是 `.recordingUnreadable`；被取消時不給結局。
+    /// S2-6：其他錯（金鑰一時讀不到、進度檔寫不進去）不是錄音壞了，當成「等一下再試」，不標紅字叫人刪。
     func transcribe(
         _ url: URL,
         with job: RecordingTranscriptionJob
@@ -127,8 +128,11 @@ final class TranscriptionQueue {
             return .failure(StoppedOutcome(value: .transcriptionFailed(failure)))
         } catch is CancellationError {
             return .failure(StoppedOutcome(value: nil))
-        } catch {
+        } catch is WAVSegmenter.Failure, Transcriber.Failure.cannotReadFile {
             return .failure(StoppedOutcome(value: .recordingUnreadable))
+        } catch {
+            DiagnosticLog.shared.record("轉錄停下，等一下再試：\(type(of: error))")
+            return .failure(StoppedOutcome(value: .transcriptionFailed(.malformedResponse)))
         }
     }
 

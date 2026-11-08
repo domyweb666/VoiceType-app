@@ -32,8 +32,7 @@ struct APIKeyStore {
 
         var attributes = Self.query
         attributes[kSecValueData as String] = Data(key.utf8)
-        // 只在這台裝置、解鎖後可用：不會搬到新手機，換手機要重貼（PRD 備份那條）。
-        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        attributes[kSecAttrAccessible as String] = Self.accessibility
         let status = SecItemAdd(attributes as CFDictionary, nil)
         guard status == errSecSuccess else {
             throw Failure.saveFailed(status)
@@ -59,6 +58,13 @@ struct APIKeyStore {
         return key
     }
 
+    /// v0.2.1 以前存的那一筆是「解鎖時才讀得到」：App 一打開（這時一定解鎖著）就改成新的等級。
+    /// 沒存過不算錯；改不了也不擋任何事，只是鎖屏時補轉會等到解鎖再做。
+    func upgradeAccessibility() {
+        let update = [kSecAttrAccessible as String: Self.accessibility]
+        _ = SecItemUpdate(Self.query as CFDictionary, update as CFDictionary)
+    }
+
     /// 真的刪掉 Keychain 那一筆（安全標準一第四條）；本來就沒有也算成功。
     func delete() throws {
         let status = SecItemDelete(Self.query as CFDictionary)
@@ -66,6 +72,10 @@ struct APIKeyStore {
             throw Failure.deleteFailed(status)
         }
     }
+
+    /// 只在這台裝置：不會搬到新手機，換手機要重貼（PRD 備份那條）。開機後第一次解鎖就讀得到（S2-6）：
+    /// 錄音中鎖屏時 App 還醒著、同時在補轉舊錄音，原本的「解鎖時才讀得到」會讀失敗，被當成錄音壞了。
+    static let accessibility = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 
     private static var query: [String: Any] {
         [
