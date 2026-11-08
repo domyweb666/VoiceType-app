@@ -27,6 +27,7 @@ extension TranscriptionQueue {
                     continue
                 }
                 await job.transcribeFinishedSegments(ofLive: liveURL, progressAt: finalURL)
+                await self?.polishFinishedChunks(job: job, progressAt: finalURL)
             }
         }
     }
@@ -40,6 +41,37 @@ extension TranscriptionQueue {
         run.cancel()
         await run.value
         DiagnosticLog.shared.record("邊錄邊轉停下")
+    }
+
+    /// 錄音中也先潤飾（方案 D「停止時只剩最後一段和最後一塊」）：一小時的稿潤飾要 8 塊、約 80 秒，
+    /// 全留到停止後，收進口袋 30 秒就被系統暫停了。最後一塊還會變長，不送。失敗就等下一輪。
+    func polishFinishedChunks(job: RecordingTranscriptionJob, progressAt finalURL: URL) async {
+        var progress = job.loadProgress(for: finalURL)
+        let chunks = Array(PolishChunks.split(progress.contiguousText).dropLast())
+        let kept = progress.polishedPrefixCount(matching: chunks)
+        progress.polishedSources = Array(progress.polishedSources.prefix(kept))
+        progress.polishedDrafts = Array(progress.polishedDrafts.prefix(kept))
+        let model = settings.polishModel
+        let style = settings.polishStyle
+        for index in kept ..< chunks.count {
+            guard !Task.isCancelled else {
+                return
+            }
+            let label = "錄音中先潤飾第 \(index + 1) 塊"
+            guard case let .success(draft) = await polishChunk(
+                chunks[index],
+                model: model,
+                style: style,
+                label: label
+            ) else {
+                return
+            }
+            progress.polishedSources.append(chunks[index])
+            progress.polishedDrafts.append(draft)
+            guard (try? job.saveProgress(progress, for: finalURL)) != nil else {
+                return
+            }
+        }
     }
 
     /// 沒金鑰就不送（一直失敗沒意義）；設了只用 Wi-Fi 而現在走行動網路，也先不送，停止後再整理。

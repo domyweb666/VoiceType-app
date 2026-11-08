@@ -109,6 +109,16 @@ final class RecordingTranscriptionJobTests: XCTestCase {
         XCTAssertEqual(FakeOpenAIServer.requestCount, 1)
     }
 
+    func test邊錄邊轉先潤飾的塊口語稿對得上才沿用() {
+        var progress = RecordingTranscriptionJob.Progress()
+        progress.segmentTexts = [0: "甲。", 1: "乙。", 3: "丁。"]
+        XCTAssertEqual(progress.contiguousText, "甲。乙。", "中間缺一段就停在那裡")
+        progress.polishedSources = ["一", "二", "三"]
+        XCTAssertEqual(progress.polishedPrefixCount(matching: ["一", "二", "改過的三", "四"]), 2)
+        XCTAssertEqual(progress.polishedPrefixCount(matching: ["一"]), 1)
+        XCTAssertEqual(progress.polishedPrefixCount(matching: ["不一樣"]), 0)
+    }
+
     func test續轉換切法時起訖一樣的段留著字() {
         let first = WAVSegmenter.Segment(startFrame: 0, endFrame: 100)
         let second = WAVSegmenter.Segment(startFrame: 100, endFrame: 200)

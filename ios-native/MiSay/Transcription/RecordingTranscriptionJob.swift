@@ -22,6 +22,10 @@ struct RecordingTranscriptionJob {
         var segments: [WAVSegmenter.Segment]?
         /// 重送一次字數還是少的段（從 0 數，S2-2）。
         var suspectSegments: Set<Int> = []
+        /// 錄音中先潤飾好的塊（S4-1）：送去潤飾的那塊口語稿與回來的文字稿，一一對應。
+        /// 停止後口語稿的那幾塊還一模一樣，才沿用；對不上的從那塊起重做。
+        var polishedSources: [String] = []
+        var polishedDrafts: [String] = []
 
         init() {}
 
@@ -41,6 +45,29 @@ struct RecordingTranscriptionJob {
                 Set<Int>.self,
                 forKey: .suspectSegments
             ) ?? []
+            polishedSources = try container.decodeIfPresent(
+                [String].self,
+                forKey: .polishedSources
+            ) ?? []
+            polishedDrafts = try container.decodeIfPresent(
+                [String].self,
+                forKey: .polishedDrafts
+            ) ?? []
+        }
+
+        /// 從第 1 段起連續轉好的那幾段接起來（中間缺一段就停在那裡）。
+        var contiguousText: String {
+            var texts: [String] = []
+            while let text = segmentTexts[texts.count] {
+                texts.append(text)
+            }
+            return texts.joined()
+        }
+
+        /// 先潤飾好的塊裡，口語稿跟 `chunks` 開頭一模一樣的有幾塊。
+        func polishedPrefixCount(matching chunks: [String]) -> Int {
+            let pairs = zip(polishedSources, chunks)
+            return pairs.prefix { $0.0 == $0.1 }.count
         }
 
         /// 換成這份切法。起訖一樣的段留著已轉的字，對不上的作廢；切法版本換了全部作廢。id 留著。
@@ -107,6 +134,13 @@ struct RecordingTranscriptionJob {
             try saveProgress(progress, for: recordingURL)
         }
         return (0 ..< segments.count).compactMap { progress.segmentTexts[$0] }.joined()
+    }
+
+    /// 口語稿存進歷史前讀：錄音中先潤飾好、而且口語稿對得上的那幾塊（S4-1）。沒有就是 nil。
+    func polishedChunks(matching rawText: String, forRecordingAt recordingURL: URL) -> [String]? {
+        let progress = loadProgress(for: recordingURL)
+        let count = progress.polishedPrefixCount(matching: PolishChunks.split(rawText))
+        return count == 0 ? nil : Array(progress.polishedDrafts.prefix(count))
     }
 
     /// 口語稿存進歷史前讀：可能漏字的段，從 1 數。沒有就是 nil（存進文字稿時不多一欄）。

@@ -59,7 +59,7 @@ extension TranscriptionQueue {
         return .finished(polished)
     }
 
-    private func polishChunk(
+    func polishChunk(
         _ chunk: String,
         model: String,
         style: PolishStyle,
