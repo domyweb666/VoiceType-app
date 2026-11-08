@@ -124,6 +124,27 @@ final class TranscriptionQueueTests: XCTestCase {
         XCTAssertNil(done.polishedChunks)
     }
 
+    func test續做只補最近一天或做到一半的篇() {
+        let now = Date()
+        let cutoff = now.addingTimeInterval(-TranscriptionQueue.resumePolishWithinSeconds)
+        let old = now.addingTimeInterval(-3 * 24 * 60 * 60)
+        let recent = Transcript(createdAt: now, durationSeconds: 60, rawText: "口語稿")
+        let oldPartial = Transcript(
+            createdAt: old,
+            durationSeconds: 60,
+            rawText: "口語稿",
+            polishedChunks: ["甲"]
+        )
+        let oldPlain = Transcript(createdAt: old, durationSeconds: 60, rawText: "口語稿")
+        let done = Transcript(createdAt: now, durationSeconds: 60, rawText: "口語稿", draftText: "好了")
+        let blank = Transcript(createdAt: now, durationSeconds: 60, rawText: "  ")
+        XCTAssertTrue(TranscriptionQueue.needsPolishResume(recent, since: cutoff))
+        XCTAssertTrue(TranscriptionQueue.needsPolishResume(oldPartial, since: cutoff))
+        XCTAssertFalse(TranscriptionQueue.needsPolishResume(oldPlain, since: cutoff))
+        XCTAssertFalse(TranscriptionQueue.needsPolishResume(done, since: cutoff))
+        XCTAssertFalse(TranscriptionQueue.needsPolishResume(blank, since: cutoff))
+    }
+
     private func chat(_ content: String) -> String {
         #"{"choices":[{"message":{"role":"assistant","content":""# + content
             + #""},"finish_reason":"stop"}]}"#

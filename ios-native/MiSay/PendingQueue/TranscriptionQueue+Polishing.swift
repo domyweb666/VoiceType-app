@@ -7,7 +7,11 @@ extension TranscriptionQueue {
     func retryPolish(_ transcript: Transcript) async -> Outcome {
         let name = transcript.id.uuidString
         activity = .polishing(recording: name)
-        defer { resetActivity(ifShowing: name) }
+        inFlight.insert(name)
+        defer {
+            inFlight.remove(name)
+            resetActivity(ifShowing: name)
+        }
         return await polishAndSave(transcript)
     }
 

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// 方塊 M3：一個錄音（可能很長）→ 整篇口語稿。照 `WAVSegmenter` 切成約 5 分鐘一段、逐段送、每段成功就記進進度檔；
@@ -166,20 +167,37 @@ struct RecordingTranscriptionJob {
         recordingURL.deletingPathExtension().appendingPathExtension(progressExtension)
     }
 
+    /// 進度檔裡是一段一段的口語稿，跟文字稿一樣加密（S2-4，安全標準二），金鑰共用文字稿那把。
+    /// v0.2.1 以前的進度檔是明文 JSON：解不開時照舊讀一次，下次存就變加密的。
     private func loadProgress(for recordingURL: URL) -> Progress {
         // 進度檔讀不到就當從頭開始：最多多送已成功的段，不會丟任何東西。
         guard let data = try? Data(contentsOf: Self.progressURL(for: recordingURL)) else {
             return Progress()
         }
-        return (try? JSONDecoder().decode(Progress.self, from: data)) ?? Progress()
+        let plaintext = (try? decrypt(data)) ?? data
+        return (try? JSONDecoder().decode(Progress.self, from: plaintext)) ?? Progress()
     }
 
     private func saveProgress(_ progress: Progress, for recordingURL: URL) throws {
         do {
-            let data = try JSONEncoder().encode(progress)
-            try data.write(to: Self.progressURL(for: recordingURL), options: .atomic)
+            let plaintext = try JSONEncoder().encode(progress)
+            let key = try TranscriptEncryptionKeyStore().loadOrCreateKey()
+            guard let sealed = try AES.GCM.seal(plaintext, using: key).combined else {
+                throw Failure.cannotSaveProgress
+            }
+            try sealed.write(to: Self.progressURL(for: recordingURL), options: Self.writeOptions)
         } catch {
             throw Failure.cannotSaveProgress
         }
+    }
+
+    private static let writeOptions: Data.WritingOptions = [
+        .atomic,
+        .completeFileProtectionUntilFirstUserAuthentication,
+    ]
+
+    private func decrypt(_ data: Data) throws -> Data {
+        let key = try TranscriptEncryptionKeyStore().loadOrCreateKey()
+        return try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: key)
     }
 }

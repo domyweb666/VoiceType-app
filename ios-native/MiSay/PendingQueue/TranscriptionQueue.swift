@@ -42,7 +42,8 @@ final class TranscriptionQueue {
     /// OpenAI 拒收（4xx）或讀不出來的錄音檔名：再送一次也一樣，自動續轉跳過它們，待轉錄清單標出來給使用者刪。
     /// 只記在記憶體：重開米說會再試一次（2026-11-02 米：照建議，不讓一筆擋住後面的）。
     var refusedRecordings: Set<String> = []
-    private var inFlight: Set<String> = []
+    /// 在飛的錄音檔名與正在潤飾的篇 id（S2-4：補潤飾時不重送同一篇）。
+    var inFlight: Set<String> = []
     var isProcessingPending = false
 
     let pending = PendingRecordings()
@@ -99,6 +100,9 @@ final class TranscriptionQueue {
             return outcome.value
         }
         activity = .polishing(recording: name)
+        let polishKey = transcript.id.uuidString
+        inFlight.insert(polishKey)
+        defer { inFlight.remove(polishKey) }
         return await polishAndSave(transcript)
     }
 
