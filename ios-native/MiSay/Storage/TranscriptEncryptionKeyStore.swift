@@ -24,6 +24,14 @@ struct TranscriptEncryptionKeyStore {
         return key
     }
 
+    /// 刪除全部資料（S2-9）：文字稿都刪了之後才叫，下一次存文字稿會產新的一把。
+    func delete() throws {
+        let status = SecItemDelete(Self.query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw Failure.saveFailed(status)
+        }
+    }
+
     /// 只給測試用：把金鑰刪掉，讓下一次 loadOrCreateKey 重產。真機上刪了等於所有歷史都讀不回來。
     func deleteForTesting() throws {
         let status = SecItemDelete(Self.query as CFDictionary)
