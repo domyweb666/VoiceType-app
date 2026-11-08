@@ -1,7 +1,7 @@
 @testable import MiSay
 import XCTest
 
-/// 片 F1～F4：一般設定的預設值、存回去、還原。用自己的 UserDefaults，不碰 App 真的設定。
+/// 片 F1～F4：一般設定的預設值、存回去；2026-11-08 起潤飾是二選一。用自己的 UserDefaults，不碰 App 真的設定。
 final class AppSettingsTests: XCTestCase {
     private let suiteName = "AppSettingsTests"
 
@@ -22,7 +22,7 @@ final class AppSettingsTests: XCTestCase {
         let settings = AppSettings(defaults: defaults)
         XCTAssertTrue(settings.autoCopy)
         XCTAssertEqual(settings.polishModel, Polisher.defaultModel)
-        XCTAssertTrue(settings.isPromptDefault)
+        XCTAssertEqual(settings.polishStyle, .keepVoice)
         XCTAssertEqual(settings.vocabulary, [])
     }
 
@@ -32,23 +32,20 @@ final class AppSettingsTests: XCTestCase {
         settings.autoCopy = false
         settings.vocabulary = ["DOMYWEB"]
         settings.polishModel = Polisher.alternativeModel
+        settings.polishStyle = .heavy
 
         let reopened = AppSettings(defaults: defaults)
         XCTAssertFalse(reopened.autoCopy)
         XCTAssertEqual(reopened.vocabulary, ["DOMYWEB"])
         XCTAssertEqual(reopened.polishModel, Polisher.alternativeModel)
+        XCTAssertEqual(reopened.polishStyle, .heavy)
     }
 
-    func test設定提示詞改壞了還原預設回到原本那版而且清空時送預設() throws {
+    func test設定以前改過的提示詞不再讀而且認不得的潤飾方式退回保留原聲() throws {
         let defaults = try makeDefaults()
-        let settings = AppSettings(defaults: defaults)
-        settings.polishPrompt = "   "
-        XCTAssertEqual(settings.effectivePolishPrompt, Polisher.defaultPrompt)
-
-        settings.polishPrompt = "只改錯字"
-        XCTAssertEqual(settings.effectivePolishPrompt, "只改錯字")
-        settings.resetPolishPrompt()
-        XCTAssertTrue(settings.isPromptDefault)
+        defaults.set("只改錯字", forKey: "polishPrompt")
+        defaults.set("retired-style", forKey: "polishStyle")
+        XCTAssertEqual(AppSettings(defaults: defaults).polishStyle, .keepVoice)
     }
 
     func test設定存著不在名單裡的模型時退回預設() throws {

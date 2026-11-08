@@ -52,20 +52,21 @@ extension TranscriptDetailView {
         polishFailed = false
         isPolishing = true
         let settings = AppSettings.shared
-        // 開始時就記下模型：潤飾中途改了設定，記在這篇上的仍是實際送出去的那個。
+        // 開始時就記下模型與潤飾方式：潤飾中途改了設定，記在這篇上的仍是實際送出去的那個。
         let model = settings.polishModel
+        let style = settings.polishStyle
         let source = transcript
         polishTask = Task { @MainActor in
             do {
                 let draft = try await Polisher().polish(
                     rawText: source.rawText,
                     model: model,
-                    systemPrompt: settings.effectivePolishPrompt,
+                    style: style,
                     vocabulary: settings.vocabulary
                 )
                 // 回應回來、還沒套用的那一瞬間按了取消，也不准蓋掉。
                 try Task.checkCancellation()
-                try applyRepolish(draft, mode: mode, model: model)
+                try applyRepolish(draft, mode: mode, model: model, style: style)
             } catch is CancellationError {
                 // 使用者自己按取消，不跳訊息（詞彙表語氣規則）。
             } catch OpenAIClient.Failure.transport(.cancelled) {
@@ -77,13 +78,19 @@ extension TranscriptDetailView {
         }
     }
 
-    func applyRepolish(_ draft: String, mode: RepolishMode, model: String) throws {
+    func applyRepolish(
+        _ draft: String,
+        mode: RepolishMode,
+        model: String,
+        style: PolishStyle
+    ) throws {
         let store = TranscriptStore()
         switch mode {
         case .overwrite:
             var updated = transcript
             updated.draftText = draft
             updated.polishModel = model
+            updated.polishStyle = style.rawValue
             updated.updatedAt = Date()
             try store.save(updated)
             transcript = updated
@@ -93,7 +100,8 @@ extension TranscriptDetailView {
                 durationSeconds: transcript.durationSeconds,
                 rawText: transcript.rawText,
                 draftText: draft,
-                polishModel: model
+                polishModel: model,
+                polishStyle: style.rawValue
             )
             try store.save(copy)
             dismiss()

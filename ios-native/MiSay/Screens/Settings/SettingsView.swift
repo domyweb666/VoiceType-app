@@ -181,15 +181,16 @@ private extension SettingsView {
             } label: {
                 detailRow("自訂詞彙", value: "\(settings.vocabulary.count) 個")
             }
-            NavigationLink {
-                PolishPromptView()
-            } label: {
-                detailRow("潤飾提示詞", value: settings.isPromptDefault ? "預設" : "改過")
+            // 2026-11-08 米：提示詞不給改，改成二選一。
+            Picker("潤飾方式", selection: $settings.polishStyle) {
+                ForEach(PolishStyle.allCases) { style in
+                    Text(style.title).tag(style)
+                }
             }
         } header: {
             Text("潤飾")
         } footer: {
-            Text(Self.modelNote)
+            Text(Self.styleNote + Self.modelNote)
                 .font(Token.Fonts.footnote)
         }
         .font(Token.Fonts.body)
@@ -240,6 +241,10 @@ private extension SettingsView {
         .font(Token.Fonts.body)
         .listRowBackground(Token.Colors.rowBackground)
     }
+
+    /// 兩種潤飾各一句，講刪到哪裡；重新潤飾也照這裡選的走。
+    static let styleNote = "保留原聲只刪卡詞、重講和句首的「那」「然後」，留住你講話的節奏。"
+        + "大幅潤飾會為了通順拆句、改語法，刪得比較多。重新潤飾也照這裡選的走。\n"
 
     /// 模型名稱與狀態 2026-11-01 查證（見 `Polisher`）；價格會變，這裡不寫數字。
     static var modelNote: String {

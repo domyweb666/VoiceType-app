@@ -175,20 +175,23 @@ final class TranscriptionQueue {
     private func polishAndSave(_ transcript: Transcript) async -> Outcome {
         var polished = transcript
         let model = settings.polishModel
+        let style = settings.polishStyle
         let startedAt = Date()
         do {
             let draft = try await polisher.polish(
                 rawText: transcript.rawText,
                 model: model,
-                systemPrompt: settings.effectivePolishPrompt,
+                style: style,
                 vocabulary: settings.vocabulary
             )
             polished.draftText = draft
             polished.polishModel = model
+            polished.polishStyle = style.rawValue
             polished.updatedAt = Date()
             let waited = Int(Date().timeIntervalSince(startedAt))
             DiagnosticLog.shared.record(
-                "潤飾 \(model)，等了 \(waited) 秒，\(transcript.rawText.count) 字變 \(draft.count) 字"
+                "潤飾 \(model) \(style.rawValue)，等了 \(waited) 秒，"
+                    + "\(transcript.rawText.count) 字變 \(draft.count) 字"
             )
         } catch let failure as OpenAIClient.Failure {
             logPolishFailure(failure, model: model, startedAt: startedAt)

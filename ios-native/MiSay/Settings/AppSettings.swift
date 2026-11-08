@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// 方塊 M7：一般設定（模型、詞彙、提示詞與還原、自動複製）。都不是秘密，放 UserDefaults；金鑰在 M6。
+/// 方塊 M7：一般設定（模型、詞彙、潤飾方式、自動複製）。都不是秘密，放 UserDefaults；金鑰在 M6。
 /// 外觀與字級跟系統走，不另外存。
 @Observable
 final class AppSettings {
@@ -13,7 +13,8 @@ final class AppSettings {
     private enum Key {
         static let autoCopy = "autoCopy"
         static let vocabulary = "vocabulary"
-        static let polishPrompt = "polishPrompt"
+        /// 2026-11-08 起不讀舊的 "polishPrompt"（提示詞全文不再給改），只存選了哪一項。
+        static let polishStyle = "polishStyle"
         static let polishModel = "polishModel"
         static let hasSeenCostNotice = "hasSeenCostNotice"
     }
@@ -24,7 +25,8 @@ final class AppSettings {
         self.defaults = defaults
         autoCopy = defaults.object(forKey: Key.autoCopy) as? Bool ?? true
         vocabulary = defaults.stringArray(forKey: Key.vocabulary) ?? []
-        polishPrompt = defaults.string(forKey: Key.polishPrompt) ?? Polisher.defaultPrompt
+        let storedStyle = defaults.string(forKey: Key.polishStyle) ?? ""
+        polishStyle = PolishStyle(rawValue: storedStyle) ?? PolishStyle.defaultStyle
         let storedModel = defaults.string(forKey: Key.polishModel) ?? Polisher.defaultModel
         polishModel = Self.polishModels.contains(storedModel) ? storedModel : Polisher.defaultModel
         hasSeenCostNotice = defaults.bool(forKey: Key.hasSeenCostNotice)
@@ -45,27 +47,12 @@ final class AppSettings {
         didSet { defaults.set(vocabulary, forKey: Key.vocabulary) }
     }
 
-    /// 潤飾提示詞（F3）。空字串視同預設。
-    var polishPrompt: String {
-        didSet { defaults.set(polishPrompt, forKey: Key.polishPrompt) }
+    /// 潤飾二選一（2026-11-08 取代 F3 的可改提示詞）。預設保留原聲。
+    var polishStyle: PolishStyle {
+        didSet { defaults.set(polishStyle.rawValue, forKey: Key.polishStyle) }
     }
 
     var polishModel: String {
         didSet { defaults.set(polishModel, forKey: Key.polishModel) }
-    }
-
-    var isPromptDefault: Bool {
-        polishPrompt == Polisher.defaultPrompt
-    }
-
-    /// F3「還原預設」：一鍵回到 `Polisher.defaultPrompt` 那一版。
-    func resetPolishPrompt() {
-        polishPrompt = Polisher.defaultPrompt
-    }
-
-    /// 送出去用的提示詞：使用者清空時退回預設，不送空的 system。
-    var effectivePolishPrompt: String {
-        let trimmed = polishPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? Polisher.defaultPrompt : polishPrompt
     }
 }

@@ -13,6 +13,9 @@ struct Transcript: Codable, Identifiable, Hashable {
     var draftText: String?
     /// 潤飾用的模型名稱（F4 要讓歷史看得出來）。
     var polishModel: String?
+    /// 潤飾方式的 `PolishStyle.rawValue`（2026-11-08 加）。存字串不存列舉：哪天認不得的值，
+    /// 這篇照樣讀得出來，不會被當成壞檔搬走。舊的篇沒有這欄，是 nil。
+    var polishStyle: String?
     var updatedAt: Date
 
     init(
@@ -22,6 +25,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         rawText: String,
         draftText: String? = nil,
         polishModel: String? = nil,
+        polishStyle: String? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
@@ -30,6 +34,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         self.rawText = rawText
         self.draftText = draftText
         self.polishModel = polishModel
+        self.polishStyle = polishStyle
         self.updatedAt = updatedAt
     }
 

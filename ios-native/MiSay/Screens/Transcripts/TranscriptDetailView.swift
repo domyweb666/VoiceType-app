@@ -33,6 +33,14 @@ struct TranscriptDetailView: View {
     /// 秒數照設計檔「草稿每次停止打字 1 秒就存」。
     static let autosaveDelaySeconds: Double = 1
 
+    /// 「潤飾：保留原聲・gpt-5.4-mini」；以前的篇沒記潤飾方式，照舊「潤飾模型：x」。
+    static func polishNote(model: String, style: String?) -> String {
+        guard let title = PolishStyle.title(forStored: style) else {
+            return "潤飾模型：\(model)"
+        }
+        return "潤飾：\(title)・\(model)"
+    }
+
     init(transcript: Transcript, onDelete: @escaping (Transcript) -> Void) {
         _transcript = State(initialValue: transcript)
         _draftEdit = State(initialValue: transcript.draftText ?? "")
@@ -93,9 +101,9 @@ private extension TranscriptDetailView {
             Text(TranscriptListView.subtitle(for: transcript))
                 .font(Token.Fonts.secondary)
                 .foregroundStyle(Token.Colors.textSecondary)
-            // 片 F4：歷史看得出這篇用哪個模型潤飾。
+            // 片 F4：歷史看得出這篇用哪個模型潤飾；2026-11-08 起也看得出是哪一種潤飾。
             if let model = transcript.polishModel {
-                Text("潤飾模型：\(model)")
+                Text(Self.polishNote(model: model, style: transcript.polishStyle))
                     .font(Token.Fonts.footnote)
                     .foregroundStyle(Token.Colors.textSecondary)
             }
