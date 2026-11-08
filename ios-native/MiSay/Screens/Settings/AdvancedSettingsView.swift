@@ -20,6 +20,16 @@ struct AdvancedSettingsView: View {
             .font(Token.Fonts.body)
             .listRowBackground(Token.Colors.rowBackground)
 
+            Section {
+                Toggle("錄音中先整理只用 Wi-Fi", isOn: $settings.liveTranscriptionWiFiOnly)
+            } footer: {
+                Text("錄音中每講滿約 5 分鐘就先送去轉成文字，按停止後很快就好。"
+                    + "關著時，走路也會用行動網路，每小時約 14 MB。")
+                    .font(Token.Fonts.footnote)
+            }
+            .font(Token.Fonts.body)
+            .listRowBackground(Token.Colors.rowBackground)
+
             BackupSection()
 
             Section {

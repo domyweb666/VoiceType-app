@@ -12,6 +12,7 @@ final class AppSettings {
 
     private enum Key {
         static let autoCopy = "autoCopy"
+        static let liveTranscriptionWiFiOnly = "liveTranscriptionWiFiOnly"
         static let vocabulary = "vocabulary"
         /// 2026-11-08 起不讀舊的 "polishPrompt"（提示詞全文不再給改），只存選了哪一項。
         static let polishStyle = "polishStyle"
@@ -32,6 +33,7 @@ final class AppSettings {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         autoCopy = defaults.object(forKey: Key.autoCopy) as? Bool ?? true
+        liveTranscriptionWiFiOnly = defaults.bool(forKey: Key.liveTranscriptionWiFiOnly)
         vocabulary = defaults.stringArray(forKey: Key.vocabulary) ?? []
         let storedStyle = defaults.string(forKey: Key.polishStyle) ?? ""
         polishStyle = PolishStyle(rawValue: storedStyle) ?? PolishStyle.defaultStyle
@@ -53,6 +55,11 @@ final class AppSettings {
     /// 整理完自動複製（F1）。預設開。
     var autoCopy: Bool {
         didSet { defaults.set(autoCopy, forKey: Key.autoCopy) }
+    }
+
+    /// S4-2：錄音中先整理只用 Wi-Fi。預設關（米 11/08 照建議）：走路時沒有 Wi-Fi，開了等於沒有邊錄邊轉。
+    var liveTranscriptionWiFiOnly: Bool {
+        didSet { defaults.set(liveTranscriptionWiFiOnly, forKey: Key.liveTranscriptionWiFiOnly) }
     }
 
     /// 自訂詞彙（F2）：進轉錄提示詞與潤飾提示詞。

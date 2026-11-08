@@ -138,9 +138,14 @@ struct RecordingTranscriptionJob {
         let startedAt = Date()
         let text: String
         do {
+            // S4-2：壓成 m4a 再送；壓不了照送 WAV。漏字判斷照舊看原本的 WAV。
+            let compressed = AudioCompressor.m4a(fromWAV: request.audio)
+            let filename = compressed == nil
+                ? request.filename
+                : (request.filename as NSString).deletingPathExtension + ".m4a"
             text = try await transcriber.transcribe(
-                audio: request.audio,
-                filename: request.filename,
+                audio: compressed ?? request.audio,
+                filename: filename,
                 prompt: request.prompt
             )
         } catch {

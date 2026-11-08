@@ -42,8 +42,11 @@ extension TranscriptionQueue {
         DiagnosticLog.shared.record("邊錄邊轉停下")
     }
 
-    /// 沒金鑰就不送（一直失敗沒意義）。S4-2 會在這裡多看「只用 Wi-Fi」。
+    /// 沒金鑰就不送（一直失敗沒意義）；設了只用 Wi-Fi 而現在走行動網路，也先不送，停止後再整理。
     func canTranscribeWhileRecording() -> Bool {
-        (try? APIKeyStore().read()) != nil
+        if settings.liveTranscriptionWiFiOnly, NetworkPath.shared.isExpensive {
+            return false
+        }
+        return (try? APIKeyStore().read()) != nil
     }
 }
