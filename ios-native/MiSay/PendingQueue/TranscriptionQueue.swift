@@ -21,19 +21,20 @@ final class TranscriptionQueue {
         case transcriptionFailed(OpenAIClient.Failure)
         case polishFailed(Transcript, OpenAIClient.Failure)
         case finished(Transcript)
-        /// 口語稿存不進歷史：錄音檔還在待轉錄（沒刪）。
+        /// 口語稿存不進歷史：錄音檔還在待轉錄（沒動）。
         case storageFailed
         /// 潤飾回來了但存不進去：口語稿那一版還在歷史裡，錄音檔已刪。
         case draftNotSaved(Transcript)
         /// 錄音檔讀不到或切不了段（不是 OpenAI 的事）：檔還在待轉錄，沒送出去的不扣款。
         case recordingUnreadable
-        /// 口語稿存好了但錄音檔刪不掉：下一輪會從進度檔接回同一篇再存一次、再潤飾一次（潤飾會再扣款）。
+        /// 口語稿存好了但錄音檔搬不進留存區（S2-5 起不刪、改搬）：下一輪會從進度檔接回同一篇再存一次、
+        /// 再潤飾一次（潤飾會再扣款）。名字沿用舊的，畫面已經接這個結局。
         case recordingNotDeleted(Transcript)
     }
 
     /// `Result` 的失敗那一邊要是 Error；包一層讓轉錄、存口語稿這兩步能把要停下來的結局帶回來。
     /// `value` 是 nil 表示被取消：不給結局，呼叫端當沒發生。
-    private struct StoppedOutcome: Error {
+    struct StoppedOutcome: Error {
         let value: Outcome?
     }
 
@@ -47,9 +48,10 @@ final class TranscriptionQueue {
     var isProcessingPending = false
 
     let pending = PendingRecordings()
+    let retained = RetainedRecordings()
     private let keyStore = APIKeyStore()
     let store = TranscriptStore()
-    private let transcriber: Transcriber
+    let transcriber: Transcriber
     let polisher: Polisher
     let settings: AppSettings
 
@@ -93,7 +95,7 @@ final class TranscriptionQueue {
         }
 
         let transcript: Transcript
-        switch saveRawThenDeleteRecording(rawText, recordingAt: url, job: job) {
+        switch saveRawThenRetainRecording(rawText, recordingAt: url, job: job) {
         case let .success(saved):
             transcript = saved
         case let .failure(outcome):
@@ -107,7 +109,7 @@ final class TranscriptionQueue {
     }
 
     /// 轉錄這一步。OpenAI 的錯原樣帶回；讀不到錄音、切不了段是 `.recordingUnreadable`；被取消時不給結局。
-    private func transcribe(
+    func transcribe(
         _ url: URL,
         with job: RecordingTranscriptionJob
     ) async -> Result<String, StoppedOutcome> {
@@ -130,9 +132,9 @@ final class TranscriptionQueue {
         }
     }
 
-    /// 口語稿落地之後才准刪錄音檔（安全標準二：存好才准刪）；錄音檔刪掉之後才清切段與進度檔，
-    /// 不然錄音刪不掉時進度也沒了，下一輪只能整段重送。
-    private func saveRawThenDeleteRecording(
+    /// 口語稿落地之後才准把錄音搬離待轉錄（安全標準二）；搬好之後才清進度檔，
+    /// 不然錄音搬不走時進度也沒了，下一輪只能整段重送。S2-5 起錄音不刪，搬進留存區等文字稿存好再留 7 天。
+    private func saveRawThenRetainRecording(
         _ rawText: String,
         recordingAt url: URL,
         job: RecordingTranscriptionJob
@@ -151,7 +153,7 @@ final class TranscriptionQueue {
             return .failure(StoppedOutcome(value: .storageFailed))
         }
         do {
-            try pending.delete(recordingAt: url)
+            try retained.retain(recordingAt: url, for: transcript.id)
         } catch {
             return .failure(StoppedOutcome(value: .recordingNotDeleted(transcript)))
         }

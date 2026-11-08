@@ -52,41 +52,49 @@ extension TranscriptDetailView {
     }
 
     /// 「整理這篇」：只有還沒有文字稿的篇會出現，所以直接存回同一篇。
+    /// 走整理流水的分塊潤飾（S2-3）：長稿不會一次送整篇超時；做到一半失敗，下次從下一塊接著做。
     func polishThis() {
         guard transcript.draftText == nil else {
             return
         }
+        let source = transcript
+        runPolish { await queue.retryPolish(source) }
+    }
+
+    /// S2-5「⋯ → 從錄音重新轉錄」：確認框按了重新轉錄才會叫。
+    func retranscribe() {
+        flushAutosave()
+        let source = transcript
+        runPolish { await queue.retranscribe(source) }
+    }
+
+    private func runPolish(_ work: @escaping @MainActor () async -> TranscriptionQueue.Outcome?) {
         polishFailed = false
         isPolishing = true
-        let settings = AppSettings.shared
-        // 開始時就記下模型與潤飾方式：整理中途改了設定，記在這篇上的仍是實際送出去的那個。
-        let model = settings.polishModel
-        let style = settings.polishStyle
-        let source = transcript
         polishTask = Task { @MainActor in
-            do {
-                let draft = try await Polisher().polish(
-                    rawText: source.rawText,
-                    model: model,
-                    style: style,
-                    vocabulary: settings.vocabulary,
-                    habits: settings.activeHabits
-                )
-                // 回應回來、還沒套用的那一瞬間按了取消，也不准存。
-                try Task.checkCancellation()
-                var updated = transcript
-                updated.applyPolish(draft, model: model, style: style)
-                try TranscriptStore().save(updated)
-                transcript = updated
-                draftEdit = draft
-            } catch is CancellationError {
-                // 使用者自己按取消，不跳訊息（詞彙表語氣規則）。
-            } catch OpenAIClient.Failure.transport(.cancelled) {
-                // 同上：取消在連線層的樣子。
-            } catch {
-                polishFailed = true
-            }
+            let outcome = await work()
             isPolishing = false
+            // 使用者自己按取消，不跳訊息（詞彙表語氣規則）；做好的塊流水已經存了。
+            guard !Task.isCancelled else {
+                return
+            }
+            apply(outcome)
+        }
+    }
+
+    private func apply(_ outcome: TranscriptionQueue.Outcome?) {
+        switch outcome {
+        case let .finished(updated):
+            transcript = updated
+            draftEdit = updated.draftText ?? ""
+        case let .polishFailed(updated, _), let .draftNotSaved(updated):
+            transcript = updated
+            polishFailed = true
+        case nil:
+            break
+        case .noAPIKey, .transcriptionFailed, .storageFailed, .recordingUnreadable,
+             .recordingNotDeleted:
+            polishFailed = true
         }
     }
 

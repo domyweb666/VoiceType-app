@@ -27,6 +27,9 @@ final class TranscriptionQueueTests: XCTestCase {
         UserDefaults().removePersistentDomain(forName: suiteName)
         for id in savedIDs {
             try? store.delete(id: id)
+            if let url = try? RetainedRecordings().url(for: id) {
+                try? FileManager.default.removeItem(at: url)
+            }
         }
         try FileManager.default.removeItem(at: directory)
     }
@@ -84,6 +87,23 @@ final class TranscriptionQueueTests: XCTestCase {
         let saved = try XCTUnwrap(store.loadAll().transcripts.first { $0.id == transcript.id })
         XCTAssertEqual(saved.rawText, "口語稿。")
         XCTAssertEqual(saved.draftText, "草稿。")
+        XCTAssertNotNil(saved.polishedAt)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: recording.path))
+        XCTAssertTrue(RetainedRecordings().exists(for: transcript.id), "錄音搬進留存區，不刪（S2-5）")
+
+        FakeOpenAIServer.reset()
+        FakeOpenAIServer.queuedReplies = [
+            .http(status: 200, body: #"{"text":"重轉的口語稿。"}"#),
+            .http(status: 200, body: chat("重轉的草稿。")),
+        ]
+        let again = try await makeQueue().retranscribe(saved)
+        guard case let .finished(redone) = again else {
+            return XCTFail("重新轉錄應該整理完，拿到 \(String(describing: again))")
+        }
+        XCTAssertEqual(redone.id, transcript.id, "存回同一篇")
+        XCTAssertEqual(redone.rawText, "重轉的口語稿。")
+        XCTAssertEqual(redone.draftText, "重轉的草稿。")
+        XCTAssertTrue(RetainedRecordings().exists(for: transcript.id))
     }
 
     func test流水分塊潤飾第二塊失敗再來只送剩下的塊() async throws {

@@ -15,6 +15,9 @@ extension TranscriptionQueue {
         }
         isProcessingPending = true
         defer { isProcessingPending = false }
+        if let loaded = try? store.loadAll() {
+            retained.purge(loaded: loaded)
+        }
         for recording in recordings.reversed() {
             // 清單是開跑時拍的照：這段時間面板可能已經整理完那一筆、錄音檔已刪。
             let exists = FileManager.default.fileExists(atPath: recording.url.path)
