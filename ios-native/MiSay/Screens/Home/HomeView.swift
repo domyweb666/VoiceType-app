@@ -51,6 +51,7 @@ struct HomeView: View {
             reloadKey()
             // 不用 .task 自己的工作：推頁時首頁會消失、.task 被取消，整理到一半的那筆會被當成失敗。
             Task { await queue.processPending() }
+            EditLearningRunner.start()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else {
@@ -58,6 +59,8 @@ struct HomeView: View {
             }
             reloadKey()
             Task { await queue.processPending() }
+            // 上次沒網路沒學成的修改，回前景再試。
+            EditLearningRunner.start()
         }
         .onChange(of: isCurrentPage) { _, isShown in
             if isShown {

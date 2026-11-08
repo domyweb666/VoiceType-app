@@ -69,7 +69,8 @@ extension TranscriptDetailView {
                     rawText: source.rawText,
                     model: model,
                     style: style,
-                    vocabulary: settings.vocabulary
+                    vocabulary: settings.vocabulary,
+                    habits: settings.activeHabits
                 )
                 // 回應回來、還沒套用的那一瞬間按了取消，也不准存。
                 try Task.checkCancellation()

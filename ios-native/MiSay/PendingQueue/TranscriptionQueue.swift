@@ -182,7 +182,8 @@ final class TranscriptionQueue {
                 rawText: transcript.rawText,
                 model: model,
                 style: style,
-                vocabulary: settings.vocabulary
+                vocabulary: settings.vocabulary,
+                habits: settings.activeHabits
             )
             polished.applyPolish(draft, model: model, style: style)
             let waited = Int(Date().timeIntervalSince(startedAt))

@@ -68,7 +68,11 @@ struct TranscriptDetailView: View {
             }
             .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
             .onChange(of: draftEdit) { _, _ in scheduleAutosave() }
-            .onDisappear { flushAutosave() }
+            .onDisappear {
+                flushAutosave()
+                // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。
+                EditLearningRunner.start()
+            }
             .hidesPageDots()
     }
 

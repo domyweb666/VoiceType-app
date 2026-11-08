@@ -37,6 +37,7 @@ struct SettingsView: View {
             }
             .listRowBackground(Token.Colors.rowBackground)
             polishSection
+            LearningSection()
             habitsSection
             BackupSection()
             aboutSection

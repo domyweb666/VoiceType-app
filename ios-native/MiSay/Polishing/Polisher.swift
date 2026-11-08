@@ -29,14 +29,19 @@ struct Polisher {
         self.retryBaseDelaySeconds = retryBaseDelaySeconds
     }
 
-    /// 自訂詞彙（F2）接在 system 提示詞後面，口語稿永遠只在 user 那一則。
+    /// 自訂詞彙（F2）與學到的習慣（11/08）接在 system 提示詞後面，口語稿永遠只在 user 那一則。
     func polish(
         rawText: String,
         model: String,
         style: PolishStyle,
-        vocabulary: [String]
+        vocabulary: [String],
+        habits: [String] = []
     ) async throws -> String {
-        let system = Self.systemContent(prompt: style.prompt, vocabulary: vocabulary)
+        let system = Self.systemContent(
+            prompt: style.prompt,
+            vocabulary: vocabulary,
+            habits: habits
+        )
         let request = ChatRequest(
             model: model,
             messages: [
@@ -74,14 +79,24 @@ struct Polisher {
         return draft
     }
 
-    static func systemContent(prompt: String, vocabulary: [String]) -> String {
+    static func systemContent(
+        prompt: String,
+        vocabulary: [String],
+        habits: [String] = []
+    ) -> String {
         let words = vocabulary
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        guard !words.isEmpty else {
-            return prompt
+        var content = prompt
+        if !words.isEmpty {
+            content += "\n\n專有名詞（這些字要寫對）：" + words.joined(separator: "、")
         }
-        return prompt + "\n\n專有名詞（這些字要寫對）：" + words.joined(separator: "、")
+        // 從這個人的修改學來的；跟上面衝突時照這裡，因為這是他自己改出來的樣子。
+        if !habits.isEmpty {
+            content += "\n\n這個人的改稿習慣（跟上面規則衝突時，照這裡）：\n"
+                + habits.map { "- " + $0 }.joined(separator: "\n")
+        }
+        return content
     }
 
     private struct ChatMessage: Codable {

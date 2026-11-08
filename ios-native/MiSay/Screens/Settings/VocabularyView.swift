@@ -29,16 +29,15 @@ struct VocabularyView: View {
 
             Section {
                 ForEach(settings.vocabulary, id: \.self) { word in
-                    Text(word)
-                        .font(Token.Fonts.body)
-                        .foregroundStyle(Token.Colors.textPrimary)
+                    wordRow(word)
                 }
                 .onDelete { offsets in
-                    settings.vocabulary.remove(atOffsets: offsets)
+                    // 刪掉自動加的詞會記住，之後不再自動加回來（2026-11-08）。
+                    settings.removeVocabulary(atOffsets: offsets)
                 }
             } footer: {
                 if !settings.vocabulary.isEmpty {
-                    Text("左滑可以刪掉一個。")
+                    Text("左滑可以刪掉一個。標「自動」的是從你改過的文字稿學來的，刪掉就不會再加回來。")
                         .font(Token.Fonts.footnote)
                         .foregroundStyle(Token.Colors.textSecondary)
                 }
@@ -66,6 +65,21 @@ struct VocabularyView: View {
         }
         let isDuplicate = existing.contains { $0.caseInsensitiveCompare(word) == .orderedSame }
         return isDuplicate ? nil : word
+    }
+
+    /// 自動加的詞右邊一個灰色小字「自動」，字跟顏色一起講，不只靠顏色（使用規則第 4 條）。
+    private func wordRow(_ word: String) -> some View {
+        HStack {
+            Text(word)
+                .font(Token.Fonts.body)
+                .foregroundStyle(Token.Colors.textPrimary)
+            Spacer()
+            if settings.isAutoAdded(word) {
+                Text("自動")
+                    .font(Token.Fonts.footnote)
+                    .foregroundStyle(Token.Colors.textSecondary)
+            }
+        }
     }
 
     private var prompt: Text {

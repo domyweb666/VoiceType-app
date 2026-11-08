@@ -19,6 +19,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     /// 潤飾剛出來、還沒被人改過的那份文字稿（2026-11-08 加）。之後自動詞彙、從修改學習要拿它跟
     /// `draftText` 比，看人改了哪裡。改字只動 `draftText`，這欄不動；舊的篇沒有這欄，是 nil。
     var originalDraft: String?
+    /// 上次學到哪（2026-11-08 加）：學過的那份文字稿。下次只比它跟現在的，同一處修改不會學兩次。
+    var learnedDraft: String?
     var updatedAt: Date
 
     init(
@@ -30,6 +32,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         polishModel: String? = nil,
         polishStyle: String? = nil,
         originalDraft: String? = nil,
+        learnedDraft: String? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
@@ -40,6 +43,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         self.polishModel = polishModel
         self.polishStyle = polishStyle
         self.originalDraft = originalDraft
+        self.learnedDraft = learnedDraft
         self.updatedAt = updatedAt
     }
 
@@ -52,8 +56,20 @@ struct Transcript: Codable, Identifiable, Hashable {
     mutating func applyPolish(_ draft: String, model: String, style: PolishStyle) {
         draftText = draft
         originalDraft = draft
+        learnedDraft = draft
         polishModel = model
         polishStyle = style.rawValue
         updatedAt = Date()
+    }
+
+    /// 有沒有還沒學過的修改：從上次學到的（沒學過就是原稿）到現在的文字稿有變。
+    /// 舊的篇沒有原稿，比不出改了哪裡，不算。
+    var unlearnedEdit: (from: String, to: String)? {
+        guard let draftText, let baseline = learnedDraft ?? originalDraft,
+              baseline != draftText
+        else {
+            return nil
+        }
+        return (baseline, draftText)
     }
 }
