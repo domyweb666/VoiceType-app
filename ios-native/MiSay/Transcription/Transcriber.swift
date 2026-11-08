@@ -37,6 +37,15 @@ struct Transcriber {
         } catch {
             throw Failure.cannotReadFile
         }
+        return try await transcribe(
+            audio: audio,
+            filename: fileURL.lastPathComponent,
+            prompt: prompt
+        )
+    }
+
+    /// 長錄音的一段（S2-1）：直接從原檔讀出來的那一段，不落地成檔。
+    func transcribe(audio: Data, filename: String, prompt: String) async throws -> String {
         var form = MultipartForm()
         form.addField(name: "model", value: model)
         form.addField(name: "response_format", value: "json")
@@ -45,7 +54,7 @@ struct Transcriber {
         }
         form.addFile(
             name: "file",
-            filename: fileURL.lastPathComponent,
+            filename: filename,
             contentType: "audio/wav",
             data: audio
         )
