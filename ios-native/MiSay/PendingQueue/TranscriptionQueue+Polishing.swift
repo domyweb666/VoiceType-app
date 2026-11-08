@@ -55,10 +55,11 @@ extension TranscriptionQueue {
         } catch {
             return .draftNotSaved(working)
         }
+        TranscriptReadyNotice().post(for: polished)
         return .finished(polished)
     }
 
-    private func polishChunk(
+    func polishChunk(
         _ chunk: String,
         model: String,
         style: PolishStyle,

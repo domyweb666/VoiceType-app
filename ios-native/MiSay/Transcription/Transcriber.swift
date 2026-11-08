@@ -55,7 +55,7 @@ struct Transcriber {
         form.addFile(
             name: "file",
             filename: filename,
-            contentType: "audio/wav",
+            contentType: filename.hasSuffix(".m4a") ? "audio/mp4" : "audio/wav",
             data: audio
         )
 

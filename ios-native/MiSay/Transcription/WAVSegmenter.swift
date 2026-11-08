@@ -42,6 +42,13 @@ enum WAVSegmenter {
         }
     }
 
+    /// 錄音中（S4-1）：已經錄到的部分裡，刀位不會再變的那幾段。最後一段還在長，不算。
+    /// 每一刀只看那一分鐘的聲音，那一分鐘錄完了刀位就定了，停止後整份重切也會切在同一個地方
+    /// （只有最後不滿 30 秒的尾巴會併進前一段，那一段停止後重轉）。
+    static func finishedSegments(ofLive source: URL) throws -> [Segment] {
+        try Array(plan(source).dropLast())
+    }
+
     /// 純切法（CI 測得到）：`quietestFrame` 回「這個區間裡最安靜的那一格從哪個 frame 開始」。
     static func plan(
         totalFrames: Int,

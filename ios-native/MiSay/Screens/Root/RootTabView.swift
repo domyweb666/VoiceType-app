@@ -40,6 +40,24 @@ struct RootTabView: View {
             .tag(Page.settings)
         }
         .tint(Token.Colors.link)
+        // S4-3：點了「文字稿好了」通知。冷啟動時 id 在畫面出來前就到了，onChange 看不到，要 onAppear 補。
+        .onAppear { openFromNotification(NotificationRouter.shared.openTranscriptID) }
+        .onChange(of: NotificationRouter.shared.openTranscriptID) { _, id in
+            openFromNotification(id)
+        }
+    }
+
+    private func openFromNotification(_ id: UUID?) {
+        guard let id else {
+            return
+        }
+        NotificationRouter.shared.openTranscriptID = nil
+        // 那篇讀不到（剛好被刪了）就停在原本的分頁，什麼都不做。
+        let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
+        guard let transcript = transcripts.first(where: { $0.id == id }) else {
+            return
+        }
+        open(transcript)
     }
 
     private func open(_ transcript: Transcript) {

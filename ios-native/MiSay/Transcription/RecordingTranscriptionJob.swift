@@ -9,56 +9,10 @@ struct RecordingTranscriptionJob {
         case cannotSaveProgress
     }
 
-    /// 進度檔：哪幾段已經有口語稿，以及這段錄音存進歷史時用哪個 id。放在錄音檔旁邊，錄音刪掉時一起刪。
-    /// id 先定好：口語稿存好但錄音刪不掉時，下一輪存回同一篇，不會多一篇重複的。
-    /// 每段的起訖與切法版本一起記（S2-1）：舊版照 10 分鐘切的進度檔沒有這兩欄，對不上就從頭轉，
-    /// 不拿舊段的字接新段；id 照舊沿用，不會多一篇。
-    struct Progress: Codable, Equatable {
-        static let currentPlanVersion = 2
-
-        var segmentTexts: [Int: String] = [:]
-        var transcriptID = UUID()
-        var planVersion: Int?
-        var segments: [WAVSegmenter.Segment]?
-        /// 重送一次字數還是少的段（從 0 數，S2-2）。
-        var suspectSegments: Set<Int> = []
-
-        init() {}
-
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            segmentTexts = try container.decodeIfPresent(
-                [Int: String].self,
-                forKey: .segmentTexts
-            ) ?? [:]
-            transcriptID = try container.decode(UUID.self, forKey: .transcriptID)
-            planVersion = try container.decodeIfPresent(Int.self, forKey: .planVersion)
-            segments = try container.decodeIfPresent(
-                [WAVSegmenter.Segment].self,
-                forKey: .segments
-            )
-            suspectSegments = try container.decodeIfPresent(
-                Set<Int>.self,
-                forKey: .suspectSegments
-            ) ?? []
-        }
-
-        /// 切法換了或段落對不上：已轉的字作廢，id 留著。
-        mutating func adopt(_ plan: [WAVSegmenter.Segment]) {
-            guard planVersion != Self.currentPlanVersion || segments != plan else {
-                return
-            }
-            segmentTexts = [:]
-            suspectSegments = []
-            planVersion = Self.currentPlanVersion
-            segments = plan
-        }
-    }
-
     static let progressExtension = "progress.json"
 
-    private let transcriber: Transcriber
-    private let vocabulary: [String]
+    let transcriber: Transcriber
+    let vocabulary: [String]
     private let fileManager = FileManager.default
 
     init(transcriber: Transcriber = Transcriber(), vocabulary: [String] = []) {
@@ -107,6 +61,20 @@ struct RecordingTranscriptionJob {
         return (0 ..< segments.count).compactMap { progress.segmentTexts[$0] }.joined()
     }
 
+    /// 口語稿存進歷史前讀：錄音中先潤飾好、而且口語稿對得上的那幾塊（S4-1）。沒有就是 nil。
+    func polishedChunks(
+        matching rawText: String,
+        polishedWith settings: String,
+        forRecordingAt recordingURL: URL
+    ) -> [String]? {
+        let progress = loadProgress(for: recordingURL)
+        guard progress.polishedWith == settings else {
+            return nil
+        }
+        let count = progress.polishedPrefixCount(matching: PolishChunks.split(rawText))
+        return count == 0 ? nil : Array(progress.polishedDrafts.prefix(count))
+    }
+
     /// 口語稿存進歷史前讀：可能漏字的段，從 1 數。沒有就是 nil（存進文字稿時不多一欄）。
     func possiblyMissingSegments(forRecordingAt recordingURL: URL) -> [Int]? {
         let suspects = loadProgress(for: recordingURL).suspectSegments
@@ -125,20 +93,25 @@ struct RecordingTranscriptionJob {
         return Double(text.count) < speech * minCharactersPerSpeechSecond
     }
 
-    private struct SegmentRequest {
+    struct SegmentRequest {
         let audio: Data
         let filename: String
         let prompt: String
         let label: String
     }
 
-    private func send(_ request: SegmentRequest) async throws -> String {
+    func send(_ request: SegmentRequest) async throws -> String {
         let startedAt = Date()
         let text: String
         do {
+            // S4-2：壓成 m4a 再送；壓不了照送 WAV。漏字判斷照舊看原本的 WAV。
+            let compressed = AudioCompressor.m4a(fromWAV: request.audio)
+            let filename = compressed == nil
+                ? request.filename
+                : (request.filename as NSString).deletingPathExtension + ".m4a"
             text = try await transcriber.transcribe(
-                audio: request.audio,
-                filename: request.filename,
+                audio: compressed ?? request.audio,
+                filename: filename,
                 prompt: request.prompt
             )
         } catch {
@@ -173,7 +146,7 @@ struct RecordingTranscriptionJob {
 
     /// 進度檔裡是一段一段的口語稿，跟文字稿一樣加密（S2-4，安全標準二），金鑰共用文字稿那把。
     /// v0.2.1 以前的進度檔是明文 JSON：解不開時照舊讀一次，下次存就變加密的。
-    private func loadProgress(for recordingURL: URL) -> Progress {
+    func loadProgress(for recordingURL: URL) -> Progress {
         // 進度檔讀不到就當從頭開始：最多多送已成功的段，不會丟任何東西。
         guard let data = try? Data(contentsOf: Self.progressURL(for: recordingURL)) else {
             return Progress()
@@ -182,7 +155,7 @@ struct RecordingTranscriptionJob {
         return (try? JSONDecoder().decode(Progress.self, from: plaintext)) ?? Progress()
     }
 
-    private func saveProgress(_ progress: Progress, for recordingURL: URL) throws {
+    func saveProgress(_ progress: Progress, for recordingURL: URL) throws {
         do {
             let plaintext = try JSONEncoder().encode(progress)
             let key = try TranscriptEncryptionKeyStore().loadOrCreateKey()

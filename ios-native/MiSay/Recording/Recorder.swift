@@ -34,6 +34,11 @@ final class Recorder {
         alarm.cancel()
     }
 
+    /// 正在寫的錄音檔（S4-1 邊錄邊轉只讀它，不寫）。沒在錄是 nil。
+    var liveRecordingURL: URL? {
+        capture?.url
+    }
+
     /// 檔案開著、但現在沒在收音。面板要換字、要給「繼續錄」。
     var isPaused: Bool {
         pauseReason != nil
