@@ -184,10 +184,7 @@ final class TranscriptionQueue {
                 style: style,
                 vocabulary: settings.vocabulary
             )
-            polished.draftText = draft
-            polished.polishModel = model
-            polished.polishStyle = style.rawValue
-            polished.updatedAt = Date()
+            polished.applyPolish(draft, model: model, style: style)
             let waited = Int(Date().timeIntervalSince(startedAt))
             DiagnosticLog.shared.record(
                 "潤飾 \(model) \(style.rawValue)，等了 \(waited) 秒，"

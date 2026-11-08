@@ -25,6 +25,7 @@ struct RootPagerView: View {
     @State private var page = Page.home
     /// 錄音面板「打開這篇」要推的那一篇。換一篇就重建清單頁（`.id`），讓它照 `opening` 推進去。
     @State private var openingTranscript: Transcript?
+    @State private var dotsVisibility = PageDotsVisibility()
 
     var body: some View {
         TabView(selection: $page) {
@@ -48,7 +49,13 @@ struct RootPagerView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .background(Token.Colors.groupedBackground)
-        .safeAreaInset(edge: .top) { pageDots }
+        .environment(dotsVisibility)
+        .safeAreaInset(edge: .top) {
+            // 推進去的頁在畫面上時藏起來（`hidesPageDots`），高度還給內容。
+            if !dotsVisibility.isHidden {
+                pageDots
+            }
+        }
     }
 
     /// 目前那頁是拉長的膠囊，其他是圓點（照米給的參考圖）。

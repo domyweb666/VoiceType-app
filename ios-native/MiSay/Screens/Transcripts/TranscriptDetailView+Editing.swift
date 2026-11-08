@@ -1,8 +1,12 @@
 import SwiftUI
 
-/// E2 改字自動存、E4 重新潤飾、複製。2026-11-07 從詳情檔搬出來，讓它留在 300 行內。
+/// E2 改字自動存、整理這篇、複製。2026-11-07 從詳情檔搬出來，讓它留在 300 行內。
+/// 2026-11-08 米：重新潤飾拿掉（會蓋掉改好的字）；整理只給還沒有文字稿的那篇，沒有東西會被蓋。
 extension TranscriptDetailView {
     func copy() {
+        guard !currentText.isEmpty else {
+            return
+        }
         UIPasteboard.general.string = currentText
         copyCount += 1
         showsCopied = true
@@ -26,7 +30,8 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 存不進去只能大聲：用潤飾失敗那一行的位置顯示。畫面上的字不會丟（還在編輯框裡）。
+    /// 存不進去只能大聲：用狀態條講。畫面上的字不會丟（還在編輯框裡）。
+    /// 只動 `draftText`，`originalDraft` 留著給之後比對「改了哪裡」。
     func flushAutosave() {
         autosaveTask?.cancel()
         autosaveTask = nil
@@ -46,13 +51,15 @@ extension TranscriptDetailView {
         }
     }
 
-    func repolish(_ mode: RepolishMode) {
-        flushAutosave()
-        lastRepolishMode = mode
+    /// 「整理這篇」：只有還沒有文字稿的篇會出現，所以直接存回同一篇。
+    func polishThis() {
+        guard transcript.draftText == nil else {
+            return
+        }
         polishFailed = false
         isPolishing = true
         let settings = AppSettings.shared
-        // 開始時就記下模型與潤飾方式：潤飾中途改了設定，記在這篇上的仍是實際送出去的那個。
+        // 開始時就記下模型與潤飾方式：整理中途改了設定，記在這篇上的仍是實際送出去的那個。
         let model = settings.polishModel
         let style = settings.polishStyle
         let source = transcript
@@ -64,9 +71,13 @@ extension TranscriptDetailView {
                     style: style,
                     vocabulary: settings.vocabulary
                 )
-                // 回應回來、還沒套用的那一瞬間按了取消，也不准蓋掉。
+                // 回應回來、還沒套用的那一瞬間按了取消，也不准存。
                 try Task.checkCancellation()
-                try applyRepolish(draft, mode: mode, model: model, style: style)
+                var updated = transcript
+                updated.applyPolish(draft, model: model, style: style)
+                try TranscriptStore().save(updated)
+                transcript = updated
+                draftEdit = draft
             } catch is CancellationError {
                 // 使用者自己按取消，不跳訊息（詞彙表語氣規則）。
             } catch OpenAIClient.Failure.transport(.cancelled) {
@@ -75,36 +86,6 @@ extension TranscriptDetailView {
                 polishFailed = true
             }
             isPolishing = false
-        }
-    }
-
-    func applyRepolish(
-        _ draft: String,
-        mode: RepolishMode,
-        model: String,
-        style: PolishStyle
-    ) throws {
-        let store = TranscriptStore()
-        switch mode {
-        case .overwrite:
-            var updated = transcript
-            updated.draftText = draft
-            updated.polishModel = model
-            updated.polishStyle = style.rawValue
-            updated.updatedAt = Date()
-            try store.save(updated)
-            transcript = updated
-            draftEdit = draft
-        case .saveAsNew:
-            let copy = Transcript(
-                durationSeconds: transcript.durationSeconds,
-                rawText: transcript.rawText,
-                draftText: draft,
-                polishModel: model,
-                polishStyle: style.rawValue
-            )
-            try store.save(copy)
-            dismiss()
         }
     }
 

@@ -243,9 +243,9 @@ private extension SettingsView {
         .listRowBackground(Token.Colors.rowBackground)
     }
 
-    /// 兩種潤飾各一句，講刪到哪裡；重新潤飾也照這裡選的走。
+    /// 兩種潤飾各一句，講刪到哪裡。改了只影響之後錄的，整理好的不會被重做（11/08 重新潤飾拿掉了）。
     static let styleNote = "保留原聲只刪卡詞、重講和句首的「那」「然後」，留住你講話的節奏。"
-        + "大幅潤飾會為了通順拆句、改語法，刪得比較多。重新潤飾也照這裡選的走。\n"
+        + "大幅潤飾會為了通順拆句、改語法，刪得比較多。改了只影響之後錄的。\n"
 
     /// 模型名稱與狀態 2026-11-01 查證（見 `Polisher`）；價格會變，這裡不寫數字。
     static var modelNote: String {

@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// 詳情頁工具列上方那一行（首次體驗檔詳情狀態表）：潤飾中、潤飾失敗、存不進去、沒有文字、已複製。
+/// 詳情頁底下那一行（首次體驗檔詳情狀態表）：整理中、整理失敗、存不進去、沒有文字、已複製。
 /// 一次只顯示一種，優先順序在 `kind(...)`；長相交給共用的 `StatusStrip`（2026-11-07 統一風格）。
+/// 2026-11-08 重新潤飾拿掉了，整理只發生在還沒有文字稿的篇，失敗那句只剩一種。
 struct TranscriptStatusStrip: View {
     enum Kind: Equatable {
         case hidden
         case polishing
-        /// `hadDraft` 是 false 時是「整理這篇」失敗：本來就沒有文字稿，不能說「沒有被改動」。
-        case polishFailed(hadDraft: Bool)
+        case polishFailed
         case saveFailed
         case empty
         case copied
@@ -17,11 +17,10 @@ struct TranscriptStatusStrip: View {
     let onCancel: () -> Void
     let onRetry: () -> Void
 
-    /// 一次只講一件事，照這個順序：正在潤飾 > 潤飾失敗 > 存不進去 > 沒有文字 > 剛複製。
+    /// 一次只講一件事，照這個順序：正在整理 > 整理失敗 > 存不進去 > 沒有文字 > 剛複製。
     static func kind(
         isPolishing: Bool,
         polishFailed: Bool,
-        hasDraft: Bool,
         saveFailed: Bool,
         isEmpty: Bool = false,
         showsCopied: Bool = false
@@ -30,7 +29,7 @@ struct TranscriptStatusStrip: View {
             return .polishing
         }
         if polishFailed {
-            return .polishFailed(hadDraft: hasDraft)
+            return .polishFailed
         }
         if saveFailed {
             return .saveFailed
@@ -48,14 +47,14 @@ struct TranscriptStatusStrip: View {
         case .polishing:
             StatusStrip(
                 glyph: .working,
-                message: "重新潤飾中…舊的文字稿還在",
+                message: "整理中…口語稿還在",
                 actionTitle: "取消",
                 action: onCancel
             )
-        case let .polishFailed(hadDraft):
+        case .polishFailed:
             StatusStrip(
                 glyph: .failed,
-                message: hadDraft ? "重新潤飾沒有成功，文字稿沒有被改動。" : "整理沒有成功，口語稿還在。",
+                message: "整理沒有成功，口語稿還在。",
                 actionTitle: "再試一次",
                 action: onRetry
             )

@@ -16,6 +16,9 @@ struct Transcript: Codable, Identifiable, Hashable {
     /// 潤飾方式的 `PolishStyle.rawValue`（2026-11-08 加）。存字串不存列舉：哪天認不得的值，
     /// 這篇照樣讀得出來，不會被當成壞檔搬走。舊的篇沒有這欄，是 nil。
     var polishStyle: String?
+    /// 潤飾剛出來、還沒被人改過的那份文字稿（2026-11-08 加）。之後自動詞彙、從修改學習要拿它跟
+    /// `draftText` 比，看人改了哪裡。改字只動 `draftText`，這欄不動；舊的篇沒有這欄，是 nil。
+    var originalDraft: String?
     var updatedAt: Date
 
     init(
@@ -26,6 +29,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         draftText: String? = nil,
         polishModel: String? = nil,
         polishStyle: String? = nil,
+        originalDraft: String? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
@@ -35,11 +39,21 @@ struct Transcript: Codable, Identifiable, Hashable {
         self.draftText = draftText
         self.polishModel = polishModel
         self.polishStyle = polishStyle
+        self.originalDraft = originalDraft
         self.updatedAt = updatedAt
     }
 
     /// 畫面與複製用的那份：有文字稿用文字稿，沒有就先用口語稿。
     var displayText: String {
         draftText ?? rawText
+    }
+
+    /// 潤飾成功：文字稿與原稿一起換成這份，記下模型與潤飾方式。
+    mutating func applyPolish(_ draft: String, model: String, style: PolishStyle) {
+        draftText = draft
+        originalDraft = draft
+        polishModel = model
+        polishStyle = style.rawValue
+        updatedAt = Date()
     }
 }
