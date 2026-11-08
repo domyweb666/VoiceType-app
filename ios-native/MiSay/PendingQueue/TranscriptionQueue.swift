@@ -4,6 +4,7 @@ import Observation
 /// 方塊 M2 的流水（片 D5）：停止 → 收檔 → 判斷有金鑰 → 轉錄 → 口語稿存進歷史後才刪錄音檔 → 潤飾 → 草稿存進同一篇。
 /// 條件齊了從最舊的開始自動續轉；某一筆失敗就停、不重跑（安全標準四）。同一段不會同時送兩次（inFlight）。
 /// 畫面只讀 `activity`；要觸發用 `process` 或 `processPending`。
+/// 拆成三個檔（S2-0）：本檔是一筆的轉錄與存口語稿，`+Polishing` 是潤飾，`+Pending` 是自動續轉。
 @Observable
 @MainActor
 final class TranscriptionQueue {
@@ -36,19 +37,20 @@ final class TranscriptionQueue {
         let value: Outcome?
     }
 
-    private(set) var activity = Activity.idle
+    /// 畫面只讀；會改它的只有這個型別自己的三個檔（本檔、+Polishing、+Pending）。
+    var activity = Activity.idle
     /// OpenAI 拒收（4xx）或讀不出來的錄音檔名：再送一次也一樣，自動續轉跳過它們，待轉錄清單標出來給使用者刪。
     /// 只記在記憶體：重開米說會再試一次（2026-11-02 米：照建議，不讓一筆擋住後面的）。
-    private(set) var refusedRecordings: Set<String> = []
+    var refusedRecordings: Set<String> = []
     private var inFlight: Set<String> = []
-    private var isProcessingPending = false
+    var isProcessingPending = false
 
-    private let pending = PendingRecordings()
+    let pending = PendingRecordings()
     private let keyStore = APIKeyStore()
-    private let store = TranscriptStore()
+    let store = TranscriptStore()
     private let transcriber: Transcriber
-    private let polisher: Polisher
-    private let settings: AppSettings
+    let polisher: Polisher
+    let settings: AppSettings
 
     /// 模型、提示詞、詞彙每一筆開始時才從 M7 讀（片 F2～F4）：改了設定，下一筆就照新的走。
     init(
@@ -153,7 +155,7 @@ final class TranscriptionQueue {
     }
 
     /// 只有正在顯示的是這一筆時才歸零：面板與續轉可能同時各跑一筆，不能蓋掉另一筆的進度。
-    private func resetActivity(ifShowing recording: String) {
+    func resetActivity(ifShowing recording: String) {
         switch activity {
         case let .transcribing(name, _, _), let .polishing(name):
             if name == recording {
@@ -161,79 +163,6 @@ final class TranscriptionQueue {
             }
         case .idle:
             break
-        }
-    }
-
-    /// 片 D6「重試潤飾」：口語稿已在歷史，只重送潤飾，成功就存回同一篇。
-    func retryPolish(_ transcript: Transcript) async -> Outcome {
-        let name = transcript.id.uuidString
-        activity = .polishing(recording: name)
-        defer { resetActivity(ifShowing: name) }
-        return await polishAndSave(transcript)
-    }
-
-    private func polishAndSave(_ transcript: Transcript) async -> Outcome {
-        var polished = transcript
-        let model = settings.polishModel
-        let style = settings.polishStyle
-        let startedAt = Date()
-        do {
-            let draft = try await polisher.polish(
-                rawText: transcript.rawText,
-                model: model,
-                style: style,
-                vocabulary: settings.vocabulary,
-                habits: settings.activeHabits
-            )
-            polished.applyPolish(draft, model: model, style: style)
-            let waited = Int(Date().timeIntervalSince(startedAt))
-            DiagnosticLog.shared.record(
-                "潤飾 \(model) \(style.rawValue)，等了 \(waited) 秒，"
-                    + "\(transcript.rawText.count) 字變 \(draft.count) 字"
-            )
-        } catch let failure as OpenAIClient.Failure {
-            logPolishFailure(failure, model: model, startedAt: startedAt)
-            return .polishFailed(transcript, failure)
-        } catch {
-            logPolishFailure(error, model: model, startedAt: startedAt)
-            return .polishFailed(transcript, .malformedResponse)
-        }
-        do {
-            try store.save(polished)
-        } catch {
-            return .draftNotSaved(transcript)
-        }
-        return .finished(polished)
-    }
-
-    private func logPolishFailure(_ error: Error, model: String, startedAt: Date) {
-        let waited = Int(Date().timeIntervalSince(startedAt))
-        DiagnosticLog.shared.record("潤飾 \(model) 失敗，等了 \(waited) 秒：\(error)")
-    }
-
-    /// 自動續轉：從最舊的開始，一筆一筆；哪一筆失敗就停，等下次條件齊了再來。
-    func processPending() async {
-        // 首頁出現、回到前景都會叫；同一時間只跑一輪，不然兩輪會交錯、「失敗就停」就不準了。
-        guard !isProcessingPending, let recordings = try? pending.list() else {
-            return
-        }
-        isProcessingPending = true
-        defer { isProcessingPending = false }
-        for recording in recordings.reversed() {
-            // 清單是開跑時拍的照：這段時間面板可能已經整理完那一筆、錄音檔已刪。
-            let exists = FileManager.default.fileExists(atPath: recording.url.path)
-            guard exists, !refusedRecordings.contains(recording.id) else {
-                continue
-            }
-            let outcome = await process(recordingAt: recording.url)
-            switch outcome {
-            case .finished, .polishFailed, .draftNotSaved, nil:
-                continue
-            case .transcriptionFailed(.rejected), .recordingUnreadable:
-                refusedRecordings.insert(recording.id)
-            case .noAPIKey, .transcriptionFailed, .storageFailed, .recordingNotDeleted:
-                return
-            }
         }
     }
 }

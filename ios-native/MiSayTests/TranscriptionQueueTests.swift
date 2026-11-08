@@ -1,0 +1,109 @@
+@testable import MiSay
+import XCTest
+
+/// 片 S2-0：整理流水一筆的結局。拆檔前沒有測試，這裡先把五種結局釘住，後面 S2 各片改流水時才知道有沒有改壞。
+/// 只准在模擬器跑：會存金鑰、寫進歷史資料夾；每條自己清掉自己存的那一篇。
+@MainActor
+final class TranscriptionQueueTests: XCTestCase {
+    private let keyStore = APIKeyStore()
+    private let store = TranscriptStore()
+    private let fakeKey = "sk-test-假金鑰-流水用"
+    private let suiteName = "TranscriptionQueueTests"
+    private var directory = URL(fileURLWithPath: NSTemporaryDirectory())
+    private var savedIDs: [UUID] = []
+
+    override func setUp() async throws {
+        try keyStore.save(fakeKey)
+        FakeOpenAIServer.reset()
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        savedIDs = []
+    }
+
+    override func tearDown() async throws {
+        try keyStore.delete()
+        FakeOpenAIServer.reset()
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        for id in savedIDs {
+            try? store.delete(id: id)
+        }
+        try FileManager.default.removeItem(at: directory)
+    }
+
+    func test流水沒有金鑰不送出去() async throws {
+        try keyStore.delete()
+        let outcome = try await makeQueue().process(recordingAt: makeRecording())
+        XCTAssertEqual(outcome, .noAPIKey)
+        XCTAssertEqual(FakeOpenAIServer.requestCount, 0)
+        try keyStore.save(fakeKey)
+    }
+
+    func test流水轉錄被拒錄音檔留著() async throws {
+        let recording = try makeRecording()
+        FakeOpenAIServer.reply = .http(status: 401, body: "")
+        let outcome = try await makeQueue().process(recordingAt: recording)
+        XCTAssertEqual(outcome, .transcriptionFailed(.invalidAPIKey(statusCode: 401)))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: recording.path))
+    }
+
+    func test流水讀不到錄音不扣款() async throws {
+        let missing = directory.appending(path: "不存在.wav")
+        let outcome = try await makeQueue().process(recordingAt: missing)
+        XCTAssertEqual(outcome, .recordingUnreadable)
+        XCTAssertEqual(FakeOpenAIServer.requestCount, 0)
+    }
+
+    func test流水潤飾失敗口語稿已經存進歷史() async throws {
+        FakeOpenAIServer.queuedReplies = [
+            .http(status: 200, body: #"{"text":"口語稿。"}"#),
+            .http(status: 401, body: ""),
+        ]
+        let outcome = try await makeQueue().process(recordingAt: makeRecording())
+        guard case let .polishFailed(transcript, failure) = outcome else {
+            return XCTFail("應該是潤飾失敗，拿到 \(String(describing: outcome))")
+        }
+        savedIDs.append(transcript.id)
+        XCTAssertEqual(failure, .invalidAPIKey(statusCode: 401))
+        let saved = try store.loadAll().transcripts.first { $0.id == transcript.id }
+        XCTAssertEqual(saved?.rawText, "口語稿。")
+    }
+
+    func test流水整理完口語稿與草稿都在同一篇() async throws {
+        let recording = try makeRecording()
+        let draft = #"{"choices":[{"message":{"role":"assistant","content":"草稿。"}}]}"#
+        FakeOpenAIServer.queuedReplies = [
+            .http(status: 200, body: #"{"text":"口語稿。"}"#),
+            .http(status: 200, body: draft),
+        ]
+        let outcome = try await makeQueue().process(recordingAt: recording)
+        guard case let .finished(transcript) = outcome else {
+            return XCTFail("應該整理完，拿到 \(String(describing: outcome))")
+        }
+        savedIDs.append(transcript.id)
+        let saved = try XCTUnwrap(store.loadAll().transcripts.first { $0.id == transcript.id })
+        XCTAssertEqual(saved.rawText, "口語稿。")
+        XCTAssertEqual(saved.draftText, "草稿。")
+    }
+
+    private func makeQueue() throws -> TranscriptionQueue {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FakeOpenAIServer.self]
+        let client = OpenAIClient(session: URLSession(configuration: configuration))
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        return TranscriptionQueue(
+            transcriber: Transcriber(client: client, retryBaseDelaySeconds: 0.01),
+            polisher: Polisher(client: client, retryBaseDelaySeconds: 0.01),
+            settings: AppSettings(defaults: defaults)
+        )
+    }
+
+    /// 一分鐘的靜音：不到一段，整筆只送一次轉錄。
+    private func makeRecording() throws -> URL {
+        let url = directory.appending(path: "rec-\(UUID().uuidString).wav")
+        var writer = try WAVFileWriter(creatingAt: url)
+        try writer.append(pcm: Data(repeating: 0, count: 60 * 32000))
+        try writer.finish()
+        return url
+    }
+}
