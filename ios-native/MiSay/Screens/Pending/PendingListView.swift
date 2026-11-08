@@ -55,7 +55,6 @@ struct PendingListView: View {
             }
         }
         .navigationTitle("待轉錄")
-        .hidesPageDots()
         .confirmationDialog(
             "這段還沒轉成文字，刪了就沒有了。",
             isPresented: $isConfirmingDelete,

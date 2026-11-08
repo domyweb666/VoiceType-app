@@ -37,7 +37,6 @@ struct TranscriptListView: View {
 
     var body: some View {
         List {
-            PageHeading(title: "文字稿")
             // 統計看全部，不跟著搜尋變；搜尋時收起來，讓結果貼在搜尋框下面。
             if !transcripts.isEmpty, query.isEmpty {
                 DictationStatsCard(stats: DictationStats(transcripts: transcripts))
@@ -69,7 +68,7 @@ struct TranscriptListView: View {
         .searchable(text: $query, prompt: "搜尋文字稿")
         .overlay { emptyOverlay }
         .safeAreaInset(edge: .bottom) { undoBanner }
-        .pageTitle("文字稿")
+        .navigationTitle("文字稿")
         .navigationDestination(item: $openedTranscript) { transcript in
             TranscriptDetailView(transcript: transcript, onDelete: softDelete)
         }
@@ -187,45 +186,45 @@ private extension TranscriptListView {
     @ViewBuilder
     var emptyOverlay: some View {
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 2026-11-08 米選原生：空狀態都用系統的 ContentUnavailableView（圖示、標題、說明、按鈕）。
+        // 不用系統內建的搜尋空狀態：它的字跟著 App 語系走，可能跑出英文。
         if visibleTranscripts.isEmpty, !keyword.isEmpty {
-            VStack(spacing: Token.Space.m) {
+            ContentUnavailableView {
+                Label("沒有找到", systemImage: "magnifyingglass")
+            } description: {
                 Text("沒有包含『\(keyword)』的文字稿")
-                    .font(Token.Fonts.secondary)
-                    .foregroundStyle(Token.Colors.textSecondary)
+            } actions: {
                 Button("清除搜尋") {
                     query = ""
                 }
                 .buttonStyle(TextButtonStyle())
             }
-            .padding(.horizontal, Token.Space.xl)
         } else if visibleTranscripts.isEmpty, unreadableCount == 0 {
             emptyState
         }
     }
 
-    /// 玉米只在這裡出現（使用規則第 3 條）。讀不到時不裝可愛，只講讀取失敗。
+    /// 玉米只在這裡出現（使用規則第 3 條），當系統空狀態的圖。讀不到時不裝可愛，只講讀取失敗。
+    @ViewBuilder
     var emptyState: some View {
-        VStack(spacing: Token.Space.l) {
-            if loadFailed {
-                Text("文字稿讀取失敗。")
-                    .font(Token.Fonts.rowTitle)
-                    .foregroundStyle(Token.Colors.textPrimary)
-            } else {
-                CornIllustration()
-                Text("還沒有文字稿")
-                    .font(Token.Fonts.rowTitle)
-                    .foregroundStyle(Token.Colors.textPrimary)
-                Text("回首頁按中間的鈕，說一段話。說完的字會排在這裡，最新的在最上面。")
-                    .font(Token.Fonts.secondary)
-                    .foregroundStyle(Token.Colors.textSecondary)
-                Button("回首頁") {
+        if loadFailed {
+            ContentUnavailableView("文字稿讀取失敗", systemImage: "exclamationmark.triangle")
+        } else {
+            ContentUnavailableView {
+                Label {
+                    Text("還沒有文字稿")
+                } icon: {
+                    CornIllustration()
+                }
+            } description: {
+                Text("到「錄音」分頁按中間的鈕，說一段話。說完的字會排在這裡，最新的在最上面。")
+            } actions: {
+                Button("去錄音") {
                     onOpenHome()
                 }
                 .buttonStyle(TextButtonStyle())
             }
         }
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, Token.Space.xxl)
     }
 
     /// 底部「已刪除・復原」（詞彙表）。5 秒內按復原，那篇回到清單原位（照時間排，位置自然回來）。

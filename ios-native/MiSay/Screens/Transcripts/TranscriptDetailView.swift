@@ -73,7 +73,6 @@ struct TranscriptDetailView: View {
                 // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。
                 EditLearningRunner.start()
             }
-            .hidesPageDots()
     }
 
     /// 複製、分享用的那份：有文字稿就是編輯框裡的字，沒有就是口語稿。

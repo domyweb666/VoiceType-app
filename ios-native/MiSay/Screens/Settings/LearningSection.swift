@@ -83,7 +83,6 @@ struct LearnedHabitsView: View {
             }
         }
         .navigationTitle("學到的習慣")
-        .hidesPageDots()
         .confirmationDialog(
             "清掉全部學到的習慣？",
             isPresented: $isConfirmingClear,

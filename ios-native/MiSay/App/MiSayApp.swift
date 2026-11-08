@@ -9,7 +9,7 @@ struct MiSayApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootPagerView()
+            RootTabView()
                 .environment(transcriptionQueue)
                 .environment(recorder)
         }

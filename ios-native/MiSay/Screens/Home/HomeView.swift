@@ -4,7 +4,7 @@ import SwiftUI
 /// 片 A2 的殼；片 C1 把鈕接上錄音面板（方向 D：點一下升起半頁）；片 C6 的待轉錄列在鈕下方，0 個時整列不出現。
 /// 片 C4：出現時先把上次被殺掉留下的救回檔撿進待轉錄。
 /// 片 D6：出現時、回到前景時自動續轉待轉錄。
-/// 2026-11-02 米：左右滑換頁（`RootPagerView`），首頁不再有「文字稿」「⋯」兩顆鈕；面板的「打開這篇」「去設定」交給外層換頁。
+/// 2026-11-02 米：左右滑換頁（11/08 改成底部分頁列 `RootTabView`），首頁不再有「文字稿」「⋯」兩顆鈕；面板的「打開這篇」「去設定」交給外層換頁。
 /// 2026-11-07 統一風格：錄音鈕改快門式（`RecordButtonLabel`）、提示改「按中間的鈕」、沒金鑰時鈕上方多一張卡。
 struct HomeView: View {
     /// 外層的三頁現在停在首頁。從設定頁滑回來時要重看金鑰在不在。
@@ -21,17 +21,22 @@ struct HomeView: View {
     @State private var hasAPIKey = true
 
     var body: some View {
-        VStack {
-            if !hasAPIKey {
-                noKeyCard
-            }
-            // 鈕放在剩下空間的正中央，提示掛在鈕下面、不佔版面。
-            // 舊寫法是上下兩個 Spacer、下面那個掛 overlay，真機上下面那個把空間全吃走，鈕被擠到頂（2026-11-08 米截圖）。
+        ZStack {
+            // 鈕對整個螢幕置中（米 11/08：要在正中央）。這層忽略安全區，上面的標題列、下面的分頁列都不影響它。
+            // 之前對「剩下的空間」置中：第一版被下面的 Spacer 擠到頂，第二版因為上面扣得比下面多而偏下。
             Color.clear
                 .overlay { recordButton }
                 .overlay { hintBelowButton }
-            if pendingCount > 0 {
-                pendingRow
+                .ignoresSafeArea()
+            // 金鑰卡貼上緣、待轉錄列貼下緣，中間空著的地方點得到後面的鈕。
+            VStack {
+                if !hasAPIKey {
+                    noKeyCard
+                }
+                Spacer()
+                if pendingCount > 0 {
+                    pendingRow
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

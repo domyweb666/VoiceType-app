@@ -17,7 +17,6 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            PageHeading(title: "設定")
             Section {
                 keyField
                 verifyButton
@@ -44,7 +43,7 @@ struct SettingsView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Token.Colors.groupedBackground)
-        .pageTitle("設定")
+        .navigationTitle("設定")
         .task { loadKey() }
     }
 

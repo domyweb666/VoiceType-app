@@ -54,7 +54,6 @@ struct VocabularyView: View {
             }
         }
         .navigationTitle("自訂詞彙")
-        .hidesPageDots()
     }
 
     /// 空白去掉；空的、跟現有重複的（不分大小寫）不收，回 nil。
