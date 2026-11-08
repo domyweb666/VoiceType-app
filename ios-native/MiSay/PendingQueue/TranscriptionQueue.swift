@@ -44,6 +44,7 @@ final class TranscriptionQueue {
     var activity = Activity.idle {
         didSet { keepWorkingIfBusy() }
     }
+
     /// OpenAI 拒收（4xx）或讀不出來的錄音檔名：再送一次也一樣，自動續轉跳過它們，待轉錄清單標出來給使用者刪。
     /// 只記在記憶體：重開米說會再試一次（2026-11-02 米：照建議，不讓一筆擋住後面的）。
     var refusedRecordings: Set<String> = []

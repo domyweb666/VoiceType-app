@@ -70,10 +70,17 @@ struct Polisher {
                 timeoutSeconds: OpenAIClient.requestTimeoutSeconds
             )
         }
-        guard let response = try? JSONDecoder().decode(ChatResponse.self, from: data) else {
+        return try Self.draft(from: data)
+    }
+
+    /// 回應先驗形狀再拿字。沒帶 finish_reason 的回應照舊收；有帶而且不是 stop，
+    /// 就是被截斷或被擋，半篇不能當文字稿（S2-2）。
+    private static func draft(from data: Data) throws -> String {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        guard let response = try? decoder.decode(ChatResponse.self, from: data) else {
             throw Failure.malformedResponse
         }
-        // 沒帶 finish_reason 的回應照舊收；有帶而且不是 stop，就是被截斷或被擋，半篇不能當文字稿。
         if let reason = response.choices.first?.finishReason, reason != "stop" {
             throw Failure.incomplete
         }
@@ -127,11 +134,7 @@ struct Polisher {
 
     private struct ChatChoice: Decodable {
         let message: ChatMessage
+        /// JSON 裡是 finish_reason；解碼時用 convertFromSnakeCase 對上。
         let finishReason: String?
-
-        enum CodingKeys: String, CodingKey {
-            case message
-            case finishReason = "finish_reason"
-        }
     }
 }
