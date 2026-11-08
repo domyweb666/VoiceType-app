@@ -39,7 +39,8 @@ struct EraseAllDataSection: View {
     }
 
     private var isBusy: Bool {
-        recorder.isRecording || queue.activity != .idle
+        recorder.isRecording || queue.activity != .idle || queue.isProcessingPending
+            || !queue.inFlight.isEmpty
     }
 
     private var footerText: String {

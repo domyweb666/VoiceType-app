@@ -17,7 +17,8 @@ extension TranscriptDetailView {
     }
 
     func scheduleAutosave() {
-        guard transcript.draftText != nil, draftEdit != transcript.draftText else {
+        // 整理中（含從錄音重新轉錄）不存：會拿舊的那份蓋掉流水剛存的新口語稿。
+        guard !isPolishing, transcript.draftText != nil, draftEdit != transcript.draftText else {
             return
         }
         autosaveTask?.cancel()
@@ -64,6 +65,7 @@ extension TranscriptDetailView {
     /// S2-5「⋯ → 從錄音重新轉錄」：確認框按了重新轉錄才會叫。
     func retranscribe() {
         flushAutosave()
+        isEditing = false
         let source = transcript
         runPolish { await queue.retranscribe(source) }
     }

@@ -2,6 +2,7 @@
 import XCTest
 
 /// 片 S2-9：刪除全部資料。只准在模擬器跑：會清掉 App 自己的文字稿、待轉錄、留存錄音資料夾。
+@MainActor
 final class EraseAllDataTests: XCTestCase {
     private let keyStore = APIKeyStore()
     private let fakeKey = "sk-test-假金鑰-刪全部用"

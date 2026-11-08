@@ -15,9 +15,8 @@ enum PolishChunks {
         while rest.count > maxCharacters {
             let window = rest.prefix(maxCharacters)
             var cut = window.endIndex
-            if let end = window.lastIndex(where: { sentenceEnds.contains($0) }),
-               window.distance(from: window.startIndex, to: end) >= minCutOffset
-            {
+            let end = window.lastIndex { sentenceEnds.contains($0) }
+            if let end, window.distance(from: window.startIndex, to: end) >= minCutOffset {
                 cut = window.index(after: end)
             }
             chunks.append(String(rest[..<cut]))

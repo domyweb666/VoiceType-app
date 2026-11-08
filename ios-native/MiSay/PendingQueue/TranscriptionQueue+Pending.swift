@@ -36,6 +36,10 @@ extension TranscriptionQueue {
 
     /// 上一輪被取消時先等它收完，新的一輪才開始；不然兩輪交錯，「失敗就停」就不準了。
     private func launchPendingRun(after previous: Task<Void, Never>?) {
+        // 正在跑的那一輪要留著它的 Task：之後回到前景要取消的是它，不是一個馬上就結束的新 Task。
+        if previous == nil, isProcessingPending {
+            return
+        }
         pendingRun = Task { [weak self] in
             await previous?.value
             await self?.processPending()
@@ -51,7 +55,7 @@ extension TranscriptionQueue {
         isProcessingPending = true
         defer { isProcessingPending = false }
         if let loaded = try? store.loadAll() {
-            retained.purge(loaded: loaded)
+            retained.purge(loaded: loaded, excluding: inFlight)
         }
         for recording in recordings.reversed() {
             // 清單是開跑時拍的照：這段時間面板可能已經整理完那一筆、錄音檔已刪。
@@ -92,9 +96,10 @@ extension TranscriptionQueue {
             return
         }
         let cutoff = Date().addingTimeInterval(-Self.resumePolishWithinSeconds)
-        for transcript in loaded.transcripts.reversed()
-            where Self.needsPolishResume(transcript, since: cutoff)
-        {
+        let candidates = loaded.transcripts.reversed().filter {
+            Self.needsPolishResume($0, since: cutoff)
+        }
+        for transcript in candidates {
             // 面板或詳情頁正在潤飾這篇：不重送，同一篇不同時花兩次錢。
             guard !inFlight.contains(transcript.id.uuidString) else {
                 continue

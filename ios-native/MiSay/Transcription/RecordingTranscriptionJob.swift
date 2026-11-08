@@ -73,6 +73,10 @@ struct RecordingTranscriptionJob {
         onSegment: @MainActor (Int, Int) -> Void = { _, _ in }
     ) async throws -> String {
         let segments = try WAVSegmenter.plan(recordingURL)
+        // 一個樣本都沒有：不存一篇空白口語稿、不送空的潤飾，當成讀不到。
+        guard !segments.isEmpty else {
+            throw WAVSegmenter.Failure.cannotRead
+        }
         var progress = loadProgress(for: recordingURL)
         progress.adopt(segments)
         let baseName = recordingURL.deletingPathExtension().lastPathComponent

@@ -119,7 +119,7 @@ final class TranscriptionQueueTests: XCTestCase {
         ]
         let first = await queue.retryPolish(transcript)
         guard case let .polishFailed(partial, failure) = first else {
-            return XCTFail("第二塊應該失敗，拿到 \(first)")
+            return XCTFail("第二塊應該失敗，拿到 \(String(describing: first))")
         }
         XCTAssertEqual(failure, .invalidAPIKey(statusCode: 401))
         XCTAssertEqual(partial.polishedChunks, ["甲"])
@@ -133,14 +133,10 @@ final class TranscriptionQueueTests: XCTestCase {
         ]
         let second = await queue.retryPolish(partial)
         guard case let .finished(done) = second else {
-            return XCTFail("應該整理完，拿到 \(second)")
+            return XCTFail("應該整理完，拿到 \(String(describing: second))")
         }
         XCTAssertEqual(FakeOpenAIServer.requestCount, 2)
-        XCTAssertEqual(done.draftText, "甲
-
-乙
-
-丙")
+        XCTAssertEqual(done.draftText, PolishChunks.join(["甲", "乙", "丙"]))
         XCTAssertNil(done.polishedChunks)
     }
 

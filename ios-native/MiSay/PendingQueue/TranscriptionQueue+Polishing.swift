@@ -4,8 +4,12 @@ import Foundation
 /// 失敗再來只送還沒好的塊。全部好了才接成文字稿。
 extension TranscriptionQueue {
     /// 片 D6「重試潤飾」：口語稿已在歷史，只重送潤飾，成功就存回同一篇。
-    func retryPolish(_ transcript: Transcript) async -> Outcome {
+    /// 這篇已經在潤飾（自動續做、面板、詳情頁其中一邊）就回 nil，不同時花兩次錢。
+    func retryPolish(_ transcript: Transcript) async -> Outcome? {
         let name = transcript.id.uuidString
+        guard !inFlight.contains(name) else {
+            return nil
+        }
         activity = .polishing(recording: name)
         inFlight.insert(name)
         defer {

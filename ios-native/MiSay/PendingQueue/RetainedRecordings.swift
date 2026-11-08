@@ -63,7 +63,12 @@ struct RetainedRecordings {
 
     /// 照規則清掉可以刪的。刪不掉的留著下次再試：只佔空間，不影響任何一篇。
     /// 有讀不到的文字稿時，找不到對應那篇的錄音一律不刪：那可能是讀不到的那篇，錄音是它僅剩的一份。
-    func purge(loaded: TranscriptStore.LoadResult, now: Date = Date()) {
+    /// `excluding` 是正在用的那幾篇的 id（例如正在從錄音重新轉錄）：用到一半不刪。
+    func purge(
+        loaded: TranscriptStore.LoadResult,
+        excluding busy: Set<String>,
+        now: Date = Date()
+    ) {
         guard let directory = try? directoryURL(),
               let files = try? fileManager.contentsOfDirectory(
                   at: directory,
@@ -74,7 +79,7 @@ struct RetainedRecordings {
         }
         let retainedIDs = files.compactMap {
             UUID(uuidString: $0.deletingPathExtension().lastPathComponent)
-        }
+        }.filter { !busy.contains($0.uuidString) }
         let doomed = Self.idsToDelete(
             retainedIDs: retainedIDs,
             transcripts: loaded.transcripts,
@@ -88,6 +93,8 @@ struct RetainedRecordings {
                 failed += 1
                 continue
             }
+            // 重新轉錄做到一半留下的進度檔，跟錄音一起清；沒有就算了。
+            try? fileManager.removeItem(at: RecordingTranscriptionJob.progressURL(for: url))
         }
         if failed > 0 {
             Self.logger.error("留存錄音有 \(failed, privacy: .public) 個刪不掉，下次再試")
