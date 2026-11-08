@@ -29,6 +29,8 @@ struct RecordingSheetView: View {
     @State private var isPulsing = false
     /// 按「繼續錄」沒成功時那一句；留在同一個畫面，等一下還能再按。
     @State private var resumeFailure: String?
+    /// 按了停止、正在收掉邊錄邊轉（最多一兩秒）：停止與繼續錄都不給再按（S4 審查）。
+    @State private var isStopping = false
 
     var body: some View {
         VStack(spacing: Token.Space.xl) {
@@ -89,6 +91,7 @@ struct RecordingSheetView: View {
         do {
             try await recorder.start()
             phase = recorder.isPaused ? .interrupted : .recording
+            isStopping = false
             if let liveURL = recorder.liveRecordingURL {
                 queue.startLive(recordingAt: liveURL)
             }
@@ -117,10 +120,15 @@ struct RecordingSheetView: View {
     /// 先停收音，再收掉邊錄邊轉（它還在讀這個檔），才把檔搬進待轉錄。
     @MainActor
     private func stopRecording() {
+        guard !isStopping else {
+            return
+        }
+        isStopping = true
         let recordedURL: URL
         do {
             recordedURL = try recorder.stop()
         } catch {
+            Task { await queue.finishLive() }
             phase = .failed("錄音停不下來或存不進去，檔案還在，重開米說會撿回來。")
             return
         }
@@ -198,7 +206,7 @@ private extension RecordingSheetView {
                 }
         }
         .accessibilityLabel("停止錄音")
-        .disabled(phase != .recording)
+        .disabled(phase != .recording || isStopping)
         .onAppear {
             guard !reduceMotion else {
                 return
@@ -225,6 +233,7 @@ private extension RecordingSheetView {
                 resumeRecording()
             }
             .buttonStyle(PrimaryButtonStyle())
+            .disabled(isStopping)
             if let resumeFailure {
                 Text(resumeFailure)
                     .font(Token.Fonts.secondary)
@@ -235,6 +244,7 @@ private extension RecordingSheetView {
                 stopRecording()
             }
             .buttonStyle(TextButtonStyle())
+            .disabled(isStopping)
         }
     }
 

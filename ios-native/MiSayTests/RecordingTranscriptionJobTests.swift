@@ -109,6 +109,21 @@ final class RecordingTranscriptionJobTests: XCTestCase {
         XCTAssertEqual(FakeOpenAIServer.requestCount, 1)
     }
 
+    func test邊錄邊轉字數太少的段錄音中不再重送() async throws {
+        let live = directory.appending(path: "rec-loud-live.wav")
+        var writer = try WAVFileWriter(creatingAt: live)
+        try writer.append(pcm: Data(repeating: 0x40, count: 12 * 60 * 32000))
+        try writer.finish()
+        let finalURL = directory.appending(path: "final-loud.wav")
+        FakeOpenAIServer.reply = .http(status: 200, body: #"{"text":"嗯。"}"#)
+        let job = RecordingTranscriptionJob(transcriber: makeTranscriber())
+
+        await job.transcribeFinishedSegments(ofLive: live, progressAt: finalURL)
+        XCTAssertEqual(FakeOpenAIServer.requestCount, 2)
+        await job.transcribeFinishedSegments(ofLive: live, progressAt: finalURL)
+        XCTAssertEqual(FakeOpenAIServer.requestCount, 2, "少得不對勁的段錄音中不再送，停止後才重送、標漏字")
+    }
+
     func test邊錄邊轉先潤飾的塊口語稿對得上才沿用() {
         var progress = RecordingTranscriptionJob.Progress()
         progress.segmentTexts = [0: "甲。", 1: "乙。", 3: "丁。"]

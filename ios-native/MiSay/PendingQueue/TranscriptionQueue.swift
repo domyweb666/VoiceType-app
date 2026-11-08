@@ -161,7 +161,11 @@ final class TranscriptionQueue {
             durationSeconds: duration,
             rawText: rawText,
             possiblyMissingSegments: job.possiblyMissingSegments(forRecordingAt: url),
-            polishedChunks: job.polishedChunks(matching: rawText, forRecordingAt: url)
+            polishedChunks: job.polishedChunks(
+                matching: rawText,
+                polishedWith: polishSettingsKey,
+                forRecordingAt: url
+            )
         )
         do {
             try store.save(transcript)

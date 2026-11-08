@@ -23,8 +23,7 @@ struct AdvancedSettingsView: View {
             Section {
                 Toggle("錄音中先整理只用 Wi-Fi", isOn: $settings.liveTranscriptionWiFiOnly)
             } footer: {
-                Text("錄音中每講滿約 5 分鐘就先送去轉成文字，按停止後很快就好。"
-                    + "關著時，走路也會用行動網路，每小時約 14 MB。")
+                Text(Self.liveTranscriptionNote)
                     .font(Token.Fonts.footnote)
             }
             .font(Token.Fonts.body)
@@ -54,6 +53,9 @@ struct AdvancedSettingsView: View {
         .navigationTitle("進階")
         .navigationBarTitleDisplayMode(.inline)
     }
+
+    static let liveTranscriptionNote = "錄音中每講滿約 5 分鐘就先送去轉成文字，按停止後很快就好。"
+        + "關著時，走路也會用行動網路，每小時約 14 MB。"
 
     /// 模型名稱與狀態 2026-11-01 查證（見 `Polisher`）；價格會變，這裡不寫數字。
     static var modelNote: String {

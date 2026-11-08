@@ -48,6 +48,12 @@ extension TranscriptionQueue {
     func polishFinishedChunks(job: RecordingTranscriptionJob, progressAt finalURL: URL) async {
         var progress = job.loadProgress(for: finalURL)
         let chunks = Array(PolishChunks.split(progress.contiguousText).dropLast())
+        // 設定換了：先前用舊設定潤飾的塊不算數，用新的從頭做。
+        if progress.polishedWith != polishSettingsKey {
+            progress.polishedSources = []
+            progress.polishedDrafts = []
+            progress.polishedWith = polishSettingsKey
+        }
         let kept = progress.polishedPrefixCount(matching: chunks)
         progress.polishedSources = Array(progress.polishedSources.prefix(kept))
         progress.polishedDrafts = Array(progress.polishedDrafts.prefix(kept))
@@ -72,6 +78,11 @@ extension TranscriptionQueue {
                 return
             }
         }
+    }
+
+    /// 先潤飾的塊記下用哪個模型、哪種潤飾，停止時對不上就不沿用。
+    var polishSettingsKey: String {
+        "\(settings.polishModel)|\(settings.polishStyle.rawValue)"
     }
 
     /// 沒金鑰就不送（一直失敗沒意義）；設了只用 Wi-Fi 而現在走行動網路，也先不送，停止後再整理。
