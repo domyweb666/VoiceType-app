@@ -44,6 +44,23 @@ final class PolisherTests: XCTestCase {
         XCTAssertEqual(messages[1]["content"], "呃就是我想說")
     }
 
+    func test潤飾沒有正常結束當失敗不存半篇() async throws {
+        let reply = #"{"choices":[{"message":{"role":"assistant","content":"半篇"},"#
+            + #""finish_reason":"length"}]}"#
+        FakeOpenAIServer.reply = .http(status: 200, body: reply)
+        do {
+            _ = try await makePolisher().polish(
+                rawText: "很長的口語稿",
+                model: Polisher.defaultModel,
+                style: .keepVoice,
+                vocabulary: []
+            )
+            XCTFail("finish_reason 是 length 應該失敗")
+        } catch let failure as Polisher.Failure {
+            XCTAssertEqual(failure, .incomplete)
+        }
+    }
+
     func test潤飾大幅潤飾那版有米的草稿規矩() {
         let prompt = PolishStyle.heavy.prompt
         for rule in ["幫忙分段", "只留講得最完整的一次", "不准把兩句合成一句新的話", "只改錯字", "禁止標題", "停在草稿"] {

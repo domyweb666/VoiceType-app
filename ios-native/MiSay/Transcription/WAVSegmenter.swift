@@ -20,6 +20,8 @@ enum WAVSegmenter {
     static let minTailSeconds = 30
     /// 量安靜的單位：0.1 秒一格，比一個字短，夠找到換氣的空檔。
     static let quietWindowFrames = WAVFileWriter.sampleRate / 10
+    /// 一格的平均振幅超過這個算「有在講話」（約 -36 dBFS）。只拿來估字數夠不夠，不拿來切。
+    static let speechLoudnessThreshold = 500
 
     private static var bytesPerFrame: Int {
         WAVFileWriter.channelCount * WAVFileWriter.bitsPerSample / 8
@@ -79,6 +81,27 @@ enum WAVSegmenter {
         var audio = WAVFileWriter.header(dataByteCount: UInt32(pcm.count))
         audio.append(pcm)
         return audio
+    }
+
+    /// 一段完整 WAV（含檔頭）裡有幾秒在講話：給 S2-2 估「字數少得不對勁」。
+    static func speechSeconds(in audio: Data) -> Double {
+        let pcm = audio.dropFirst(WAVFileWriter.headerByteCount)
+        var speechWindows = 0
+        pcm.withUnsafeBytes { raw in
+            let samples = raw.bindMemory(to: Int16.self)
+            var windowStart = 0
+            while windowStart + quietWindowFrames <= samples.count {
+                var loudness = 0
+                for sample in samples[windowStart ..< windowStart + quietWindowFrames] {
+                    loudness += abs(Int(Int16(littleEndian: sample)))
+                }
+                if loudness / quietWindowFrames > speechLoudnessThreshold {
+                    speechWindows += 1
+                }
+                windowStart += quietWindowFrames
+            }
+        }
+        return Double(speechWindows * quietWindowFrames) / Double(WAVFileWriter.sampleRate)
     }
 
     private static func dataByteCount(of source: URL) throws -> Int {

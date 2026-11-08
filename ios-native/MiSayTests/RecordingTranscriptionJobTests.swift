@@ -70,6 +70,28 @@ final class RecordingTranscriptionJobTests: XCTestCase {
         XCTAssertEqual(last.littleEndianUInt32(at: 40), 120 * 32000)
     }
 
+    func test漏字講了一分鐘只回兩個字重送一次還是少就標出來() async throws {
+        let url = directory.appending(path: "rec-speech.wav")
+        var writer = try WAVFileWriter(creatingAt: url)
+        try writer.append(pcm: Data(repeating: 0x40, count: 60 * 32000))
+        try writer.finish()
+        FakeOpenAIServer.reply = .http(status: 200, body: #"{"text":"嗯。"}"#)
+
+        let job = RecordingTranscriptionJob(transcriber: makeTranscriber())
+        _ = try await job.transcribe(recordingAt: url)
+        XCTAssertEqual(FakeOpenAIServer.requestCount, 2, "少得不對勁要重送一次")
+        XCTAssertEqual(job.possiblyMissingSegments(forRecordingAt: url), [1])
+    }
+
+    func test漏字整段靜音回空字不算漏() async throws {
+        let recording = try makeRecording(minutes: 1)
+        FakeOpenAIServer.reply = .http(status: 200, body: #"{"text":""}"#)
+        let job = RecordingTranscriptionJob(transcriber: makeTranscriber())
+        _ = try await job.transcribe(recordingAt: recording)
+        XCTAssertEqual(FakeOpenAIServer.requestCount, 1)
+        XCTAssertNil(job.possiblyMissingSegments(forRecordingAt: recording))
+    }
+
     func test續轉舊版進度檔對不上就從頭轉而且沿用同一篇() async throws {
         let recording = try makeRecording(minutes: 12)
         var legacy = RecordingTranscriptionJob.Progress()

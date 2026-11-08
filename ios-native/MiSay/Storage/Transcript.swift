@@ -21,6 +21,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var originalDraft: String?
     /// 上次學到哪（2026-11-08 加）：學過的那份文字稿。下次只比它跟現在的，同一處修改不會學兩次。
     var learnedDraft: String?
+    /// 轉錄回來字數少得不像那段講的話量、重送一次還是少的段（從 1 數，S2-2）。沒有就是 nil。
+    var possiblyMissingSegments: [Int]?
     var updatedAt: Date
 
     init(
@@ -33,6 +35,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         polishStyle: String? = nil,
         originalDraft: String? = nil,
         learnedDraft: String? = nil,
+        possiblyMissingSegments: [Int]? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
@@ -44,6 +47,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         self.polishStyle = polishStyle
         self.originalDraft = originalDraft
         self.learnedDraft = learnedDraft
+        self.possiblyMissingSegments = possiblyMissingSegments
         self.updatedAt = updatedAt
     }
 

@@ -246,7 +246,8 @@ private extension TranscriptDetailView {
             polishFailed: polishFailed,
             saveFailed: saveFailed,
             isEmpty: currentText.isEmpty,
-            showsCopied: showsCopied
+            showsCopied: showsCopied,
+            possiblyMissing: transcript.possiblyMissingSegments ?? []
         )
     }
 }

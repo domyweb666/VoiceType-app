@@ -91,8 +91,9 @@ struct OpenAIClient {
         }
     }
 
-    /// 一般請求等這麼久沒動靜就放棄（沿用舊版 Flutter 的收資料逾時）。
-    static let requestTimeoutSeconds: TimeInterval = 60
+    /// 一般請求等這麼久沒動靜就放棄。S2-2 從 60 拉到 180：照公開速度，一小時的稿整篇潤飾要 72～86 秒，
+    /// 60 秒三次都會超時；分塊後一塊約 10 秒，180 留給網路慢的時候。
+    static let requestTimeoutSeconds: TimeInterval = 180
     /// 驗證金鑰要「馬上知道」，等太久跟不能用沒兩樣（沿用舊版 15 秒）。
     static let verifyTimeoutSeconds: TimeInterval = 15
 

@@ -138,7 +138,8 @@ final class TranscriptionQueue {
         let transcript = Transcript(
             id: job.transcriptID(forRecordingAt: url),
             durationSeconds: duration,
-            rawText: rawText
+            rawText: rawText,
+            possiblyMissingSegments: job.possiblyMissingSegments(forRecordingAt: url)
         )
         do {
             try store.save(transcript)

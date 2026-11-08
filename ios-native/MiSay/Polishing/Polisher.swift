@@ -6,6 +6,8 @@ struct Polisher {
     enum Failure: Error, Equatable {
         case malformedResponse
         case emptyDraft
+        /// 回來了但沒有正常結束（`finish_reason` 是 length 之類）：半篇不存，當失敗（S2-2）。
+        case incomplete
     }
 
     /// 2026-11-01 查證：gpt-5.4-mini 存在（輸入 0.75／輸出 4.50 美元每百萬 token）；
@@ -71,6 +73,10 @@ struct Polisher {
         guard let response = try? JSONDecoder().decode(ChatResponse.self, from: data) else {
             throw Failure.malformedResponse
         }
+        // 沒帶 finish_reason 的回應照舊收；有帶而且不是 stop，就是被截斷或被擋，半篇不能當文字稿。
+        if let reason = response.choices.first?.finishReason, reason != "stop" {
+            throw Failure.incomplete
+        }
         let draft = (response.choices.first?.message.content ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !draft.isEmpty else {
@@ -121,5 +127,11 @@ struct Polisher {
 
     private struct ChatChoice: Decodable {
         let message: ChatMessage
+        let finishReason: String?
+
+        enum CodingKeys: String, CodingKey {
+            case message
+            case finishReason = "finish_reason"
+        }
     }
 }

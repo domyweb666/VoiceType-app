@@ -19,6 +19,8 @@ struct RecordingTranscriptionJob {
         var transcriptID = UUID()
         var planVersion: Int?
         var segments: [WAVSegmenter.Segment]?
+        /// 重送一次字數還是少的段（從 0 數，S2-2）。
+        var suspectSegments: Set<Int> = []
 
         init() {}
 
@@ -34,6 +36,10 @@ struct RecordingTranscriptionJob {
                 [WAVSegmenter.Segment].self,
                 forKey: .segments
             )
+            suspectSegments = try container.decodeIfPresent(
+                Set<Int>.self,
+                forKey: .suspectSegments
+            ) ?? []
         }
 
         /// 切法換了或段落對不上：已轉的字作廢，id 留著。
@@ -42,6 +48,7 @@ struct RecordingTranscriptionJob {
                 return
             }
             segmentTexts = [:]
+            suspectSegments = []
             planVersion = Self.currentPlanVersion
             segments = plan
         }
@@ -72,31 +79,71 @@ struct RecordingTranscriptionJob {
             // 回呼會改畫面讀的進度，要回主執行緒叫；這個函式本身跑在背景。
             await onSegment(index + 1, segments.count)
             let previousText = (0 ..< index).compactMap { progress.segmentTexts[$0] }.joined()
-            let prompt = TranscriptionPrompt.build(
-                vocabulary: vocabulary,
-                previousText: previousText
+            let request = try SegmentRequest(
+                audio: WAVSegmenter.read(segment, from: recordingURL),
+                filename: String(format: "%@-%02d.wav", baseName, index + 1),
+                prompt: TranscriptionPrompt.build(
+                    vocabulary: vocabulary,
+                    previousText: previousText
+                ),
+                label: "轉錄第 \(index + 1)/\(segments.count) 段"
             )
-            let label = "轉錄第 \(index + 1)/\(segments.count) 段"
-            let startedAt = Date()
-            let text: String
-            do {
-                let audio = try WAVSegmenter.read(segment, from: recordingURL)
-                text = try await transcriber.transcribe(
-                    audio: audio,
-                    filename: String(format: "%@-%02d.wav", baseName, index + 1),
-                    prompt: prompt
-                )
-            } catch {
-                let waited = Int(Date().timeIntervalSince(startedAt))
-                DiagnosticLog.shared.record("\(label)失敗，等了 \(waited) 秒：\(error)")
-                throw error
+            var text = try await send(request)
+            // S2-2：字數少得不像那段講的話量，重送一次；還是少就記下來，文字稿標「可能漏字」。
+            if Self.looksShort(text, audio: request.audio) {
+                text = try await send(request)
+                if Self.looksShort(text, audio: request.audio) {
+                    progress.suspectSegments.insert(index)
+                }
             }
-            let waited = Int(Date().timeIntervalSince(startedAt))
-            DiagnosticLog.shared.record("\(label)，等了 \(waited) 秒，\(text.count) 字")
             progress.segmentTexts[index] = text
             try saveProgress(progress, for: recordingURL)
         }
         return (0 ..< segments.count).compactMap { progress.segmentTexts[$0] }.joined()
+    }
+
+    /// 口語稿存進歷史前讀：可能漏字的段，從 1 數。沒有就是 nil（存進文字稿時不多一欄）。
+    func possiblyMissingSegments(forRecordingAt recordingURL: URL) -> [Int]? {
+        let suspects = loadProgress(for: recordingURL).suspectSegments
+        return suspects.isEmpty ? nil : suspects.sorted().map { $0 + 1 }
+    }
+
+    static let minSpeechSecondsToCheck: Double = 5
+    static let minCharactersPerSpeechSecond: Double = 1
+
+    /// 講話秒數夠長（短的一兩句不準）而且每秒不到一個字：正常中文每秒四、五個字，少到這樣多半是漏了。
+    static func looksShort(_ text: String, audio: Data) -> Bool {
+        let speech = WAVSegmenter.speechSeconds(in: audio)
+        guard speech >= minSpeechSecondsToCheck else {
+            return false
+        }
+        return Double(text.count) < speech * minCharactersPerSpeechSecond
+    }
+
+    private struct SegmentRequest {
+        let audio: Data
+        let filename: String
+        let prompt: String
+        let label: String
+    }
+
+    private func send(_ request: SegmentRequest) async throws -> String {
+        let startedAt = Date()
+        let text: String
+        do {
+            text = try await transcriber.transcribe(
+                audio: request.audio,
+                filename: request.filename,
+                prompt: request.prompt
+            )
+        } catch {
+            let waited = Int(Date().timeIntervalSince(startedAt))
+            DiagnosticLog.shared.record("\(request.label)失敗，等了 \(waited) 秒：\(error)")
+            throw error
+        }
+        let waited = Int(Date().timeIntervalSince(startedAt))
+        DiagnosticLog.shared.record("\(request.label)，等了 \(waited) 秒，\(text.count) 字")
+        return text
     }
 
     /// 口語稿存進歷史之後（D5）才呼叫：把進度檔清掉。錄音檔本身由 D5 刪。
