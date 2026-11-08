@@ -1,9 +1,9 @@
 {
-  "station": "audit-batch",
-  "updated_at": "2026-11-07T15:00:00+08:00",
+  "station": "decompose",
+  "updated_at": "2026-11-08T23:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
-    "todo": 0,
+    "todo": 21,
     "machine_verified": 12,
     "human_verified": 4
   },
@@ -79,6 +79,46 @@
       "human_verified": false,
       "approved": false,
       "note": "等方向測試"
+    },
+    {
+      "name": "S2 一小時一定出得來",
+      "total": 10,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false,
+      "note": "2026-11-08 切細，等米放行"
+    },
+    {
+      "name": "S4 鎖屏也整理完",
+      "total": 3,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false,
+      "note": "2026-11-08 切細，等米放行"
+    },
+    {
+      "name": "K 知識工作者長錄音",
+      "total": 7,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false,
+      "note": "2026-11-08 切細，等米放行"
+    },
+    {
+      "name": "R 送審準備",
+      "total": 1,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false,
+      "note": "2026-11-08 切細，等米放行"
+    },
+    {
+      "name": "P 訂閱",
+      "total": 0,
+      "machine_done": 0,
+      "human_verified": false,
+      "approved": false,
+      "note": "🔴 牆：等試用數字與懂後端的人"
     }
   ],
   "pending_immediate_verify": [],
@@ -130,7 +170,13 @@
       "gate": "spec-standards 真實情境走查、plan-readback、🧠 立即驗",
       "date": "2026-11-04",
       "reason": "米：照建議開工；方案寫明一批推一次"
+    },
+    {
+      "piece": "組塊 S 第一批",
+      "gate": "第一批人驗才切第二批",
+      "date": "2026-11-08",
+      "reason": "米：先做功能，伺服器找人"
     }
   ],
-  "note": "2026-11-07 功能盤點完成（.vibe/功能盤點.md），米回「照建議順序」。第 0 步 compare 跑過兩輪（金鑰在 .vibe/local/.env）：第三批預設模型改 gpt-6-luna、提示詞 v2.1，米回「可以」。組塊 S 第一批 v0.1.6 build 7 在 TestFlight，等米照操作清單-待驗.md 最上面那段驗；第 0 步剩轉錄量測等米給音檔；第二批等第一批驗過，併入刪除全部資料、待轉錄單筆整理、先放著改字、刪音檔改成文字稿存好才刪"
+  "note": "2026-11-08 米選訂閱但先做功能、伺服器找人。S2/S4/K/R 切細寫進帳本與組塊核准讀稿最後，等米逐塊放行。"
 }
