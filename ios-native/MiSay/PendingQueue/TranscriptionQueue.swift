@@ -53,6 +53,8 @@ final class TranscriptionQueue {
     var isProcessingPending = false
     /// 最近一次自動續轉（S2-7）：回到前景時要取消重來的就是它。
     var pendingRun: Task<Void, Never>?
+    /// 邊錄邊轉那一輪（S4-1）；沒在錄是 nil。
+    var liveRun: Task<Void, Never>?
     var lastBackgroundedAt: Date?
     private let workingHold = BackgroundTimeHold()
 

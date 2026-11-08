@@ -89,6 +89,9 @@ struct RecordingSheetView: View {
         do {
             try await recorder.start()
             phase = recorder.isPaused ? .interrupted : .recording
+            if let liveURL = recorder.liveRecordingURL {
+                queue.startLive(recordingAt: liveURL)
+            }
         } catch Recorder.Failure.microphoneDenied {
             phase = .microphoneDenied
         } catch Recorder.Failure.notEnoughSpace {
@@ -111,14 +114,24 @@ struct RecordingSheetView: View {
         }
     }
 
+    /// 先停收音，再收掉邊錄邊轉（它還在讀這個檔），才把檔搬進待轉錄。
     @MainActor
     private func stopRecording() {
+        let recordedURL: URL
         do {
-            let recordedURL = try recorder.stop()
-            let pendingURL = try PendingRecordings().accept(recordingAt: recordedURL)
-            phase = .processing(pendingURL)
+            recordedURL = try recorder.stop()
         } catch {
             phase = .failed("錄音停不下來或存不進去，檔案還在，重開米說會撿回來。")
+            return
+        }
+        Task {
+            await queue.finishLive()
+            do {
+                let pendingURL = try PendingRecordings().accept(recordingAt: recordedURL)
+                phase = .processing(pendingURL)
+            } catch {
+                phase = .failed("錄音停不下來或存不進去，檔案還在，重開米說會撿回來。")
+            }
         }
     }
 }

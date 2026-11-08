@@ -43,13 +43,15 @@ struct RecordingTranscriptionJob {
             ) ?? []
         }
 
-        /// 切法換了或段落對不上：已轉的字作廢，id 留著。
+        /// 換成這份切法。起訖一樣的段留著已轉的字，對不上的作廢；切法版本換了全部作廢。id 留著。
+        /// S4-1：錄音中先轉的段，停止後整份重切時起訖一樣，字就沿用，不再送一次。
         mutating func adopt(_ plan: [WAVSegmenter.Segment]) {
-            guard planVersion != Self.currentPlanVersion || segments != plan else {
-                return
+            let previous = planVersion == Self.currentPlanVersion ? segments ?? [] : []
+            let keeps = { (index: Int) in
+                index < previous.count && index < plan.count && previous[index] == plan[index]
             }
-            segmentTexts = [:]
-            suspectSegments = []
+            segmentTexts = segmentTexts.filter { keeps($0.key) }
+            suspectSegments = suspectSegments.filter(keeps)
             planVersion = Self.currentPlanVersion
             segments = plan
         }
@@ -57,8 +59,8 @@ struct RecordingTranscriptionJob {
 
     static let progressExtension = "progress.json"
 
-    private let transcriber: Transcriber
-    private let vocabulary: [String]
+    let transcriber: Transcriber
+    let vocabulary: [String]
     private let fileManager = FileManager.default
 
     init(transcriber: Transcriber = Transcriber(), vocabulary: [String] = []) {
@@ -125,14 +127,14 @@ struct RecordingTranscriptionJob {
         return Double(text.count) < speech * minCharactersPerSpeechSecond
     }
 
-    private struct SegmentRequest {
+    struct SegmentRequest {
         let audio: Data
         let filename: String
         let prompt: String
         let label: String
     }
 
-    private func send(_ request: SegmentRequest) async throws -> String {
+    func send(_ request: SegmentRequest) async throws -> String {
         let startedAt = Date()
         let text: String
         do {
@@ -173,7 +175,7 @@ struct RecordingTranscriptionJob {
 
     /// 進度檔裡是一段一段的口語稿，跟文字稿一樣加密（S2-4，安全標準二），金鑰共用文字稿那把。
     /// v0.2.1 以前的進度檔是明文 JSON：解不開時照舊讀一次，下次存就變加密的。
-    private func loadProgress(for recordingURL: URL) -> Progress {
+    func loadProgress(for recordingURL: URL) -> Progress {
         // 進度檔讀不到就當從頭開始：最多多送已成功的段，不會丟任何東西。
         guard let data = try? Data(contentsOf: Self.progressURL(for: recordingURL)) else {
             return Progress()
@@ -182,7 +184,7 @@ struct RecordingTranscriptionJob {
         return (try? JSONDecoder().decode(Progress.self, from: plaintext)) ?? Progress()
     }
 
-    private func saveProgress(_ progress: Progress, for recordingURL: URL) throws {
+    func saveProgress(_ progress: Progress, for recordingURL: URL) throws {
         do {
             let plaintext = try JSONEncoder().encode(progress)
             let key = try TranscriptEncryptionKeyStore().loadOrCreateKey()

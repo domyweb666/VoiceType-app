@@ -92,6 +92,34 @@ final class RecordingTranscriptionJobTests: XCTestCase {
         XCTAssertNil(job.possiblyMissingSegments(forRecordingAt: recording))
     }
 
+    func test邊錄邊轉錄音中先轉定下來的段停止後只補剩下的() async throws {
+        let live = try makeRecording(minutes: 12)
+        let finalURL = directory.appending(path: "final.wav")
+        FakeOpenAIServer.reply = .http(status: 200, body: #"{"text":"先。"}"#)
+        let job = RecordingTranscriptionJob(transcriber: makeTranscriber())
+
+        await job.transcribeFinishedSegments(ofLive: live, progressAt: finalURL)
+        XCTAssertEqual(FakeOpenAIServer.requestCount, 2, "12 分鐘：前兩段定了，最後那段還在長")
+
+        try FileManager.default.copyItem(at: live, to: finalURL)
+        FakeOpenAIServer.reset()
+        FakeOpenAIServer.reply = .http(status: 200, body: #"{"text":"後。"}"#)
+        let text = try await job.transcribe(recordingAt: finalURL)
+        XCTAssertEqual(text, "先。先。後。")
+        XCTAssertEqual(FakeOpenAIServer.requestCount, 1)
+    }
+
+    func test續轉換切法時起訖一樣的段留著字() {
+        let first = WAVSegmenter.Segment(startFrame: 0, endFrame: 100)
+        let second = WAVSegmenter.Segment(startFrame: 100, endFrame: 200)
+        let longer = WAVSegmenter.Segment(startFrame: 100, endFrame: 260)
+        var progress = RecordingTranscriptionJob.Progress()
+        progress.adopt([first, second])
+        progress.segmentTexts = [0: "甲", 1: "乙"]
+        progress.adopt([first, longer])
+        XCTAssertEqual(progress.segmentTexts, [0: "甲"])
+    }
+
     func test續轉舊版進度檔對不上就從頭轉而且沿用同一篇() async throws {
         let recording = try makeRecording(minutes: 12)
         var legacy = RecordingTranscriptionJob.Progress()

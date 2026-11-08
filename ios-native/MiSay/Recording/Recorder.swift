@@ -23,6 +23,8 @@ final class Recorder {
     private(set) var lastGaps = CaptureWatch.Gaps()
 
     @ObservationIgnored private var capture: MicrophoneCapture?
+    /// 正在寫的錄音檔（S4-1 邊錄邊轉只讀它，不寫）。沒在錄是 nil。
+    var liveRecordingURL: URL? { capture?.url }
     @ObservationIgnored private var watch = CaptureWatch(startedAt: Date())
     @ObservationIgnored private var watchTimer: Timer?
     private let systemEvents = RecordingSystemEvents()
