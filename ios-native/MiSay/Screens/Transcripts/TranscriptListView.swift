@@ -37,6 +37,7 @@ struct TranscriptListView: View {
 
     var body: some View {
         List {
+            PageHeading(title: "文字稿")
             if unreadableCount > 0 {
                 unreadableBanner
             }
@@ -63,7 +64,7 @@ struct TranscriptListView: View {
         .searchable(text: $query, prompt: "搜尋文字稿")
         .overlay { emptyOverlay }
         .safeAreaInset(edge: .bottom) { undoBanner }
-        .navigationTitle("文字稿")
+        .pageTitle("文字稿")
         .navigationDestination(item: $openedTranscript) { transcript in
             TranscriptDetailView(transcript: transcript, onDelete: softDelete)
         }

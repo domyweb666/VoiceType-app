@@ -25,13 +25,11 @@ struct HomeView: View {
             if !hasAPIKey {
                 noKeyCard
             }
-            Spacer()
-            recordButton
-            // 下半的 Spacer 讓鈕停在正中央；文案掛在它上緣，不把鈕往上擠。
-            // Spacer 在 VStack 裡寬度是 0，要先撐到整寬，overlay 的文字才有地方換行。
-            Spacer()
-                .frame(maxWidth: .infinity)
-                .overlay(alignment: .top) { firstTimeHint }
+            // 鈕放在剩下空間的正中央，提示掛在鈕下面、不佔版面。
+            // 舊寫法是上下兩個 Spacer、下面那個掛 overlay，真機上下面那個把空間全吃走，鈕被擠到頂（2026-11-08 米截圖）。
+            Color.clear
+                .overlay { recordButton }
+                .overlay { hintBelowButton }
             if pendingCount > 0 {
                 pendingRow
             }
@@ -163,6 +161,13 @@ private extension HomeView {
         .buttonStyle(.plain)
         .padding(.horizontal, Token.Space.l)
         .padding(.top, Token.Space.s)
+    }
+
+    /// 提示的上緣對齊正中央，再往下推半顆鈕，剛好接在鈕下方。
+    var hintBelowButton: some View {
+        firstTimeHint
+            .padding(.top, Token.Shape.recordTap / 2)
+            .alignmentGuide(VerticalAlignment.center) { $0[.top] }
     }
 
     var firstTimeHint: some View {
