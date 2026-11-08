@@ -47,7 +47,10 @@ struct EditLearner {
         )
         let body: Data
         do {
-            body = try JSONEncoder().encode(request)
+            // responseFormat 送出去要叫 response_format。
+            let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase
+            body = try encoder.encode(request)
         } catch {
             throw Failure.malformedResponse
         }
@@ -130,12 +133,6 @@ struct EditLearner {
         let model: String
         let messages: [Message]
         let responseFormat: ResponseFormat
-
-        enum CodingKeys: String, CodingKey {
-            case model
-            case messages
-            case responseFormat = "response_format"
-        }
     }
 
     private struct Response: Decodable {

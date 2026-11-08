@@ -69,10 +69,8 @@ final class LearnFromEditsTests: XCTestCase {
 
     func test只開自動詞彙時不送現有習慣而且習慣原樣留著() async throws {
         let payload = #"{"vocabulary":["全聯"],"habits":["亂學的"]}"#
-        FakeOpenAIServer.reply = try .http(
-            status: 200,
-            body: String(decoding: chatReply(content: payload), as: UTF8.self)
-        )
+        let reply = try XCTUnwrap(String(bytes: chatReply(content: payload), encoding: .utf8))
+        FakeOpenAIServer.reply = .http(status: 200, body: reply)
         let result = try await makeLearner().learn(
             from: [EditHunk(before: "連", after: "聯", leading: "去全", trailing: "買")],
             currentHabits: ["秘密習慣"],
@@ -83,7 +81,7 @@ final class LearnFromEditsTests: XCTestCase {
         XCTAssertEqual(result.vocabulary, ["全聯"])
         XCTAssertEqual(result.habits, ["秘密習慣"])
         let body = try XCTUnwrap(FakeOpenAIServer.lastBody)
-        let text = String(decoding: body, as: UTF8.self)
+        let text = try XCTUnwrap(String(bytes: body, encoding: .utf8))
         XCTAssertFalse(text.contains("秘密習慣"))
         XCTAssertTrue(text.contains("json_object"))
     }
@@ -149,10 +147,8 @@ final class LearnFromEditsTests: XCTestCase {
 
     /// 包成 chat completions 的回應形狀。
     private func chatReply(content: String) throws -> Data {
-        let reply: [String: Any] = ["choices": [["message": [
-            "role": "assistant",
-            "content": content,
-        ]]]]
+        let message: [String: Any] = ["role": "assistant", "content": content]
+        let reply: [String: Any] = ["choices": [["message": message]]]
         return try JSONSerialization.data(withJSONObject: reply)
     }
 }

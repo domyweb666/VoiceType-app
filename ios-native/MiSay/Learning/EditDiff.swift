@@ -21,18 +21,7 @@ enum EditDiff {
     static func hunks(from old: String, to new: String) -> [EditHunk] {
         let oldCharacters = Array(old)
         let newCharacters = Array(new)
-        let changes = newCharacters.difference(from: oldCharacters)
-        var removed = Set<Int>()
-        var inserted = Set<Int>()
-        for change in changes {
-            switch change {
-            case let .remove(offset, _, _):
-                removed.insert(offset)
-            case let .insert(offset, _, _):
-                inserted.insert(offset)
-            }
-        }
-
+        let (removed, inserted) = changedOffsets(from: oldCharacters, to: newCharacters)
         var hunks: [EditHunk] = []
         var oldIndex = 0
         var newIndex = 0
@@ -69,6 +58,24 @@ enum EditDiff {
             }
         }
         return hunks
+    }
+
+    /// 改前被刪掉的字在第幾個、改後新加的字在第幾個。
+    private static func changedOffsets(
+        from old: [Character],
+        to new: [Character]
+    ) -> (removed: Set<Int>, inserted: Set<Int>) {
+        var removed = Set<Int>()
+        var inserted = Set<Int>()
+        for change in new.difference(from: old) {
+            switch change {
+            case let .remove(offset, _, _):
+                removed.insert(offset)
+            case let .insert(offset, _, _):
+                inserted.insert(offset)
+            }
+        }
+        return (removed, inserted)
     }
 
     /// 只動了標點、空白、換行的不算：那是排版，不是用詞或習慣。
