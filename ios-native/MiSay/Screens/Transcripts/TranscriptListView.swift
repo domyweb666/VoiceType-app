@@ -37,11 +37,6 @@ struct TranscriptListView: View {
 
     var body: some View {
         List {
-            // 統計看全部，不跟著搜尋變；搜尋時收起來，讓結果貼在搜尋框下面。
-            if !transcripts.isEmpty, query.isEmpty {
-                DictationStatsCard(stats: DictationStats(transcripts: transcripts))
-                    .listRowBackground(Token.Colors.rowBackground)
-            }
             if unreadableCount > 0 {
                 unreadableBanner
             }

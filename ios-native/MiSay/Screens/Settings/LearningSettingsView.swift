@@ -1,11 +1,27 @@
 import SwiftUI
 
-/// 設定頁「從修改學習」那一區（2026-11-08 米：自動詞彙直接加入、動態改進提示詞要做）。
+/// 設定 →「從修改學習」子頁（2026-11-08 米：自動詞彙直接加入、動態改進提示詞要做）。
+/// 設定頁簡化時從第一層的一區改成子頁，第一層只留一列寫「開／關」。
 /// 兩個開關都關著時什麼都不送；學到的習慣只能看、刪，不給打字改。
-struct LearningSection: View {
+struct LearningSettingsView: View {
     @Bindable private var settings = AppSettings.shared
 
+    /// 第一層那一列右邊寫的字：有一個開著就是「開」。
+    static func summary(_ settings: AppSettings) -> String {
+        settings.isLearningFromEdits ? "開" : "關"
+    }
+
     var body: some View {
+        Form {
+            section
+        }
+        .scrollContentBackground(.hidden)
+        .background(Token.Colors.groupedBackground)
+        .navigationTitle("從修改學習")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var section: some View {
         Section {
             Toggle("自動加入詞彙", isOn: $settings.autoVocabulary)
                 .tint(Token.Colors.link)
@@ -23,8 +39,6 @@ struct LearningSection: View {
                     }
                 }
             }
-        } header: {
-            Text("從修改學習")
         } footer: {
             Text(Self.note)
                 .font(Token.Fonts.footnote)
