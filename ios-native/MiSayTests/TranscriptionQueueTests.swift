@@ -86,6 +86,49 @@ final class TranscriptionQueueTests: XCTestCase {
         XCTAssertEqual(saved.draftText, "草稿。")
     }
 
+    func test流水分塊潤飾第二塊失敗再來只送剩下的塊() async throws {
+        let raw = String(repeating: "字字字字字字字字字。", count: 500)
+        let transcript = Transcript(durationSeconds: 3600, rawText: raw)
+        try store.save(transcript)
+        savedIDs.append(transcript.id)
+        let queue = try makeQueue()
+
+        FakeOpenAIServer.queuedReplies = [
+            .http(status: 200, body: chat("甲")),
+            .http(status: 401, body: ""),
+        ]
+        let first = await queue.retryPolish(transcript)
+        guard case let .polishFailed(partial, failure) = first else {
+            return XCTFail("第二塊應該失敗，拿到 \(first)")
+        }
+        XCTAssertEqual(failure, .invalidAPIKey(statusCode: 401))
+        XCTAssertEqual(partial.polishedChunks, ["甲"])
+        let landed = try store.loadAll().transcripts.first { $0.id == transcript.id }
+        XCTAssertEqual(landed?.polishedChunks, ["甲"], "做好的那塊已經存進去")
+
+        FakeOpenAIServer.reset()
+        FakeOpenAIServer.queuedReplies = [
+            .http(status: 200, body: chat("乙")),
+            .http(status: 200, body: chat("丙")),
+        ]
+        let second = await queue.retryPolish(partial)
+        guard case let .finished(done) = second else {
+            return XCTFail("應該整理完，拿到 \(second)")
+        }
+        XCTAssertEqual(FakeOpenAIServer.requestCount, 2)
+        XCTAssertEqual(done.draftText, "甲
+
+乙
+
+丙")
+        XCTAssertNil(done.polishedChunks)
+    }
+
+    private func chat(_ content: String) -> String {
+        #"{"choices":[{"message":{"role":"assistant","content":""# + content
+            + #""},"finish_reason":"stop"}]}"#
+    }
+
     private func makeQueue() throws -> TranscriptionQueue {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FakeOpenAIServer.self]

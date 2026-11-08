@@ -23,6 +23,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var learnedDraft: String?
     /// 轉錄回來字數少得不像那段講的話量、重送一次還是少的段（從 1 數，S2-2）。沒有就是 nil。
     var possiblyMissingSegments: [Int]?
+    /// 長稿潤飾做到一半時已經好的那幾塊（S2-3）。全部好了接成 `draftText`，這欄清成 nil。
+    var polishedChunks: [String]?
     var updatedAt: Date
 
     init(
@@ -36,6 +38,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         originalDraft: String? = nil,
         learnedDraft: String? = nil,
         possiblyMissingSegments: [Int]? = nil,
+        polishedChunks: [String]? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
@@ -48,6 +51,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         self.originalDraft = originalDraft
         self.learnedDraft = learnedDraft
         self.possiblyMissingSegments = possiblyMissingSegments
+        self.polishedChunks = polishedChunks
         self.updatedAt = updatedAt
     }
 
@@ -63,6 +67,7 @@ struct Transcript: Codable, Identifiable, Hashable {
         learnedDraft = draft
         polishModel = model
         polishStyle = style.rawValue
+        polishedChunks = nil
         updatedAt = Date()
     }
 
