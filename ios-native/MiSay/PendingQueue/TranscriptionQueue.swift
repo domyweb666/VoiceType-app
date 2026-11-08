@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 /// 方塊 M2 的流水（片 D5）：停止 → 收檔 → 判斷有金鑰 → 轉錄 → 口語稿存進歷史後才刪錄音檔 → 潤飾 → 草稿存進同一篇。
 /// 條件齊了從最舊的開始自動續轉；某一筆失敗就停、不重跑（安全標準四）。同一段不會同時送兩次（inFlight）。
@@ -38,14 +39,21 @@ final class TranscriptionQueue {
         let value: Outcome?
     }
 
-    /// 畫面只讀；會改它的只有這個型別自己的三個檔（本檔、+Polishing、+Pending）。
-    var activity = Activity.idle
+    /// 畫面只讀；會改它的只有這個型別自己的幾個檔（本檔與 `TranscriptionQueue+` 開頭的）。
+    /// S2-7：整理中螢幕不自動暗，按鎖屏時跟系統要最後約 30 秒把手上這段做完。
+    var activity = Activity.idle {
+        didSet { keepWorkingIfBusy() }
+    }
     /// OpenAI 拒收（4xx）或讀不出來的錄音檔名：再送一次也一樣，自動續轉跳過它們，待轉錄清單標出來給使用者刪。
     /// 只記在記憶體：重開米說會再試一次（2026-11-02 米：照建議，不讓一筆擋住後面的）。
     var refusedRecordings: Set<String> = []
     /// 在飛的錄音檔名與正在潤飾的篇 id（S2-4：補潤飾時不重送同一篇）。
     var inFlight: Set<String> = []
     var isProcessingPending = false
+    /// 最近一次自動續轉（S2-7）：回到前景時要取消重來的就是它。
+    var pendingRun: Task<Void, Never>?
+    var lastBackgroundedAt: Date?
+    private let workingHold = BackgroundTimeHold()
 
     let pending = PendingRecordings()
     let retained = RetainedRecordings()
@@ -163,6 +171,16 @@ final class TranscriptionQueue {
         }
         job.cleanUp(recordingAt: url)
         return .success(transcript)
+    }
+
+    private func keepWorkingIfBusy() {
+        let isBusy = activity != .idle
+        UIApplication.shared.isIdleTimerDisabled = isBusy
+        if isBusy {
+            workingHold.begin()
+        } else {
+            workingHold.end()
+        }
     }
 
     /// 只有正在顯示的是這一筆時才歸零：面板與續轉可能同時各跑一筆，不能蓋掉另一筆的進度。

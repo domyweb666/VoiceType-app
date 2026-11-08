@@ -6,6 +6,41 @@ extension TranscriptionQueue {
     /// 只補這麼近的篇：更早的沒有文字稿，多半是潤飾一直失敗、使用者自己決定放著，
     /// 每次回到前景都重送會一直花錢。詳情頁有「整理這篇」可以手動補。
     static let resumePolishWithinSeconds: TimeInterval = 24 * 60 * 60
+    /// 在背景待超過這麼久，系統多半已經把 App 暫停過：手上的請求可能卡著等到 180 秒超時才放棄，
+    /// 回到前景時直接取消重送（S2-7）。做好的段與塊都存了，重送只送手上那一段。
+    static let stuckAfterBackgroundSeconds: TimeInterval = 30
+
+    /// 首頁出現時叫。不用畫面自己的 .task：推頁時首頁會消失、.task 被取消，整理到一半的那筆會被當成失敗。
+    func startPendingRun() {
+        launchPendingRun(after: nil)
+    }
+
+    func noteBackgrounded() {
+        lastBackgroundedAt = Date()
+    }
+
+    func returnedToForeground() {
+        defer { lastBackgroundedAt = nil }
+        guard isProcessingPending,
+              let backgroundedAt = lastBackgroundedAt,
+              Date().timeIntervalSince(backgroundedAt) >= Self.stuckAfterBackgroundSeconds
+        else {
+            launchPendingRun(after: nil)
+            return
+        }
+        DiagnosticLog.shared.record("回到前景，取消卡住的整理重送")
+        let stuck = pendingRun
+        stuck?.cancel()
+        launchPendingRun(after: stuck)
+    }
+
+    /// 上一輪被取消時先等它收完，新的一輪才開始；不然兩輪交錯，「失敗就停」就不準了。
+    private func launchPendingRun(after previous: Task<Void, Never>?) {
+        pendingRun = Task { [weak self] in
+            await previous?.value
+            await self?.processPending()
+        }
+    }
 
     /// 自動續轉：從最舊的開始，一筆一筆；哪一筆失敗就停，等下次條件齊了再來。
     func processPending() async {
