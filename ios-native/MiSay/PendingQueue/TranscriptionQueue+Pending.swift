@@ -72,6 +72,20 @@ extension TranscriptionQueue {
         await resumeUnfinishedPolishing()
     }
 
+    /// S2-8 待轉錄單筆「整理這一個」：被標紅的也再試一次（換了金鑰之後用得到），還是被拒就再標回去。
+    func processOne(recordingAt url: URL) async -> Outcome? {
+        let name = url.lastPathComponent
+        refusedRecordings.remove(name)
+        let outcome = await process(recordingAt: url)
+        switch outcome {
+        case .transcriptionFailed(.rejected), .recordingUnreadable:
+            refusedRecordings.insert(name)
+        default:
+            break
+        }
+        return outcome
+    }
+
     /// 從最舊的開始補；哪一篇失敗就停（跟錄音同一條規矩），下次回到前景再來。
     private func resumeUnfinishedPolishing() async {
         guard let loaded = try? store.loadAll() else {
