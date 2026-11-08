@@ -55,6 +55,7 @@ extension TranscriptionQueue {
         } catch {
             return .draftNotSaved(working)
         }
+        TranscriptReadyNotice().post(for: polished)
         return .finished(polished)
     }
 

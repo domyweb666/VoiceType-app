@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct MiSayApp: App {
@@ -9,6 +10,7 @@ struct MiSayApp: App {
 
     init() {
         APIKeyStore().upgradeAccessibility()
+        UNUserNotificationCenter.current().delegate = NotificationRouter.shared
     }
 
     var body: some Scene {
