@@ -122,7 +122,8 @@ final class RecordingTranscriptionJobTests: XCTestCase {
             XCTAssertEqual(failure, .invalidAPIKey(statusCode: 401))
         }
         XCTAssertEqual(FakeOpenAIServer.requestCount, 2)
-        let progressBytes = try Data(contentsOf: RecordingTranscriptionJob.progressURL(for: recording))
+        let progressURL = RecordingTranscriptionJob.progressURL(for: recording)
+        let progressBytes = try Data(contentsOf: progressURL)
         XCTAssertNil(progressBytes.range(of: Data("第一段".utf8)), "進度檔不是明文（S2-4）")
 
         FakeOpenAIServer.reset()
