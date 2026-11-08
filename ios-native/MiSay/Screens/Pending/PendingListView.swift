@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 待轉錄清單（片 C6）：時間、長度，「刪掉這一個」要先過系統動作表確認（⚠️ 刪檔）。
-/// 「轉錄這一個」是組塊 D。從首頁待轉錄列推入。
+/// 右滑「整理這一個」只整理那一筆（S2-8，流程檔「可單獨重試」）。從首頁待轉錄列推入。
 /// 2026-11-07 統一風格：正在整理的那筆標「整理中」、被拒那行圖示＋紅字、刪不掉用狀態條講。
 struct PendingListView: View {
     /// 刪掉一個之後通知首頁重算數字。
@@ -11,6 +11,7 @@ struct PendingListView: View {
     @State private var recordings: [PendingRecordings.Recording] = []
     @State private var loadFailed = false
     @State private var deleteFailed = false
+    @State private var processFailed = false
     @State private var recordingToDelete: PendingRecordings.Recording?
     @State private var isConfirmingDelete = false
 
@@ -20,6 +21,10 @@ struct PendingListView: View {
                 ForEach(recordings) { recording in
                     row(recording)
                         .listRowBackground(Token.Colors.rowBackground)
+                        .swipeActions(edge: .leading) {
+                            Button("整理這一個") { processOne(recording) }
+                                .tint(Token.Colors.link)
+                        }
                         .swipeActions {
                             Button("刪除", role: .destructive) {
                                 recordingToDelete = recording
@@ -52,6 +57,10 @@ struct PendingListView: View {
                 StatusStrip(glyph: .failed, message: "沒刪掉，錄音還在，再試一次。")
                     .padding(.horizontal, Token.Space.l)
                     .padding(.bottom, Token.Space.s)
+            } else if processFailed {
+                StatusStrip(glyph: .failed, message: "這段沒整理成功，錄音還在。有網路、有金鑰時再試一次。")
+                    .padding(.horizontal, Token.Space.l)
+                    .padding(.bottom, Token.Space.s)
             }
         }
         .navigationTitle("待轉錄")
@@ -67,6 +76,21 @@ struct PendingListView: View {
             Button("取消", role: .cancel) {}
         }
         .task { reload() }
+    }
+
+    private func processOne(_ recording: PendingRecordings.Recording) {
+        processFailed = false
+        Task {
+            let outcome = await queue.processOne(recordingAt: recording.url)
+            switch outcome {
+            case .finished, .polishFailed, .draftNotSaved, nil:
+                break
+            default:
+                processFailed = true
+            }
+            reload()
+            onChange()
+        }
     }
 
     private func row(_ recording: PendingRecordings.Recording) -> some View {

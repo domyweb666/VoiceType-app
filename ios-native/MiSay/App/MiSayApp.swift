@@ -7,6 +7,10 @@ struct MiSayApp: App {
     /// 錄音狀態也放這層（組塊 S）：不跟著面板消失，撿回救回檔時問得到它在不在錄。
     @State private var recorder = Recorder()
 
+    init() {
+        APIKeyStore().upgradeAccessibility()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootTabView()

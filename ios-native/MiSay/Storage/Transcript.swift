@@ -21,6 +21,12 @@ struct Transcript: Codable, Identifiable, Hashable {
     var originalDraft: String?
     /// 上次學到哪（2026-11-08 加）：學過的那份文字稿。下次只比它跟現在的，同一處修改不會學兩次。
     var learnedDraft: String?
+    /// 轉錄回來字數少得不像那段講的話量、重送一次還是少的段（從 1 數，S2-2）。沒有就是 nil。
+    var possiblyMissingSegments: [Int]?
+    /// 長稿潤飾做到一半時已經好的那幾塊（S2-3）。全部好了接成 `draftText`，這欄清成 nil。
+    var polishedChunks: [String]?
+    /// 文字稿存好的時間（S2-5）：留存錄音從這時起再留 7 天。舊的篇沒有這欄，用 `updatedAt`。
+    var polishedAt: Date?
     var updatedAt: Date
 
     init(
@@ -33,6 +39,9 @@ struct Transcript: Codable, Identifiable, Hashable {
         polishStyle: String? = nil,
         originalDraft: String? = nil,
         learnedDraft: String? = nil,
+        possiblyMissingSegments: [Int]? = nil,
+        polishedChunks: [String]? = nil,
+        polishedAt: Date? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
@@ -44,6 +53,9 @@ struct Transcript: Codable, Identifiable, Hashable {
         self.polishStyle = polishStyle
         self.originalDraft = originalDraft
         self.learnedDraft = learnedDraft
+        self.possiblyMissingSegments = possiblyMissingSegments
+        self.polishedChunks = polishedChunks
+        self.polishedAt = polishedAt
         self.updatedAt = updatedAt
     }
 
@@ -59,6 +71,22 @@ struct Transcript: Codable, Identifiable, Hashable {
         learnedDraft = draft
         polishModel = model
         polishStyle = style.rawValue
+        polishedChunks = nil
+        polishedAt = Date()
+        updatedAt = Date()
+    }
+
+    /// 從錄音重新轉錄（S2-5）：換成新的口語稿，文字稿與跟它有關的欄位全部清掉，等重新潤飾。
+    mutating func replaceRawText(_ text: String, possiblyMissing: [Int]?) {
+        rawText = text
+        possiblyMissingSegments = possiblyMissing
+        draftText = nil
+        originalDraft = nil
+        learnedDraft = nil
+        polishedChunks = nil
+        polishModel = nil
+        polishStyle = nil
+        polishedAt = nil
         updatedAt = Date()
     }
 

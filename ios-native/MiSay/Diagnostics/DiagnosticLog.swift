@@ -36,6 +36,18 @@ final class DiagnosticLog {
         }
     }
 
+    /// 刪除全部資料（S2-9）：這一份和上一份都刪。刪不掉不擋，裡面本來就沒有講過的話。
+    func deleteAll() {
+        queue.sync {
+            guard let directory else {
+                return
+            }
+            for name in [Self.currentName, Self.previousName] {
+                try? FileManager.default.removeItem(at: directory.appending(path: name))
+            }
+        }
+    }
+
     /// 匯出用：上一份接這一份，舊的在前面。
     func exportedText() -> String {
         queue.sync {

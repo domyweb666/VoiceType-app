@@ -7,6 +7,7 @@ import SwiftUI
 /// 改字、整理、複製那些動作在 `TranscriptDetailView+Editing.swift`，所以狀態不加 private。
 struct TranscriptDetailView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(TranscriptionQueue.self) var queue
     @State var transcript: Transcript
     @State var draftEdit: String
     @State var showsRawText = false
@@ -15,6 +16,7 @@ struct TranscriptDetailView: View {
     @State var isPolishing = false
     @State var polishFailed = false
     @State var isConfirmingDelete = false
+    @State var isConfirmingRetranscribe = false
     @State var copyCount = 0
     @State var showsCopied = false
     @State var saveFailed = false
@@ -65,6 +67,16 @@ struct TranscriptDetailView: View {
                     dismiss()
                 }
                 Button("取消", role: .cancel) {}
+            }
+            .confirmationDialog(
+                "用錄音重新轉一次？",
+                isPresented: $isConfirmingRetranscribe,
+                titleVisibility: .visible
+            ) {
+                Button("重新轉錄", action: retranscribe)
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("口語稿和文字稿都會換成新的，你改過的字會不見。")
             }
             .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
             .onChange(of: draftEdit) { _, _ in scheduleAutosave() }
@@ -191,6 +203,14 @@ private extension TranscriptDetailView {
                     Label("看口語稿", systemImage: "waveform")
                 }
             }
+            // S2-5：錄音還留著才有這顆（文字稿存好後留 7 天）。
+            if RetainedRecordings().exists(for: transcript.id) {
+                Button {
+                    isConfirmingRetranscribe = true
+                } label: {
+                    Label("從錄音重新轉錄", systemImage: "arrow.clockwise")
+                }
+            }
             Button(role: .destructive) {
                 isConfirmingDelete = true
             } label: {
@@ -246,7 +266,8 @@ private extension TranscriptDetailView {
             polishFailed: polishFailed,
             saveFailed: saveFailed,
             isEmpty: currentText.isEmpty,
-            showsCopied: showsCopied
+            showsCopied: showsCopied,
+            possiblyMissing: transcript.possiblyMissingSegments ?? []
         )
     }
 }

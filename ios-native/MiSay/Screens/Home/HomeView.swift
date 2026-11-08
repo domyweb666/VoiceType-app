@@ -54,16 +54,18 @@ struct HomeView: View {
         .task {
             recoverThenReloadPending()
             reloadKey()
-            // 不用 .task 自己的工作：推頁時首頁會消失、.task 被取消，整理到一半的那筆會被當成失敗。
-            Task { await queue.processPending() }
+            queue.startPendingRun()
             EditLearningRunner.start()
         }
         .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                queue.noteBackgrounded()
+            }
             guard phase == .active else {
                 return
             }
             reloadKey()
-            Task { await queue.processPending() }
+            queue.returnedToForeground()
             // 上次沒網路沒學成的修改，回前景再試。
             EditLearningRunner.start()
         }

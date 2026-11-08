@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 設定 →「進階」子頁：潤飾模型、備份、診斷紀錄。2026-11-08 設定頁簡化時從第一層收進來，
+/// 設定 →「進階」子頁：潤飾模型、備份、診斷紀錄、刪除全部資料（S2-9）。2026-11-08 設定頁簡化時從第一層收進來，
 /// 平常不用碰的放這裡，說明文字也跟著搬進來。
 struct AdvancedSettingsView: View {
     @Bindable private var settings = AppSettings.shared
@@ -36,6 +36,8 @@ struct AdvancedSettingsView: View {
             }
             .font(Token.Fonts.body)
             .listRowBackground(Token.Colors.rowBackground)
+
+            EraseAllDataSection()
         }
         .scrollContentBackground(.hidden)
         .background(Token.Colors.groupedBackground)

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 錄音面板的後半段（片 D6）：停止之後的整理中、完成、失敗、沒金鑰、潤飾失敗。文案照 06-首次體驗「錄音面板」。
-/// 整理跑在不跟畫面綁的 Task 裡：按「先放著」收起面板，流水照樣在背景跑完；錄音檔在口語稿存好前都在待轉錄。
+/// 整理跑在不跟畫面綁的 Task 裡：按「收起來」收起面板，流水照樣在背景跑完；錄音檔在口語稿存好前都在待轉錄。
 /// 完成面板「收成第 N 根」的位置留在「好了」那行下面，穀倉還沒做，不畫。
 /// 2026-11-07 統一風格：完成面板多三行文字稿預覽；純判斷搬到 `RecordingResultView+Status.swift`。
 struct RecordingResultView: View {
@@ -127,7 +127,7 @@ struct RecordingResultView: View {
         }
     }
 
-    /// 面板已經收起（按了「先放著」）就不動剪貼簿：使用者可能正在別處複製東西。
+    /// 面板已經收起（按了「收起來」）就不動剪貼簿：使用者可能正在別處複製東西。
     private func copyIfWanted(_ transcript: Transcript) -> Bool {
         guard isShown, AppSettings.shared.autoCopy else {
             return false
@@ -159,8 +159,13 @@ private extension RecordingResultView {
                     .foregroundStyle(Token.Colors.textSecondary)
                     .multilineTextAlignment(.center)
             }
+            // S2-8：原本「先放著」聽起來像放著就會好，其實鎖屏太久會停。照實講。
+            Text("收起來也會繼續整理；鎖屏太久會先停，回到米說接著做。")
+                .font(Token.Fonts.footnote)
+                .foregroundStyle(Token.Colors.textSecondary)
+                .multilineTextAlignment(.center)
             Spacer(minLength: Token.Space.s)
-            Button("先放著") { dismiss() }
+            Button("收起來") { dismiss() }
                 .buttonStyle(TextButtonStyle())
         }
     }

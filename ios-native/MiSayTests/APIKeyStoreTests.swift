@@ -21,6 +21,22 @@ final class APIKeyStoreTests: XCTestCase {
         XCTAssertEqual(try store.read(), fakeKey)
     }
 
+    func test金鑰開機第一次解鎖後就讀得到() throws {
+        try store.save(fakeKey)
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "org.domyweb.misay.openai",
+            kSecReturnAttributes as String: true,
+        ]
+        var result: CFTypeRef?
+        XCTAssertEqual(SecItemCopyMatching(query as CFDictionary, &result), errSecSuccess)
+        let attributes = try XCTUnwrap(result as? [String: Any])
+        guard let accessible = attributes[kSecAttrAccessible as String] as? String else {
+            throw XCTSkip("模擬器沒回報 Keychain 可讀時機，真機才驗得到")
+        }
+        XCTAssertEqual(accessible, APIKeyStore.accessibility as String)
+    }
+
     func test金鑰存第二次會蓋掉第一次() throws {
         try store.save(fakeKey)
         try store.save(anotherFakeKey)
