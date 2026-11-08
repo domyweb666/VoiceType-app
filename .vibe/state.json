@@ -1,10 +1,10 @@
 {
-  "station": "impl",
-  "updated_at": "2026-11-09T00:30:00+08:00",
+  "station": "audit-batch",
+  "updated_at": "2026-11-09T01:30:00+08:00",
   "updated_by": "vibe-traffic-control",
   "pieces": {
-    "todo": 17,
-    "machine_verified": 12,
+    "todo": 11,
+    "machine_verified": 22,
     "human_verified": 4
   },
   "chunks": [
@@ -83,10 +83,10 @@
     {
       "name": "S2 一小時一定出得來",
       "total": 10,
-      "machine_done": 4,
+      "machine_done": 10,
       "human_verified": false,
       "approved": true,
-      "note": "2026-11-08 米：四塊一起放行；S2-0～3 寫完未推 CI"
+      "note": "v0.2.2 build 13，待米批次驗"
     },
     {
       "name": "S4 鎖屏也整理完",
@@ -178,5 +178,5 @@
       "reason": "米：先做功能，伺服器找人"
     }
   ],
-  "note": "2026-11-08 米選訂閱但先做功能、伺服器找人。S2/S4/K/R 切細寫進帳本與組塊核准讀稿最後，等米逐塊放行。"
+  "note": "2026-11-08 深夜 S2 上 TestFlight（v0.2.2 build 13）；下一塊 S4（立即驗骨架），再 K、R；P 等人。"
 }
