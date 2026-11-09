@@ -59,4 +59,39 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertNil(VocabularyView.cleaned("   ", existing: []))
         XCTAssertNil(VocabularyView.cleaned("domyweb", existing: ["DOMYWEB"]))
     }
+
+    func test詞彙頁新的在上面_分段與搜尋一起篩() {
+        let words = ["DOMYWEB", "全聯", "Domi 老師"]
+        let isAuto: (String) -> Bool = { $0 == "全聯" }
+
+        XCTAssertEqual(
+            VocabularyView.shownWords(words, filter: .all, search: "", isAutoAdded: isAuto),
+            ["Domi 老師", "全聯", "DOMYWEB"]
+        )
+        XCTAssertEqual(
+            VocabularyView.shownWords(words, filter: .auto, search: "", isAutoAdded: isAuto),
+            ["全聯"]
+        )
+        XCTAssertEqual(
+            VocabularyView.shownWords(words, filter: .manual, search: " dom ", isAutoAdded: isAuto),
+            ["Domi 老師", "DOMYWEB"]
+        )
+        XCTAssertEqual(
+            VocabularyView.shownWords(words, filter: .auto, search: "dom", isAutoAdded: isAuto),
+            []
+        )
+    }
+
+    func test自動加了新詞才記時間_全部被擋掉不記() throws {
+        let settings = try AppSettings(defaults: makeDefaults())
+        XCTAssertNil(settings.lastAutoVocabularyAt)
+
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        settings.addAutoVocabulary(["全聯"], now: now)
+        XCTAssertEqual(settings.lastAutoVocabularyAt, now)
+
+        // 已經有的詞不算新詞，時間不動。
+        settings.addAutoVocabulary(["全聯"], now: now.addingTimeInterval(60))
+        XCTAssertEqual(settings.lastAutoVocabularyAt, now)
+    }
 }

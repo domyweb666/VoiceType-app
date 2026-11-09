@@ -38,6 +38,30 @@ final class DictationStatsTests: XCTestCase {
         assertDuration(3 * 3600 + 5 * 60, "3 小時 5", "分")
     }
 
+    func test首頁那一行_本週有講講本週_沒有講累計_一篇都沒有不顯示() throws {
+        let calendar = Calendar(identifier: .gregorian)
+        let now = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 11)))
+        let lastMonth = try XCTUnwrap(calendar.date(byAdding: .month, value: -1, to: now))
+        // 400 字講 2 分鐘：打字要 10 分鐘，省 8 分鐘。
+        let recent = Transcript(
+            createdAt: now,
+            durationSeconds: 120,
+            rawText: String(repeating: "字", count: 400)
+        )
+        let old = Transcript(createdAt: lastMonth, durationSeconds: 600, rawText: "嗯")
+
+        XCTAssertNil(DictationStats.homeSummary(for: [], now: now, calendar: calendar))
+        XCTAssertEqual(
+            DictationStats.homeSummary(for: [recent, old], now: now, calendar: calendar),
+            "本週講了 2 分鐘・約 400 字・省下 8 分鐘"
+        )
+        // 講得比打得慢，沒省到時間就不寫「省下」。
+        XCTAssertEqual(
+            DictationStats.homeSummary(for: [old], now: now, calendar: calendar),
+            "累計講了 10 分鐘・約 1 字"
+        )
+    }
+
     private func assertDuration(
         _ seconds: Double,
         _ value: String,

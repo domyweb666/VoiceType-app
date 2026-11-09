@@ -96,7 +96,7 @@ final class LearnFromEditsTests: XCTestCase {
         XCTAssertTrue(settings.isAutoAdded("全聯"))
         XCTAssertFalse(settings.isAutoAdded("DOMYWEB"))
 
-        settings.removeVocabulary(atOffsets: IndexSet(integer: 1))
+        settings.removeVocabulary("全聯")
         XCTAssertEqual(settings.vocabulary, ["DOMYWEB"])
         XCTAssertEqual(settings.addAutoVocabulary(["全聯"]), [])
     }

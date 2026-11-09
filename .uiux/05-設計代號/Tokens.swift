@@ -35,8 +35,6 @@ enum Token {
         static let danger = Color("警示-文字") // D70015 / FF6961，只給刪除與失敗
         /// 主要動作（每個畫面只出現一次）
         static let actionFill = Color("動作-底玉米") // F2C14E
-        /// 錄音鈕圓盤，跟 App icon 同一個酒紅（2026-11-08 米：全黃會跟玉米圖分不開）
-        static let recordDiscFill = Color("動作-圓盤") // 3A1024 / 3A1024
         static let actionInk = Color("動作-字玉米") // 2B2000
         /// 錄音鈕外圈那一環，裝飾用，不入對比表 D9A62E 55% / F2C14E 45%
         static let actionRing = Color("動作-外環")
@@ -96,9 +94,9 @@ enum Token {
         static let stopTap: CGFloat = 80 // 錄音面板停止鈕
         static let stopGlyph: CGFloat = 28 // 停止鈕中間的方形
         static let recordTap: CGFloat = 220 // 首頁錄音鈕點擊範圍（SE 線框是 180；怎麼縮未定）
-        static let recordDisc: CGFloat = 184 // 快門式：裡面那顆酒紅圓盤
+        static let recordDisc: CGFloat = 184 // 快門式：裡面那顆玉米黃圓盤
         static let recordRing: CGFloat = 3 // 快門式：外圈金環線寬
-        static let recordGlyph: CGFloat = 120 // 快門式：中間玉米麥克風圖的高（11/08 從 76 的實心麥克風換掉）
+        static let recordGlyph: CGFloat = 76 // 快門式：中間實心麥克風（11/08 換玉米圖 120，11/09 米換回來）
         static let cornWidth: CGFloat = 88 // 空清單那根玉米
         static let cornHeight: CGFloat = 112
     }
