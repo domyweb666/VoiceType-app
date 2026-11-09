@@ -25,7 +25,7 @@ extension TranscriptDetailView {
     }
 
     /// 從現在畫面上的字出發（有文字稿就是改過的文字稿）。太長不送：一次改寫整篇會被截斷，半篇不存。
-    func startRewrite(_ kind: RewriteKind) {
+    func startRewrite(_ kind: RewriteKind, instruction: String?) {
         guard rewritingKind == nil, !isPolishing else {
             return
         }
@@ -42,26 +42,32 @@ extension TranscriptDetailView {
         rewriteFailure = nil
         rewritingKind = kind
         rewriteTask = Task { @MainActor in
-            await runRewrite(source: source, kind: kind)
+            await runRewrite(source: source, kind: kind, instruction: instruction)
         }
     }
 
     /// 被停掉的那次不碰狀態：停掉後馬上按另一種，新的那次已經在用這兩個欄位了。
     /// 使用者自己按停止，也不跳訊息（詞彙表語氣規則）。
-    private func runRewrite(source: String, kind: RewriteKind) async {
+    private func runRewrite(source: String, kind: RewriteKind, instruction: String?) async {
         let model = AppSettings.shared.polishModel
         do {
             let text = try await Polisher().rewrite(
                 text: source,
                 kind: kind,
                 model: model,
-                vocabulary: AppSettings.shared.vocabulary
+                vocabulary: AppSettings.shared.vocabulary,
+                instruction: instruction
             )
             guard !Task.isCancelled else {
                 return
             }
             finishRewrite()
-            let rewrite = TranscriptRewrite(kind: kind.rawValue, text: text, model: model)
+            let rewrite = TranscriptRewrite(
+                kind: kind.rawValue,
+                text: text,
+                model: model,
+                instruction: instruction
+            )
             try updateStored { $0.addRewrite(rewrite) }
             if !showsRewrites {
                 showNote("改寫好了：\(kind.title)，在「⋯ → 改寫成其他格式」裡。")

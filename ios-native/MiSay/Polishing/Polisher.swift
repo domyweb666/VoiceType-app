@@ -53,14 +53,17 @@ struct Polisher {
 
     /// W1 改寫成別的格式：從文字稿出發，整篇一次送（長度上限在 `RewriteKind`）。
     /// 學到的改稿習慣是給潤飾用的，不帶；詞彙照帶，人名品牌才不會在改寫時又寫錯。
+    /// W2：使用者這次多打的一句要求接在最後（`RewriteKind.systemContent`）。
     func rewrite(
         text: String,
         kind: RewriteKind,
         model: String,
-        vocabulary: [String]
+        vocabulary: [String],
+        instruction: String? = nil
     ) async throws -> String {
-        try await complete(
-            system: Self.systemContent(prompt: kind.prompt, vocabulary: vocabulary),
+        let base = Self.systemContent(prompt: kind.prompt, vocabulary: vocabulary)
+        return try await complete(
+            system: RewriteKind.appending(instruction, to: base),
             user: RewriteKind.userContent(text: text),
             model: model
         )

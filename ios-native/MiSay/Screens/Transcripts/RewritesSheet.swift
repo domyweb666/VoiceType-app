@@ -2,11 +2,12 @@ import SwiftUI
 
 /// W1「改寫成其他格式」那張頁（2026-11-09）：上面五種格式，按一種就改寫；下面是改寫好的幾份，點進去看、複製、分享。
 /// 送出與存檔在詳情頁（`TranscriptDetailView+Rewrite`），這張頁收起來改寫照樣做完、存好。
+/// W2：最上面一格補充要求，可以不填，只用在這次改寫。
 struct RewritesSheet: View {
     let rewrites: [TranscriptRewrite]
     let rewritingKind: RewriteKind?
     let failure: String?
-    let onRewrite: (RewriteKind) -> Void
+    let onRewrite: (RewriteKind, String?) -> Void
     let onCancel: () -> Void
     let onDelete: (TranscriptRewrite) -> Void
 
@@ -14,10 +15,22 @@ struct RewritesSheet: View {
     @State private var path: [TranscriptRewrite] = []
     /// 這張頁上按的那次改寫好了，直接推進去看；從別處來的變動（刪一份）不推。
     @State private var isWaitingForResult = false
+    /// 改寫完不清掉：同一句要求常常想再換一種格式用。
+    @State private var instruction = ""
 
     var body: some View {
         NavigationStack(path: $path) {
             List {
+                Section {
+                    TextField("例如：保留我舉的例子、用大白話", text: $instruction, axis: .vertical)
+                        .lineLimit(1 ... 4)
+                } header: {
+                    Text("補充要求（可以不填）")
+                } footer: {
+                    instructionFooter
+                }
+                .listRowBackground(Token.Colors.rowBackground)
+
                 Section {
                     ForEach(RewriteKind.allCases) { kindRow($0) }
                 } header: {
@@ -86,7 +99,7 @@ struct RewritesSheet: View {
     private func kindRow(_ kind: RewriteKind) -> some View {
         Button {
             isWaitingForResult = true
-            onRewrite(kind)
+            onRewrite(kind, RewriteKind.cleanedInstruction(instruction))
         } label: {
             HStack(spacing: Token.Space.m) {
                 VStack(alignment: .leading, spacing: Token.Space.xs) {
@@ -103,7 +116,29 @@ struct RewritesSheet: View {
                 }
             }
         }
-        .disabled(rewritingKind != nil)
+        .disabled(rewritingKind != nil || isInstructionTooLong)
+    }
+
+    private var isInstructionTooLong: Bool {
+        instruction.trimmingCharacters(in: .whitespacesAndNewlines).count > RewriteKind
+            .maxInstructionCharacters
+    }
+
+    /// 太長時講現在幾個字，五種先按不下去；平常講清楚只管這一次。
+    private var instructionFooter: some View {
+        Text(Self
+            .instructionNote(characters: instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+                .count))
+            .font(Token.Fonts.footnote)
+            .foregroundStyle(isInstructionTooLong ? Token.Colors.danger : Token.Colors
+                .textSecondary)
+    }
+
+    static func instructionNote(characters: Int) -> String {
+        guard characters > RewriteKind.maxInstructionCharacters else {
+            return "只用在這次改寫，你的潤飾方式不會變。"
+        }
+        return "補充要求最多 \(RewriteKind.maxInstructionCharacters) 字，現在 \(characters) 字。"
     }
 
     private func rewriteRow(_ rewrite: TranscriptRewrite) -> some View {
@@ -113,6 +148,12 @@ struct RewritesSheet: View {
             Text(rewrite.createdAt.formatted(date: .abbreviated, time: .shortened))
                 .font(Token.Fonts.secondary)
                 .foregroundStyle(Token.Colors.textSecondary)
+            if let instruction = rewrite.instruction {
+                Text("補充：" + instruction)
+                    .font(Token.Fonts.secondary)
+                    .foregroundStyle(Token.Colors.textSecondary)
+                    .lineLimit(1)
+            }
         }
     }
 
@@ -139,13 +180,21 @@ private struct RewriteTextView: View {
 
     var body: some View {
         ScrollView {
-            Text(rewrite.text)
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .lineSpacing(Token.Space.lineSpacing)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(Token.Space.l)
+            VStack(alignment: .leading, spacing: Token.Space.m) {
+                // W2：這份當時多打了什麼要求，看得到才知道為什麼長這樣。
+                if let instruction = rewrite.instruction {
+                    Text("補充要求：" + instruction)
+                        .font(Token.Fonts.footnote)
+                        .foregroundStyle(Token.Colors.textSecondary)
+                }
+                Text(rewrite.text)
+                    .font(Token.Fonts.body)
+                    .foregroundStyle(Token.Colors.textPrimary)
+                    .lineSpacing(Token.Space.lineSpacing)
+                    .textSelection(.enabled)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Token.Space.l)
         }
         .background(Token.Colors.rowBackground)
         .navigationTitle(RewriteKind.title(forStored: rewrite.kind))

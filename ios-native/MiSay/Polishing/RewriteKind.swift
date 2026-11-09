@@ -12,6 +12,8 @@ enum RewriteKind: String, CaseIterable, Identifiable {
 
     /// 超過這麼多字不送：一次改寫整篇，太長會被截斷，半篇不能存。約兩小時的錄音。
     static let maxSourceCharacters = 30000
+    /// W2 補充要求最多幾個字：一兩句話的事，太長就是在重寫提示詞了。
+    static let maxInstructionCharacters = 200
 
     var id: String {
         rawValue
@@ -45,6 +47,25 @@ enum RewriteKind: String, CaseIterable, Identifiable {
 
     var prompt: String {
         Self.intro + "\n\n" + instructions + "\n\n" + Self.sharedRules
+    }
+
+    /// W2（2026-11-09 米點頭：11/08「提示詞不給改」的例外，只用在改寫、只管這一次）：
+    /// 去掉前後空白，空的回 nil；超過字數也回 nil，畫面先擋著不讓送。
+    static func cleanedInstruction(_ input: String) -> String? {
+        let instruction = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !instruction.isEmpty, instruction.count <= maxInstructionCharacters else {
+            return nil
+        }
+        return instruction
+    }
+
+    /// 補充要求接在最後，照它的意思調；「不准補內容」那條寫明它也蓋不掉。
+    static func appending(_ instruction: String?, to system: String) -> String {
+        guard let instruction else {
+            return system
+        }
+        return system + "\n\n這次的補充要求（照著做；跟上面衝突時照這裡，"
+            + "只有「不准補文字稿沒講的事實」那條不能被蓋掉）：\n" + instruction
     }
 
     /// 文字稿只放在 user 那一則，包著標籤（安全標準五：內容不進 system）。

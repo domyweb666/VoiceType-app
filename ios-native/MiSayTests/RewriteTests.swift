@@ -104,6 +104,50 @@ final class RewriteTests: XCTestCase {
         )
     }
 
+    func test補充要求接在system最後_不准補內容那條蓋不掉_文字稿照舊只在user() async throws {
+        let reply = #"{"choices":[{"message":{"role":"assistant","content":"文章"}}]}"#
+        FakeOpenAIServer.reply = .http(status: 200, body: reply)
+        _ = try await makePolisher().rewrite(
+            text: "我想講一件事",
+            kind: .article,
+            model: Polisher.defaultModel,
+            vocabulary: [],
+            instruction: "保留我舉的例子"
+        )
+        let body = try XCTUnwrap(FakeOpenAIServer.lastBody)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let messages = try XCTUnwrap(json["messages"] as? [[String: String]])
+        let system = try XCTUnwrap(messages[0]["content"])
+        XCTAssertTrue(system.hasSuffix("：\n保留我舉的例子"))
+        XCTAssertTrue(system.contains("只有「不准補文字稿沒講的事實」那條不能被蓋掉"))
+        XCTAssertEqual(messages[1]["content"], "<transcript>\n我想講一件事\n</transcript>")
+
+        XCTAssertEqual(RewriteKind.appending(nil, to: "P"), "P", "沒打就跟 W1 一模一樣")
+    }
+
+    func test補充要求去空白_空的和太長的不送() {
+        XCTAssertEqual(RewriteKind.cleanedInstruction("  用大白話 \n"), "用大白話")
+        XCTAssertNil(RewriteKind.cleanedInstruction("   "))
+        let long = String(repeating: "字", count: RewriteKind.maxInstructionCharacters + 1)
+        XCTAssertNil(RewriteKind.cleanedInstruction(long))
+        XCTAssertEqual(RewritesSheet.instructionNote(characters: 10), "只用在這次改寫，你的潤飾方式不會變。")
+        XCTAssertEqual(RewritesSheet.instructionNote(characters: 201), "補充要求最多 200 字，現在 201 字。")
+    }
+
+    func test改寫記得當時的補充要求_W2以前的讀得出來() throws {
+        let rewrite = TranscriptRewrite(kind: "article", text: "文章", model: "m", instruction: "大白話")
+        let data = try JSONEncoder().encode(rewrite)
+        XCTAssertEqual(
+            try JSONDecoder().decode(TranscriptRewrite.self, from: data).instruction,
+            "大白話"
+        )
+
+        let old = #"{"id":"\#(UUID().uuidString)","kind":"article","#
+            + #""text":"文章","model":"m","createdAt":0}"#
+        let decoded = try JSONDecoder().decode(TranscriptRewrite.self, from: Data(old.utf8))
+        XCTAssertNil(decoded.instruction)
+    }
+
     private func makePolisher() -> Polisher {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FakeOpenAIServer.self]

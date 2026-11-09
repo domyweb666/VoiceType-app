@@ -9,12 +9,22 @@ struct TranscriptRewrite: Codable, Hashable, Identifiable {
     let text: String
     let model: String
     let createdAt: Date
+    /// 這次多打的補充要求（W2）。沒打、或 W2 以前的是 nil。
+    let instruction: String?
 
-    init(id: UUID = UUID(), kind: String, text: String, model: String, createdAt: Date = Date()) {
+    init(
+        id: UUID = UUID(),
+        kind: String,
+        text: String,
+        model: String,
+        createdAt: Date = Date(),
+        instruction: String? = nil
+    ) {
         self.id = id
         self.kind = kind
         self.text = text
         self.model = model
         self.createdAt = createdAt
+        self.instruction = instruction
     }
 }
