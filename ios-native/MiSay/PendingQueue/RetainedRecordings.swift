@@ -71,34 +71,25 @@ struct RetainedRecordings {
         return wav
     }
 
-    /// K4 一直留著：有文字稿的 WAV 壓成 m4a（每小時約 14 MB），壓好才刪 WAV。慢，叫的人要放背景跑。
-    func compressKept(transcripts: [Transcript]) {
-        for transcript in transcripts where transcript.draftText != nil {
-            guard let wav = try? url(for: transcript.id), let m4a = try? m4aURL(for: transcript.id),
-                  fileManager.fileExists(atPath: wav.path)
-            else {
-                continue
-            }
-            do {
-                try AudioCompressor.encode(wav, to: m4a)
-                try fileManager.removeItem(at: wav)
-            } catch {
-                // 壓不了就留 WAV：多佔空間，不少聲音。壓到一半的 m4a 清掉。
-                try? fileManager.removeItem(at: m4a)
-            }
+    /// K4 一直留著：這篇的 WAV 壓成 m4a（每小時約 14 MB）。先壓到 `.part`，壓完才換名、才刪 WAV：
+    /// 壓到一半 App 被殺，原本的 WAV 還在。慢，叫的人要放背景跑，而且要先確定沒人在用這篇。
+    func compressKept(_ transcriptID: UUID) {
+        guard let wav = try? url(for: transcriptID), let m4a = try? m4aURL(for: transcriptID),
+              fileManager.fileExists(atPath: wav.path)
+        else {
+            return
         }
-    }
-
-    /// 待轉錄的錄音搬進來（同一個 volume 是改名）。上一輪搬到一半留下同名檔時，先清掉舊的再搬。
-    func retain(recordingAt source: URL, for transcriptID: UUID) throws {
-        let destination = try url(for: transcriptID)
+        let partial = m4a.appendingPathExtension("part")
         do {
-            if fileManager.fileExists(atPath: destination.path) {
-                try fileManager.removeItem(at: destination)
+            try AudioCompressor.encode(wav, to: partial)
+            if fileManager.fileExists(atPath: m4a.path) {
+                try fileManager.removeItem(at: m4a)
             }
-            try fileManager.moveItem(at: source, to: destination)
+            try fileManager.moveItem(at: partial, to: m4a)
+            try fileManager.removeItem(at: wav)
         } catch {
-            throw Failure.cannotMoveIn
+            // 壓不了就留 WAV：多佔空間，不少聲音。
+            try? fileManager.removeItem(at: partial)
         }
     }
 

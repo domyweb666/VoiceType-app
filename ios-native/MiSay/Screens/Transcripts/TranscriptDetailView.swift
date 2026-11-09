@@ -66,7 +66,7 @@ struct TranscriptDetailView: View {
                 // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
                 OriginalAudioSheet(
                     transcript: transcript,
-                    audioURL: transcript.isCombined == true
+                    audioURL: transcript.combinedAt != nil
                         ? nil
                         : RetainedRecordings().existingURL(for: transcript.id)
                 )
@@ -102,7 +102,11 @@ struct TranscriptDetailView: View {
             .onChange(of: draftEdit) { _, _ in scheduleAutosave() }
             // K3：接著錄、從錄音重新轉錄都可能在這頁不在畫面上時改了這篇；回來先讀最新的，
             // 不然改字自動存會拿舊的那份蓋掉接上去的字。
-            .onAppear { reloadFromStore() }
+            .onAppear {
+                reloadFromStore()
+                queue.openForEditing.insert(transcript.id)
+            }
+            .onDisappear { queue.openForEditing.remove(transcript.id) }
             .onDisappear {
                 flushAutosave()
                 // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。

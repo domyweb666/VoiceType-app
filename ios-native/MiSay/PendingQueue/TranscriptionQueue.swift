@@ -59,6 +59,8 @@ final class TranscriptionQueue {
     /// 只記在記憶體：App 被殺的話，那段會變成獨立的一篇，字不會丟。
     var appendTargets: [String: UUID] = [:]
     var appendTargetsByTranscript: [UUID: UUID] = [:]
+    /// 正開在詳情頁的篇（K 審查）：那頁改字自動存會拿畫面上的舊份蓋回去，所以這時不往它後面接。
+    var openForEditing: Set<UUID> = []
     var lastBackgroundedAt: Date?
     private let workingHold = BackgroundTimeHold()
 

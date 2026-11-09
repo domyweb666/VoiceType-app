@@ -19,7 +19,11 @@ enum AudioImport {
                 source.stopAccessingSecurityScopedResource()
             }
         }
-        let name = "import-\(Recorder.newFileName())"
+        cleanStaleParts()
+        // 同一秒匯入兩個也不撞名。
+        let suffix = UUID().uuidString.prefix(4)
+        let stamp = (Recorder.newFileName() as NSString).deletingPathExtension
+        let name = "import-\(stamp)-\(suffix).wav"
         let directory = try PendingRecordings().directoryURL()
         let partial = directory.appending(path: name + ".part")
         let destination = directory.appending(path: name)
@@ -30,11 +34,41 @@ enum AudioImport {
             try? FileManager.default.removeItem(at: partial)
             throw error
         }
-        // 分享表單「拷貝到米說」會先放進 Inbox，那份是給我們的副本，收好就刪。
-        if source.path.contains("/Inbox/") {
+        // 分享表單「拷貝到米說」會先放進 App 自己的 Documents/Inbox，那份是給我們的副本，收好就刪。
+        // 只認 App 自己的 Inbox：使用者自己有個叫 Inbox 的資料夾，裡面的原檔不准動。
+        if isOwnInboxCopy(source) {
             try? FileManager.default.removeItem(at: source)
         }
         return destination
+    }
+
+    static func isOwnInboxCopy(_ url: URL) -> Bool {
+        let documentFolders = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        guard let documents = documentFolders.first else {
+            return false
+        }
+        let inbox = documents.appending(path: "Inbox").standardizedFileURL.path
+        return url.standardizedFileURL.path.hasPrefix(inbox + "/")
+    }
+
+    /// 上次匯入到一半被殺留下的 `.part`：十分鐘以前的清掉。
+    private static func cleanStaleParts() {
+        guard let directory = try? PendingRecordings().directoryURL(),
+              let files = try? FileManager.default.contentsOfDirectory(
+                  at: directory,
+                  includingPropertiesForKeys: [.contentModificationDateKey]
+              )
+        else {
+            return
+        }
+        let cutoff = Date().addingTimeInterval(-10 * 60)
+        for file in files where file.pathExtension == "part" {
+            let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            if modified < cutoff {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
     }
 
     private static func convert(_ source: URL, to destination: URL) throws {
@@ -107,7 +141,11 @@ private final class ImportReader {
             inputStatus.pointee = .haveData
             return inBuffer
         }
-        isFinished = status == .endOfStream || status == .error || outBuffer.frameLength == 0
+        // 轉換器出錯不能當成讀完：那樣匯入「成功」但後面的聲音沒了。
+        guard status != .error else {
+            throw AudioImport.Failure.cannotRead
+        }
+        isFinished = status == .endOfStream || outBuffer.frameLength == 0
         guard let samples = outBuffer.int16ChannelData, outBuffer.frameLength > 0 else {
             return isFinished ? nil : Data()
         }

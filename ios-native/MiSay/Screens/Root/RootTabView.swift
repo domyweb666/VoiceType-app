@@ -50,8 +50,8 @@ struct RootTabView: View {
         }
         // K7：語音備忘錄、檔案 App 用「分享 → 米說」送進來的音檔。收進待轉錄，切到錄音頁看得到那一列。
         .onOpenURL { url in
-            importMessage = ImportAudioButton.importAndStart(url, queue: queue)
             page = .home
+            Task { importMessage = await ImportAudioButton.importAndStart(url, queue: queue) }
         }
         .alert(
             importMessage ?? "",

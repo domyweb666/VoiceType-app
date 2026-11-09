@@ -34,7 +34,7 @@ final class KnowledgeWorkerTests: XCTestCase {
         XCTAssertEqual(first.draftText, "第一段改過\n\n第二段草稿")
         XCTAssertEqual(first.originalDraft, "第一段原稿\n\n第二段草稿")
         XCTAssertEqual(first.durationSeconds, 900)
-        XCTAssertEqual(first.isCombined, true)
+        XCTAssertNotNil(first.combinedAt)
         XCTAssertEqual(first.unlearnedEdit?.to, "第一段改過\n\n第二段草稿", "接上去的那段不算修改，只有原本改過的那段算")
     }
 

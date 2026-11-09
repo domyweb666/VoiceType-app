@@ -47,8 +47,10 @@ extension TranscriptDetailView {
             } label: {
                 Label("接著錄", systemImage: "mic.badge.plus")
             }
+            // 這篇還在整理時接上去，整理完存回來會蓋掉接上去的字（K 審查）。
+            .disabled(isPolishing)
             // S2-5：錄音還留著才有這顆（文字稿存好後留 7 天）。接著錄過的篇錄音不只一段，不給。
-            if transcript.isCombined != true, RetainedRecordings().exists(for: transcript.id) {
+            if transcript.combinedAt == nil, RetainedRecordings().exists(for: transcript.id) {
                 Button {
                     isConfirmingRetranscribe = true
                 } label: {

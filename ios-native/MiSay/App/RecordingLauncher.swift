@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// 「要開錄」的請求（K1、K3）：捷徑、Siri、動作按鈕要開一段新的；詳情頁「接著錄」要接在某一篇後面。

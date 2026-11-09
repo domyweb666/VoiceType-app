@@ -61,9 +61,12 @@ extension TranscriptionQueue {
     }
 
     /// K3：這篇是「接著錄」錄的，整理好就接到原本那篇後面，自己這篇刪掉。
-    /// 原本那篇讀不到（剛好被刪了）或存不進去：照舊留成獨立的一篇，字不會丟。
+    /// 原本那篇讀不到（剛好被刪了）、存不進去、正在整理、或正開在詳情頁：照舊留成獨立的一篇，字不會丟。
+    /// 後兩種接上去，對方存回來時會拿舊的那份蓋掉接上去的字。
     private func mergeIntoAppendTarget(_ added: Transcript) -> Transcript {
         guard let targetID = appendTargetsByTranscript.removeValue(forKey: added.id),
+              !inFlight.contains(targetID.uuidString),
+              !openForEditing.contains(targetID),
               var target = (try? store.loadAll())?.transcripts.first(where: { $0.id == targetID })
         else {
             return added

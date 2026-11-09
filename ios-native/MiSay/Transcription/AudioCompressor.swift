@@ -8,7 +8,15 @@ enum AudioCompressor {
     static let framesPerRead: AVAudioFrameCount = 16000
 
     /// K4 留存的 m4a 要重新轉錄時：解回 16 kHz 單聲道 WAV，切段那套只認 WAV。
+    /// 先解到 `.part`，解完才換名：解到一半 App 被殺，不會留下半個 WAV 被當成完整的錄音。
     static func decodeToWAV(_ m4a: URL, to wav: URL) throws {
+        let partial = wav.appendingPathExtension("part")
+        defer { try? FileManager.default.removeItem(at: partial) }
+        try decode(m4a, to: partial)
+        try FileManager.default.moveItem(at: partial, to: wav)
+    }
+
+    private static func decode(_ m4a: URL, to wav: URL) throws {
         let source = try AVAudioFile(forReading: m4a)
         guard let buffer = AVAudioPCMBuffer(
             pcmFormat: source.processingFormat,

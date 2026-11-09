@@ -14,7 +14,7 @@ struct ImportAudioButton: View {
             guard case let .success(url) = result else {
                 return
             }
-            message = Self.importAndStart(url, queue: queue)
+            Task { message = await Self.importAndStart(url, queue: queue) }
         }
         .alert(
             message ?? "",
@@ -25,11 +25,13 @@ struct ImportAudioButton: View {
     }
 
     /// 從「檔案」選的、從語音備忘錄分享進來的，都走這裡。回要跟使用者講的那句。
+    /// 轉檔放背景：一小時的 Podcast 要十幾秒，放在畫面那條線上會卡住，冷啟動時還可能被系統殺掉。
     @MainActor
-    static func importAndStart(_ url: URL, queue: TranscriptionQueue) -> String {
-        do {
-            _ = try AudioImport.importAudio(from: url)
-        } catch {
+    static func importAndStart(_ url: URL, queue: TranscriptionQueue) async -> String {
+        let imported = await Task.detached(priority: .userInitiated) {
+            try? AudioImport.importAudio(from: url)
+        }.value
+        guard imported != nil else {
             return "這個檔讀不出聲音，換一個試試。原本的檔沒有動。"
         }
         queue.startPendingRun()

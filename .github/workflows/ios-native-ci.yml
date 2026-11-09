@@ -71,6 +71,8 @@ jobs:
           xcodebuild -version
           "$RUNNER_TEMP/xcodegen/bin/xcodegen" generate --spec project.yml
           test -d MiSay.xcodeproj
+          # R1：Privacy Manifest 要真的被放進 App 的資源裡，送審才看得到（XcodeGen 靠副檔名判斷）。
+          grep -q "PrivacyInfo.xcprivacy in Resources" MiSay.xcodeproj/project.pbxproj
 
       # 下面四步都跑完才判紅（!cancelled()）：一輪就看到格式、規矩、編譯、測試的全部問題，
       # 不用格式紅一次、修完再推才看到編譯紅（macOS 分鐘要錢，2026-11-02）。

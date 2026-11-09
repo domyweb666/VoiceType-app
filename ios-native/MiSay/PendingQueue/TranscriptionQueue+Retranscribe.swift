@@ -8,11 +8,18 @@ extension TranscriptionQueue {
         guard !inFlight.contains(name) else {
             return nil
         }
-        // K4：一直留著的是 m4a，先解回 WAV 才切得了段。
-        guard let url = try? retained.wavForRetranscription(of: transcript.id) else {
+        // 解碼之前就算在用：背景壓縮不會同時動這個檔（K 審查）。
+        inFlight.insert(name)
+        // K4：一直留著的是 m4a，先解回 WAV 才切得了段；解一小時要好幾秒，放背景。
+        let retained = retained
+        let id = transcript.id
+        let decoded = await Task.detached(priority: .userInitiated) {
+            try? retained.wavForRetranscription(of: id)
+        }.value
+        guard let url = decoded else {
+            inFlight.remove(name)
             return .recordingUnreadable
         }
-        inFlight.insert(name)
         defer {
             inFlight.remove(name)
             // 轉錄那一步的進度用錄音檔名記，潤飾那一步用 id 記，兩個都要歸零。

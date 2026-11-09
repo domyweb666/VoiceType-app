@@ -58,11 +58,7 @@ extension TranscriptionQueue {
             let keepsForever = settings.keepsRecordingsForever
             retained.purge(loaded: loaded, excluding: inFlight, keepsForever: keepsForever)
             if keepsForever {
-                // 壓一小時的錄音要好幾秒，不佔畫面那條線。
-                let retained = retained
-                await Task.detached(priority: .utility) {
-                    retained.compressKept(transcripts: loaded.transcripts)
-                }.value
+                await compressKeptRecordings(of: loaded.transcripts)
             }
         }
         for recording in recordings.reversed() {
@@ -82,6 +78,26 @@ extension TranscriptionQueue {
             }
         }
         await resumeUnfinishedPolishing()
+    }
+
+    /// K4：有文字稿的留存 WAV 一篇一篇壓成 m4a。正在用的篇（重轉、潤飾）跳過；
+    /// 壓的時候自己也算在用，別人不會同時動它。壓一小時的錄音要好幾秒，不佔畫面那條線。
+    private func compressKeptRecordings(of transcripts: [Transcript]) async {
+        for transcript in transcripts where transcript.draftText != nil {
+            let key = transcript.id.uuidString
+            guard !inFlight.contains(key), let wav = try? retained.url(for: transcript.id),
+                  FileManager.default.fileExists(atPath: wav.path)
+            else {
+                continue
+            }
+            inFlight.insert(key)
+            let retained = retained
+            let id = transcript.id
+            await Task.detached(priority: .utility) {
+                retained.compressKept(id)
+            }.value
+            inFlight.remove(key)
+        }
     }
 
     /// S2-8 待轉錄單筆「整理這一個」：被標紅的也再試一次（換了金鑰之後用得到），還是被拒就再標回去。

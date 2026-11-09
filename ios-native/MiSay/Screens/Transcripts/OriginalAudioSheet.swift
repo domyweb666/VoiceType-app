@@ -81,7 +81,11 @@ struct OriginalAudioSheet: View {
                     isPlaying ? "暫停" : "播放",
                     systemImage: isPlaying ? "pause.fill" : "play.fill"
                 ) {
-                    isPlaying ? pause() : play(from: currentTime)
+                    if isPlaying {
+                        pause()
+                    } else {
+                        play(from: currentTime)
+                    }
                 }
                 Button("往後 15 秒", systemImage: "goforward.15") { skip(Self.skipSeconds) }
                 Text(RecordingSheetView.formatElapsed(currentTime))
