@@ -39,44 +39,49 @@ extension TranscriptDetailView {
             rewriteFailure = "這篇超過 3 萬字，一次改寫會被截斷，所以沒有送出去。"
             return
         }
-        let settings = AppSettings.shared
-        let model = settings.polishModel
-        let vocabulary = settings.vocabulary
         rewriteFailure = nil
         rewritingKind = kind
-        // 被停掉的那次不碰狀態：停掉後馬上按另一種，新的那次已經在用這兩個欄位了。
         rewriteTask = Task { @MainActor in
-            do {
-                let text = try await Polisher().rewrite(
-                    text: source,
-                    kind: kind,
-                    model: model,
-                    vocabulary: vocabulary
-                )
-                guard !Task.isCancelled else {
-                    return
-                }
-                rewritingKind = nil
-                rewriteTask = nil
-                let rewrite = TranscriptRewrite(kind: kind.rawValue, text: text, model: model)
-                try updateStored { $0.addRewrite(rewrite) }
-                if !showsRewrites {
-                    showNote("改寫好了：\(kind.title)，在「⋯ → 改寫成其他格式」裡。")
-                }
-            } catch {
-                // 使用者自己按停止，不跳訊息（詞彙表語氣規則）。
-                guard !Task.isCancelled else {
-                    return
-                }
-                rewritingKind = nil
-                rewriteTask = nil
-                let message = Self.rewriteFailureMessage(error)
-                rewriteFailure = message
-                if !showsRewrites {
-                    showNote(message)
-                }
+            await runRewrite(source: source, kind: kind)
+        }
+    }
+
+    /// 被停掉的那次不碰狀態：停掉後馬上按另一種，新的那次已經在用這兩個欄位了。
+    /// 使用者自己按停止，也不跳訊息（詞彙表語氣規則）。
+    private func runRewrite(source: String, kind: RewriteKind) async {
+        let model = AppSettings.shared.polishModel
+        do {
+            let text = try await Polisher().rewrite(
+                text: source,
+                kind: kind,
+                model: model,
+                vocabulary: AppSettings.shared.vocabulary
+            )
+            guard !Task.isCancelled else {
+                return
+            }
+            finishRewrite()
+            let rewrite = TranscriptRewrite(kind: kind.rawValue, text: text, model: model)
+            try updateStored { $0.addRewrite(rewrite) }
+            if !showsRewrites {
+                showNote("改寫好了：\(kind.title)，在「⋯ → 改寫成其他格式」裡。")
+            }
+        } catch {
+            guard !Task.isCancelled else {
+                return
+            }
+            finishRewrite()
+            let message = Self.rewriteFailureMessage(error)
+            rewriteFailure = message
+            if !showsRewrites {
+                showNote(message)
             }
         }
+    }
+
+    private func finishRewrite() {
+        rewritingKind = nil
+        rewriteTask = nil
     }
 
     func cancelRewrite() {
