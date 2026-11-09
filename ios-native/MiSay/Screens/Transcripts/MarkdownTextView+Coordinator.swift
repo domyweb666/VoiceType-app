@@ -100,9 +100,9 @@ extension MarkdownTextView.Coordinator: NSTextStorageDelegate {
 }
 
 extension MarkdownTextView.Coordinator: NSLayoutManagerDelegate {
+    // 六個參數是系統代理方法的樣子，改不了，只對這個方法關掉參數數量檢查。
+    // swiftlint:disable function_parameter_count
     /// 行首的 `- ` 那個 `-` 畫成圓點；字本身不變，複製、存檔照樣是 `-`。
-    /// 六個參數是系統代理方法的樣子，改不了。
-    // swiftlint:disable:next function_parameter_count
     func layoutManager(
         _ layoutManager: NSLayoutManager,
         shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>,
@@ -135,6 +135,8 @@ extension MarkdownTextView.Coordinator: NSLayoutManagerDelegate {
         )
         return glyphRange.length
     }
+
+    // swiftlint:enable function_parameter_count
 
     private static func bulletGlyph(in font: UIFont) -> CGGlyph? {
         var character: UniChar = 0x2022 // •
