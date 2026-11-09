@@ -102,8 +102,8 @@ enum RewriteKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// 2026-11-09：米最在意「AI 味」，這段照他的寫作守則抓最常見的幾種寫進來。
-    private static let sharedRules = """
+    /// 2026-11-09：米最在意「AI 味」，這段照他的寫作守則抓最常見的幾種寫進來。W4 改一段也用這份。
+    static let sharedRules = """
     共同規則：
     - 只用文字稿裡有的內容。不准補文字稿沒講的事實、數字、例子、人名、引言；缺的地方寧可不寫。
     - 用台灣的繁體中文和台灣用語（影片、軟體、部落格、品質、資訊）。

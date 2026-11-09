@@ -139,16 +139,23 @@ private extension TranscriptDetailView {
         if transcript.draftText == nil {
             unpolishedPage
         } else {
-            TextEditor(text: $draftEdit)
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .lineSpacing(Token.Space.lineSpacing)
-                .scrollContentBackground(.hidden)
-                .scrollDismissesKeyboard(.interactively)
-                .focused($isEditing)
-                // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
-                .padding(.horizontal, Token.Space.m)
-                .accessibilityLabel("文字稿正文")
+            // W4：iOS 18 起可以選一段叫 AI 改（`SelectionRewriteEditor`）；iOS 17 拿不到選取範圍，只能打字。
+            Group {
+                if #available(iOS 18, *) {
+                    SelectionRewriteEditor(text: $draftEdit)
+                } else {
+                    TextEditor(text: $draftEdit)
+                }
+            }
+            .font(Token.Fonts.body)
+            .foregroundStyle(Token.Colors.textPrimary)
+            .lineSpacing(Token.Space.lineSpacing)
+            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
+            .focused($isEditing)
+            // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
+            .padding(.horizontal, Token.Space.m)
+            .accessibilityLabel("文字稿正文")
         }
     }
 
