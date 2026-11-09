@@ -66,6 +66,20 @@ struct Polisher {
         )
     }
 
+    /// W4 改一段：只送選起來的那段，加上前後各一小段讓模型看得懂在講什麼；回來的只有改好的那段。
+    func rewritePassage(
+        _ passage: PassageContext,
+        kind: PassageRewriteKind,
+        model: String,
+        vocabulary: [String]
+    ) async throws -> String {
+        try await complete(
+            system: Self.systemContent(prompt: kind.prompt, vocabulary: vocabulary),
+            user: PassageRewriteKind.userContent(passage),
+            model: model
+        )
+    }
+
     /// 潤飾與改寫共用：送一次 chat completions，可重試的錯誤重試，回來的當純文字。
     private func complete(system: String, user: String, model: String) async throws -> String {
         let request = ChatRequest(

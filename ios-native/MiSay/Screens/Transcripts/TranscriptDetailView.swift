@@ -11,6 +11,8 @@ struct TranscriptDetailView: View {
     @State var transcript: Transcript
     @State var draftEdit: String
     @State var showsRawText = false
+    /// W3：口語稿那張頁一打開就停在「AI 改了什麼」。
+    @State var rawSheetStartsWithDiff = false
     @State var autosaveTask: Task<Void, Never>?
     @State var polishTask: Task<Void, Never>?
     @State var isPolishing = false
@@ -26,6 +28,8 @@ struct TranscriptDetailView: View {
     @State var rewritingKind: RewriteKind?
     @State var rewriteTask: Task<Void, Never>?
     @State var rewriteFailure: String?
+    /// W6：編這篇標籤的那張頁。
+    @State var showsTags = false
     /// 底下那行一下就收的一句話（K2 存好了、存不進去）。
     @State var note: String?
     @State var copyCount = 0
@@ -66,8 +70,11 @@ struct TranscriptDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .safeAreaInset(edge: .bottom) { bottomLine }
-            .sheet(isPresented: $showsRawText) { rawTextSheet }
+            .sheet(isPresented: $showsRawText) {
+                RawTextSheet(transcript: transcript, startsWithDiff: rawSheetStartsWithDiff)
+            }
             .sheet(isPresented: $showsRewrites) { rewritesSheet }
+            .sheet(isPresented: $showsTags) { tagsSheet }
             .sheet(isPresented: $showsOriginalAudio) {
                 // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
                 OriginalAudioSheet(
@@ -128,23 +135,31 @@ struct TranscriptDetailView: View {
     }
 }
 
-/// 畫面的各塊：正文、頂上一排、底下一行、口語稿那張頁。
+/// 畫面的各塊：正文、頂上一排、底下一行。口語稿那張頁在 `RawTextSheet`。
 private extension TranscriptDetailView {
     @ViewBuilder
     var page: some View {
         if transcript.draftText == nil {
             unpolishedPage
         } else {
-            TextEditor(text: $draftEdit)
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .lineSpacing(Token.Space.lineSpacing)
-                .scrollContentBackground(.hidden)
-                .scrollDismissesKeyboard(.interactively)
-                .focused($isEditing)
-                // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
-                .padding(.horizontal, Token.Space.m)
-                .accessibilityLabel("文字稿正文")
+            // iOS 18 起鍵盤上方多一排：格式（W5）、選一段叫 AI 改（W4），在 `DraftEditor`；
+            // iOS 17 拿不到選取範圍，只能打字。
+            Group {
+                if #available(iOS 18, *) {
+                    DraftEditor(text: $draftEdit)
+                } else {
+                    TextEditor(text: $draftEdit)
+                }
+            }
+            .font(Token.Fonts.body)
+            .foregroundStyle(Token.Colors.textPrimary)
+            .lineSpacing(Token.Space.lineSpacing)
+            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
+            .focused($isEditing)
+            // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
+            .padding(.horizontal, Token.Space.m)
+            .accessibilityLabel("文字稿正文")
         }
     }
 
@@ -238,27 +253,6 @@ private extension TranscriptDetailView {
                 .padding(.horizontal, Token.Space.l)
                 .padding(.vertical, Token.Space.s)
         }
-    }
-
-    /// 口語稿：唯讀、可以選字複製，看完拉下去。
-    var rawTextSheet: some View {
-        NavigationStack {
-            ScrollView {
-                rawText
-                    .padding(Token.Space.l)
-            }
-            .background(Token.Colors.rowBackground)
-            .navigationTitle("口語稿")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { showsRawText = false }
-                        .tint(Token.Colors.link)
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .presentationCornerRadius(Token.Shape.radiusSheet)
     }
 
     var statusKind: TranscriptStatusStrip.Kind {
