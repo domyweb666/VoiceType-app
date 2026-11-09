@@ -17,6 +17,12 @@ struct TranscriptDetailView: View {
     @State var polishFailed = false
     @State var isConfirmingDelete = false
     @State var isConfirmingRetranscribe = false
+    /// K2：選 Markdown 要存到哪個資料夾。
+    @State var isPickingMarkdownFolder = false
+    /// K5：聽原音與重點那一頁。
+    @State var showsOriginalAudio = false
+    /// 底下那行一下就收的一句話（K2 存好了、存不進去）。
+    @State var note: String?
     @State var copyCount = 0
     @State var showsCopied = false
     @State var saveFailed = false
@@ -56,6 +62,20 @@ struct TranscriptDetailView: View {
             .toolbar { toolbarContent }
             .safeAreaInset(edge: .bottom) { bottomLine }
             .sheet(isPresented: $showsRawText) { rawTextSheet }
+            .sheet(isPresented: $showsOriginalAudio) {
+                // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
+                OriginalAudioSheet(
+                    transcript: transcript,
+                    audioURL: transcript.combinedAt != nil
+                        ? nil
+                        : RetainedRecordings().existingURL(for: transcript.id)
+                )
+            }
+            .fileImporter(
+                isPresented: $isPickingMarkdownFolder,
+                allowedContentTypes: [.folder],
+                onCompletion: pickedMarkdownFolder
+            )
             .confirmationDialog(
                 "刪掉這篇？",
                 isPresented: $isConfirmingDelete,
@@ -80,6 +100,13 @@ struct TranscriptDetailView: View {
             }
             .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
             .onChange(of: draftEdit) { _, _ in scheduleAutosave() }
+            // K3：接著錄、從錄音重新轉錄都可能在這頁不在畫面上時改了這篇；回來先讀最新的，
+            // 不然改字自動存會拿舊的那份蓋掉接上去的字。
+            .onAppear {
+                reloadFromStore()
+                queue.openForEditing.insert(transcript.id)
+            }
+            .onDisappear { queue.openForEditing.remove(transcript.id) }
             .onDisappear {
                 flushAutosave()
                 // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。
@@ -188,40 +215,6 @@ private extension TranscriptDetailView {
         .accessibilityLabel("完成")
     }
 
-    var moreMenu: some View {
-        Menu {
-            // 片 F4：看得出這篇用哪種潤飾、哪個模型。只是說明，按不下去。
-            if let model = transcript.polishModel {
-                Section {
-                    Text(Self.polishNote(model: model, style: transcript.polishStyle))
-                }
-            }
-            if transcript.draftText != nil {
-                Button {
-                    showsRawText = true
-                } label: {
-                    Label("看口語稿", systemImage: "waveform")
-                }
-            }
-            // S2-5：錄音還留著才有這顆（文字稿存好後留 7 天）。
-            if RetainedRecordings().exists(for: transcript.id) {
-                Button {
-                    isConfirmingRetranscribe = true
-                } label: {
-                    Label("從錄音重新轉錄", systemImage: "arrow.clockwise")
-                }
-            }
-            Button(role: .destructive) {
-                isConfirmingDelete = true
-            } label: {
-                Label("刪除這篇文字稿", systemImage: "trash")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-        }
-        .accessibilityLabel("更多")
-    }
-
     /// 底下一行：有狀態就講狀態（一次一件），沒有就在不打字時顯示字數。
     @ViewBuilder
     var bottomLine: some View {
@@ -267,6 +260,7 @@ private extension TranscriptDetailView {
             saveFailed: saveFailed,
             isEmpty: currentText.isEmpty,
             showsCopied: showsCopied,
+            note: note,
             possiblyMissing: transcript.possiblyMissingSegments ?? []
         )
     }

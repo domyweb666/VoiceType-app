@@ -13,6 +13,9 @@ struct RootTabView: View {
     @State private var page = Page.home
     /// 錄音面板「打開這篇」要推的那一篇。換一篇就重建清單頁（`.id`），讓它照 `opening` 推進去。
     @State private var openingTranscript: Transcript?
+    @Environment(TranscriptionQueue.self) private var queue
+    /// K7：從語音備忘錄分享進來之後要講的那句。
+    @State private var importMessage: String?
 
     var body: some View {
         TabView(selection: $page) {
@@ -44,6 +47,30 @@ struct RootTabView: View {
         .onAppear { openFromNotification(NotificationRouter.shared.openTranscriptID) }
         .onChange(of: NotificationRouter.shared.openTranscriptID) { _, id in
             openFromNotification(id)
+        }
+        // K7：語音備忘錄、檔案 App 用「分享 → 米說」送進來的音檔。收進待轉錄，切到錄音頁看得到那一列。
+        .onOpenURL { url in
+            page = .home
+            Task { importMessage = await ImportAudioButton.importAndStart(url, queue: queue) }
+        }
+        .alert(
+            importMessage ?? "",
+            isPresented: Binding(
+                get: { importMessage != nil },
+                set: { isShown in
+                    if !isShown {
+                        importMessage = nil
+                    }
+                }
+            )
+        ) {
+            Button("好") {}
+        }
+        // K1、K3：有人要開錄，先切到錄音頁；面板由首頁打開。
+        .onChange(of: RecordingLauncher.shared.request) { _, request in
+            if request != nil {
+                page = .home
+            }
         }
     }
 

@@ -55,6 +55,12 @@ final class TranscriptionQueue {
     var pendingRun: Task<Void, Never>?
     /// 邊錄邊轉那一輪（S4-1）；沒在錄是 nil。
     var liveRun: Task<Void, Never>?
+    /// K3 接著錄：錄音檔名 → 要接到哪一篇；口語稿存好後換成「新那篇的 id → 要接到哪一篇」。
+    /// 只記在記憶體：App 被殺的話，那段會變成獨立的一篇，字不會丟。
+    var appendTargets: [String: UUID] = [:]
+    var appendTargetsByTranscript: [UUID: UUID] = [:]
+    /// 正開在詳情頁的篇（K 審查）：那頁改字自動存會拿畫面上的舊份蓋回去，所以這時不往它後面接。
+    var openForEditing: Set<UUID> = []
     var lastBackgroundedAt: Date?
     private let workingHold = BackgroundTimeHold()
 
@@ -156,7 +162,7 @@ final class TranscriptionQueue {
     ) -> Result<Transcript, StoppedOutcome> {
         let name = url.lastPathComponent
         let duration = (try? pending.list().first { $0.id == name }?.durationSeconds) ?? 0
-        let transcript = Transcript(
+        var transcript = Transcript(
             id: job.transcriptID(forRecordingAt: url),
             durationSeconds: duration,
             rawText: rawText,
@@ -167,10 +173,15 @@ final class TranscriptionQueue {
                 forRecordingAt: url
             )
         )
+        let marks = RecordingMarks().load(forRecordingAt: url)
+        transcript.marks = marks.isEmpty ? nil : marks
         do {
             try store.save(transcript)
         } catch {
             return .failure(StoppedOutcome(value: .storageFailed))
+        }
+        if let target = appendTargets.removeValue(forKey: name) {
+            appendTargetsByTranscript[transcript.id] = target
         }
         do {
             try retained.retain(recordingAt: url, for: transcript.id)
@@ -178,6 +189,7 @@ final class TranscriptionQueue {
             return .failure(StoppedOutcome(value: .recordingNotDeleted(transcript)))
         }
         job.cleanUp(recordingAt: url)
+        RecordingMarks().delete(forRecordingAt: url)
         return .success(transcript)
     }
 

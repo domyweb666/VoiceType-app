@@ -64,6 +64,9 @@ struct TranscriptListView: View {
         .overlay { emptyOverlay }
         .safeAreaInset(edge: .bottom) { undoBanner }
         .navigationTitle("文字稿")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) { ImportAudioButton() }
+        }
         .navigationDestination(item: $openedTranscript) { transcript in
             TranscriptDetailView(transcript: transcript, onDelete: softDelete)
         }

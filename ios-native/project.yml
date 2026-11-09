@@ -36,6 +36,13 @@ targets:
         # 片 C3：鎖屏、切 App 照樣在錄（PRD「不弄丟剛講的話」）。只有 audio，沒有別的背景模式。
         UIBackgroundModes:
           - audio
+        # K7：語音備忘錄、檔案 App 的分享表單裡出現米說，音檔送進來就收進待轉錄。只收副本，不就地改原檔。
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: 音檔
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.audio
+        LSSupportsOpeningDocumentsInPlace: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay

@@ -13,6 +13,7 @@ final class AppSettings {
     private enum Key {
         static let autoCopy = "autoCopy"
         static let liveTranscriptionWiFiOnly = "liveTranscriptionWiFiOnly"
+        static let keepsRecordingsForever = "keepsRecordingsForever"
         static let vocabulary = "vocabulary"
         /// 2026-11-08 起不讀舊的 "polishPrompt"（提示詞全文不再給改），只存選了哪一項。
         static let polishStyle = "polishStyle"
@@ -34,6 +35,7 @@ final class AppSettings {
         self.defaults = defaults
         autoCopy = defaults.object(forKey: Key.autoCopy) as? Bool ?? true
         liveTranscriptionWiFiOnly = defaults.bool(forKey: Key.liveTranscriptionWiFiOnly)
+        keepsRecordingsForever = defaults.bool(forKey: Key.keepsRecordingsForever)
         vocabulary = defaults.stringArray(forKey: Key.vocabulary) ?? []
         let storedStyle = defaults.string(forKey: Key.polishStyle) ?? ""
         polishStyle = PolishStyle(rawValue: storedStyle) ?? PolishStyle.defaultStyle
@@ -60,6 +62,11 @@ final class AppSettings {
     /// S4-2：錄音中先整理只用 Wi-Fi。預設關（米 11/08 照建議）：走路時沒有 Wi-Fi，開了等於沒有邊錄邊轉。
     var liveTranscriptionWiFiOnly: Bool {
         didSet { defaults.set(liveTranscriptionWiFiOnly, forKey: Key.liveTranscriptionWiFiOnly) }
+    }
+
+    /// K4：錄音一直留著（預設關，照舊文字稿存好後留 7 天）。打開時，有文字稿的錄音壓成 m4a 留著。
+    var keepsRecordingsForever: Bool {
+        didSet { defaults.set(keepsRecordingsForever, forKey: Key.keepsRecordingsForever) }
     }
 
     /// 自訂詞彙（F2）：進轉錄提示詞與潤飾提示詞。
