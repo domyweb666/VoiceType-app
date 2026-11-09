@@ -84,12 +84,15 @@ struct TagEditorSheet: View {
     /// 這篇的加上用過的，不重複，照字排。
     private var shownTags: [String] {
         var all = tags
-        for tag in knownTags
-            where !all.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame })
-        {
+        for tag in knownTags where !Self.contains(all, tag) {
             all.append(tag)
         }
         return all.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    /// 不分大小寫有沒有這個標籤。
+    private static func contains(_ tags: [String], _ tag: String) -> Bool {
+        tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame }
     }
 
     private func tagRow(_ tag: String) -> some View {
@@ -126,9 +129,8 @@ struct TagEditorSheet: View {
         }
         isTooLong = false
         newTag = ""
-        if let existing = shownTags
-            .first(where: { $0.caseInsensitiveCompare(tag) == .orderedSame })
-        {
+        let existing = shownTags.first { $0.caseInsensitiveCompare(tag) == .orderedSame }
+        if let existing {
             if !tags.contains(existing) {
                 tags.append(existing)
             }

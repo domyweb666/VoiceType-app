@@ -59,6 +59,14 @@ struct RawTextSheet: View {
         transcript.originalDraft ?? transcript.draftText
     }
 
+    /// 有東西可以比、但兩邊加起來太長，手機比不動。
+    private var isTooLongToCompare: Bool {
+        guard let polished = polishedForCompare else {
+            return false
+        }
+        return PolishDiff.isTooLong(raw: transcript.rawText, polished: polished)
+    }
+
     /// 一小時的稿子要比幾萬個字，放到背景算，畫面先轉圈。
     private func compare() async {
         guard diff == nil, let polished = polishedForCompare,
@@ -74,9 +82,7 @@ struct RawTextSheet: View {
 
     @ViewBuilder
     private var diffContent: some View {
-        if let polished = polishedForCompare,
-           PolishDiff.isTooLong(raw: transcript.rawText, polished: polished)
-        {
+        if isTooLongToCompare {
             note("這篇太長，手機比不動。可以切到「口語稿」自己對照。")
         } else if polishedForCompare == nil {
             note("這篇還沒整理成文字稿，沒有東西可以比。")

@@ -158,9 +158,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     static func tagsInUse(_ transcripts: [Transcript]) -> [String] {
         var seen = Set<String>()
         var tags: [String] = []
-        for tag in transcripts.flatMap({ $0.tags ?? [] })
-            where seen.insert(tag.lowercased()).inserted
-        {
+        let allTags = transcripts.flatMap { $0.tags ?? [] }
+        for tag in allTags where seen.insert(tag.lowercased()).inserted {
             tags.append(tag)
         }
         return tags.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
