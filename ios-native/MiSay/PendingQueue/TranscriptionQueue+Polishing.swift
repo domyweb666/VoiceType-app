@@ -63,23 +63,36 @@ extension TranscriptionQueue {
     /// K3：這篇是「接著錄」錄的，整理好就接到原本那篇後面，自己這篇刪掉。
     /// 原本那篇讀不到（剛好被刪了）、存不進去、正在整理、或正開在詳情頁：照舊留成獨立的一篇，字不會丟。
     /// 後兩種接上去，對方存回來時會拿舊的那份蓋掉接上去的字。
+    /// 2026-11-09：打字時在游標處接著錄的，插在記下的位置；那附近被改掉找不到，就接在最後面、記下來讓詳情頁講一聲。
     private func mergeIntoAppendTarget(_ added: Transcript) -> Transcript {
-        guard let targetID = appendTargetsByTranscript.removeValue(forKey: added.id),
-              !inFlight.contains(targetID.uuidString),
-              !openForEditing.contains(targetID),
-              var target = (try? store.loadAll())?.transcripts.first(where: { $0.id == targetID })
+        guard let appendTarget = appendTargetsByTranscript.removeValue(forKey: added.id),
+              !inFlight.contains(appendTarget.transcriptID.uuidString),
+              !openForEditing.contains(appendTarget.transcriptID),
+              var target = (try? store.loadAll())?.transcripts
+              .first(where: { $0.id == appendTarget.transcriptID })
         else {
             return added
         }
-        target.append(added)
+        let movedToEnd: Bool
+        if let insertion = appendTarget.insertion {
+            movedToEnd = !target.insert(added, at: insertion)
+        } else {
+            target.append(added)
+            movedToEnd = false
+        }
         do {
             try store.save(target)
         } catch {
             return added
         }
+        if movedToEnd {
+            insertionsMovedToEnd.insert(target.id)
+        }
         // 刪不掉只會多一篇重複的，不會少字；下次使用者自己刪。
         try? store.delete(id: added.id)
-        DiagnosticLog.shared.record("接著錄：接到原本那篇後面")
+        DiagnosticLog.shared.record(
+            appendTarget.insertion == nil || movedToEnd ? "接著錄：接到原本那篇後面" : "接著錄：插在游標處"
+        )
         return target
     }
 

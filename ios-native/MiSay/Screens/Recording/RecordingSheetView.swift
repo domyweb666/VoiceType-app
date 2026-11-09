@@ -22,6 +22,8 @@ struct RecordingSheetView: View {
     let onOpenSettings: () -> Void
     /// K3 接著錄：錄好的這段整理完要接到哪一篇後面；一般開錄是 nil。
     var appendingTo: UUID?
+    /// 接著錄要插在那篇的哪裡（打字時按麥克風記下的游標）；nil 是接在最後面。
+    var insertingAt: InsertionPoint?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -141,7 +143,10 @@ struct RecordingSheetView: View {
             do {
                 let pendingURL = try PendingRecordings().accept(recordingAt: recordedURL)
                 if let appendingTo {
-                    queue.appendTargets[pendingURL.lastPathComponent] = appendingTo
+                    queue.appendTargets[pendingURL.lastPathComponent] = .init(
+                        transcriptID: appendingTo,
+                        insertion: insertingAt
+                    )
                 }
                 phase = .processing(pendingURL)
             } catch {

@@ -96,7 +96,20 @@ extension TranscriptDetailView {
     /// K3：先存好手上改的字、退出這頁，再請分頁列切到錄音頁開錄。退出是為了不留一份舊的在畫面上。
     func appendRecording() {
         flushAutosave()
-        RecordingLauncher.shared.request = .append(target: transcript.id)
+        RecordingLauncher.shared.request = .append(target: transcript.id, at: nil)
+        dismiss()
+    }
+
+    /// 2026-11-09 米：打字時按麥克風，錄好的那段插在游標的位置（中間補內容）。
+    /// 位置照存好的那份字記，所以先存；存不進去就不走（狀態條已經講了），不然位置會對不上。
+    func insertRecording(at offset: Int) {
+        flushAutosave()
+        guard draftEdit == transcript.draftText else {
+            return
+        }
+        isEditing = false
+        let point = InsertionPoint(offset: offset, in: draftEdit)
+        RecordingLauncher.shared.request = .append(target: transcript.id, at: point)
         dismiss()
     }
 

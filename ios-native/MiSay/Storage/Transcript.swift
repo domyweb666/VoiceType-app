@@ -122,6 +122,30 @@ struct Transcript: Codable, Identifiable, Hashable {
         updatedAt = Date()
     }
 
+    /// 2026-11-09 打字時在游標處接著錄：文字稿、原稿、學過的那份各自照前後文找位置插進去，
+    /// 原稿和學過的那份也插在同一處，之後比對「改了哪裡」才不會把插進去的那段當成修改。
+    /// 口語稿跟文字稿的字對不上，找不到位置，照錄的順序接在最後面；重點秒數、長度照接著錄的算法。
+    /// 文字稿找不到位置（等的時候那附近被改掉了）就整段照舊接在最後面，回 false 讓畫面講一聲。
+    mutating func insert(_ other: Transcript, at point: InsertionPoint) -> Bool {
+        let ownDraft = draftText ?? rawText
+        let ownOriginal = originalDraft ?? ownDraft
+        let ownLearned = learnedDraft ?? ownOriginal
+        let otherDraft = other.draftText ?? other.rawText
+        let otherOriginal = other.originalDraft ?? otherDraft
+        let otherLearned = other.learnedDraft ?? otherOriginal
+        guard let insertedDraft = point.inserting(otherDraft, into: ownDraft) else {
+            append(other)
+            return false
+        }
+        append(other)
+        draftText = insertedDraft
+        originalDraft = point.inserting(otherOriginal, into: ownOriginal)
+            ?? Self.joined(ownOriginal, otherOriginal)
+        learnedDraft = point.inserting(otherLearned, into: ownLearned)
+            ?? Self.joined(ownLearned, otherLearned)
+        return true
+    }
+
     /// 合併至少要兩篇（W6）。
     static let minimumMergeCount = 2
 

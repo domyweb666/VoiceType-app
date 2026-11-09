@@ -20,6 +20,8 @@ struct HomeView: View {
     @State private var isRecordingSheetShown = false
     /// K3：這次打開面板是要接在哪一篇後面。
     @State private var appendTarget: UUID?
+    /// 要插在那篇的哪裡；nil 是接在最後面。
+    @State private var appendInsertion: InsertionPoint?
     @State private var pendingCount = 0
     @State private var hasAPIKey = true
     @State private var statsLine: String?
@@ -54,7 +56,8 @@ struct HomeView: View {
                 recorder: recorder,
                 onOpenTranscript: openFromSheet,
                 onOpenSettings: openSettingsFromSheet,
-                appendingTo: appendTarget
+                appendingTo: appendTarget,
+                insertingAt: appendInsertion
             )
             .presentationDetents([.medium])
             .presentationCornerRadius(Token.Shape.radiusSheet)
@@ -90,6 +93,7 @@ struct HomeView: View {
         .onChange(of: isRecordingSheetShown) { _, shown in
             if !shown {
                 appendTarget = nil
+                appendInsertion = nil
                 reloadPending()
                 reloadStats()
                 reloadKey()
@@ -113,8 +117,9 @@ struct HomeView: View {
         guard !isRecordingSheetShown, !recorder.isRecording else {
             return
         }
-        if case let .append(target) = request {
+        if case let .append(target, insertion) = request {
             appendTarget = target
+            appendInsertion = insertion
         }
         isRecordingSheetShown = true
     }

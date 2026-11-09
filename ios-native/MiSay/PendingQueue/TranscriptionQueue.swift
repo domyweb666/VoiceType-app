@@ -39,6 +39,12 @@ final class TranscriptionQueue {
         let value: Outcome?
     }
 
+    /// K3 接著錄要接到哪一篇；`insertion` 是打字時記下的游標位置，nil 就接在最後面。
+    struct AppendTarget: Equatable {
+        let transcriptID: UUID
+        let insertion: InsertionPoint?
+    }
+
     /// 畫面只讀；會改它的只有這個型別自己的幾個檔（本檔與 `TranscriptionQueue+` 開頭的）。
     /// S2-7：整理中螢幕不自動暗，按鎖屏時跟系統要最後約 30 秒把手上這段做完。
     var activity = Activity.idle {
@@ -57,8 +63,10 @@ final class TranscriptionQueue {
     var liveRun: Task<Void, Never>?
     /// K3 接著錄：錄音檔名 → 要接到哪一篇；口語稿存好後換成「新那篇的 id → 要接到哪一篇」。
     /// 只記在記憶體：App 被殺的話，那段會變成獨立的一篇，字不會丟。
-    var appendTargets: [String: UUID] = [:]
-    var appendTargetsByTranscript: [UUID: UUID] = [:]
+    var appendTargets: [String: AppendTarget] = [:]
+    var appendTargetsByTranscript: [UUID: AppendTarget] = [:]
+    /// 打字時在游標處接著錄，等的時候那附近被改掉、只好接在最後面的篇；詳情頁打開時講一聲就拿掉。
+    var insertionsMovedToEnd: Set<UUID> = []
     /// 正開在詳情頁的篇（K 審查）：那頁改字自動存會拿畫面上的舊份蓋回去，所以這時不往它後面接。
     var openForEditing: Set<UUID> = []
     var lastBackgroundedAt: Date?

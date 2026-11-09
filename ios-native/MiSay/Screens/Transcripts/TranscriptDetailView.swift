@@ -35,7 +35,8 @@ struct TranscriptDetailView: View {
     @State var copyCount = 0
     @State var showsCopied = false
     @State var saveFailed = false
-    @FocusState var isEditing: Bool
+    /// 編輯框是 UIKit 的（邊打邊變樣），不吃 `@FocusState`，由它自己回報有沒有在打字。
+    @State var isEditing = false
 
     /// 刪除交給清單處理（它要顯示「已刪除・復原」）。
     let onDelete: (Transcript) -> Void
@@ -118,6 +119,9 @@ struct TranscriptDetailView: View {
             .onAppear {
                 reloadFromStore()
                 queue.openForEditing.insert(transcript.id)
+                if queue.insertionsMovedToEnd.remove(transcript.id) != nil {
+                    showNote("剛才錄的那段找不到原本的位置（那附近改過了），接在最後面。")
+                }
             }
             .onDisappear { queue.openForEditing.remove(transcript.id) }
             .onDisappear {
@@ -142,24 +146,14 @@ private extension TranscriptDetailView {
         if transcript.draftText == nil {
             unpolishedPage
         } else {
-            // iOS 18 起鍵盤上方多一排：格式（W5）、選一段叫 AI 改（W4），在 `DraftEditor`；
-            // iOS 17 拿不到選取範圍，只能打字。
-            Group {
-                if #available(iOS 18, *) {
-                    DraftEditor(text: $draftEdit)
-                } else {
-                    TextEditor(text: $draftEdit)
-                }
-            }
-            .font(Token.Fonts.body)
-            .foregroundStyle(Token.Colors.textPrimary)
-            .lineSpacing(Token.Space.lineSpacing)
-            .scrollContentBackground(.hidden)
-            .scrollDismissesKeyboard(.interactively)
-            .focused($isEditing)
-            // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
-            .padding(.horizontal, Token.Space.m)
-            .accessibilityLabel("文字稿正文")
+            // 打字時底下一排：格式（W5）、在這裡接著錄、選一段叫 AI 改（W4），在 `DraftEditor`。
+            // 字型、行距、內距都在編輯框裡面（`MarkdownTextView`、`MarkdownStyler`）。
+            DraftEditor(
+                text: $draftEdit,
+                isEditing: $isEditing,
+                canRecordHere: !isPolishing,
+                onRecordHere: insertRecording(at:)
+            )
         }
     }
 
