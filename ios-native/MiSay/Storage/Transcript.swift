@@ -30,6 +30,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var polishedAt: Date?
     /// 接著錄過（K3）：這篇是好幾段錄音接起來的，留存錄音只對得上第一段，不給「從錄音重新轉錄」。
     var isCombined: Bool?
+    /// 錄音中標的重點，第幾秒（K6）。沒標過是 nil。
+    var marks: [Double]?
     var updatedAt: Date
 
     init(
@@ -105,6 +107,11 @@ struct Transcript: Codable, Identifiable, Hashable {
         draftText = Self.joined(ownDraft, otherDraft)
         originalDraft = Self.joined(ownOriginal, otherOriginal)
         learnedDraft = Self.joined(ownLearned, other.learnedDraft ?? otherOriginal)
+        // 接上去那段的重點，秒數接在這篇後面算。
+        let shifted = (other.marks ?? []).map { $0 + durationSeconds }
+        if !shifted.isEmpty {
+            marks = (marks ?? []) + shifted
+        }
         durationSeconds += other.durationSeconds
         isCombined = true
         updatedAt = Date()

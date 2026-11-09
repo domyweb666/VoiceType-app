@@ -8,9 +8,8 @@ extension TranscriptionQueue {
         guard !inFlight.contains(name) else {
             return nil
         }
-        guard let url = try? retained.url(for: transcript.id),
-              FileManager.default.fileExists(atPath: url.path)
-        else {
+        // K4：一直留著的是 m4a，先解回 WAV 才切得了段。
+        guard let url = try? retained.wavForRetranscription(of: transcript.id) else {
             return .recordingUnreadable
         }
         inFlight.insert(name)

@@ -160,7 +160,7 @@ final class TranscriptionQueue {
     ) -> Result<Transcript, StoppedOutcome> {
         let name = url.lastPathComponent
         let duration = (try? pending.list().first { $0.id == name }?.durationSeconds) ?? 0
-        let transcript = Transcript(
+        var transcript = Transcript(
             id: job.transcriptID(forRecordingAt: url),
             durationSeconds: duration,
             rawText: rawText,
@@ -171,6 +171,8 @@ final class TranscriptionQueue {
                 forRecordingAt: url
             )
         )
+        let marks = RecordingMarks().load(forRecordingAt: url)
+        transcript.marks = marks.isEmpty ? nil : marks
         do {
             try store.save(transcript)
         } catch {
@@ -185,6 +187,7 @@ final class TranscriptionQueue {
             return .failure(StoppedOutcome(value: .recordingNotDeleted(transcript)))
         }
         job.cleanUp(recordingAt: url)
+        RecordingMarks().delete(forRecordingAt: url)
         return .success(transcript)
     }
 

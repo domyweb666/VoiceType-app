@@ -41,11 +41,52 @@ struct RetainedRecordings {
         try directoryURL().appending(path: transcriptID.uuidString).appendingPathExtension("wav")
     }
 
+    /// K4 起留存錄音可能是 m4a（一直留著的壓過）。
+    func m4aURL(for transcriptID: UUID) throws -> URL {
+        try directoryURL().appending(path: transcriptID.uuidString).appendingPathExtension("m4a")
+    }
+
+    /// 這篇現在留著的那個錄音檔（WAV 或 m4a），沒有就是 nil。
+    func existingURL(for transcriptID: UUID) -> URL? {
+        let candidates = [try? url(for: transcriptID), try? m4aURL(for: transcriptID)]
+        return candidates.compactMap { $0 }.first { fileManager.fileExists(atPath: $0.path) }
+    }
+
     func exists(for transcriptID: UUID) -> Bool {
-        guard let url = try? url(for: transcriptID) else {
-            return false
+        existingURL(for: transcriptID) != nil
+    }
+
+    /// 重新轉錄要 WAV：留著的是 m4a 就先解回 `<id>.wav`，解好才刪 m4a。之後一直留著的話會再壓回去。
+    func wavForRetranscription(of transcriptID: UUID) throws -> URL? {
+        let wav = try url(for: transcriptID)
+        if fileManager.fileExists(atPath: wav.path) {
+            return wav
         }
-        return fileManager.fileExists(atPath: url.path)
+        let m4a = try m4aURL(for: transcriptID)
+        guard fileManager.fileExists(atPath: m4a.path) else {
+            return nil
+        }
+        try AudioCompressor.decodeToWAV(m4a, to: wav)
+        try? fileManager.removeItem(at: m4a)
+        return wav
+    }
+
+    /// K4 一直留著：有文字稿的 WAV 壓成 m4a（每小時約 14 MB），壓好才刪 WAV。慢，叫的人要放背景跑。
+    func compressKept(transcripts: [Transcript]) {
+        for transcript in transcripts where transcript.draftText != nil {
+            guard let wav = try? url(for: transcript.id), let m4a = try? m4aURL(for: transcript.id),
+                  fileManager.fileExists(atPath: wav.path)
+            else {
+                continue
+            }
+            do {
+                try AudioCompressor.encode(wav, to: m4a)
+                try fileManager.removeItem(at: wav)
+            } catch {
+                // 壓不了就留 WAV：多佔空間，不少聲音。壓到一半的 m4a 清掉。
+                try? fileManager.removeItem(at: m4a)
+            }
+        }
     }
 
     /// 待轉錄的錄音搬進來（同一個 volume 是改名）。上一輪搬到一半留下同名檔時，先清掉舊的再搬。
@@ -67,6 +108,7 @@ struct RetainedRecordings {
     func purge(
         loaded: TranscriptStore.LoadResult,
         excluding busy: Set<String>,
+        keepsForever: Bool = false,
         now: Date = Date()
     ) {
         guard let directory = try? directoryURL(),
@@ -84,12 +126,15 @@ struct RetainedRecordings {
             retainedIDs: retainedIDs,
             transcripts: loaded.transcripts,
             deletesOrphans: loaded.unreadableCount == 0,
+            keepsForever: keepsForever,
             now: now,
             availableBytes: RecordingSpace.availableBytes()
         )
         var failed = 0
         for id in doomed {
-            guard let url = try? url(for: id), (try? fileManager.removeItem(at: url)) != nil else {
+            guard let url = existingURL(for: id),
+                  (try? fileManager.removeItem(at: url)) != nil
+            else {
                 failed += 1
                 continue
             }
@@ -106,6 +151,7 @@ struct RetainedRecordings {
         retainedIDs: [UUID],
         transcripts: [Transcript],
         deletesOrphans: Bool,
+        keepsForever: Bool = false,
         now: Date,
         availableBytes: Int64?
     ) -> [UUID] {
@@ -118,7 +164,8 @@ struct RetainedRecordings {
             guard let transcript = byID[id] else {
                 return deletesOrphans
             }
-            guard transcript.draftText != nil else {
+            // 潤飾一直沒成功的不刪；設了一直留著的也不刪（只有那篇刪了才刪）。
+            guard transcript.draftText != nil, !keepsForever else {
                 return false
             }
             let polishedAt = transcript.polishedAt ?? transcript.updatedAt

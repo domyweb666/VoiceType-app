@@ -37,4 +37,51 @@ final class KnowledgeWorkerTests: XCTestCase {
         XCTAssertEqual(first.isCombined, true)
         XCTAssertEqual(first.unlearnedEdit?.to, "第一段改過\n\n第二段草稿", "接上去的那段不算修改，只有原本改過的那段算")
     }
+
+    func test聽原音段落照字數比例估時間() {
+        let draft = ["一二三四", "", "五六七八九"].joined(separator: "\n")
+        let transcript = Transcript(durationSeconds: 100, rawText: "口語", draftText: draft)
+        let paragraphs = OriginalAudioSheet.paragraphs(of: transcript)
+        XCTAssertEqual(paragraphs.map(\.preview), ["一二三四", "五六七八九"])
+        XCTAssertEqual(paragraphs.first?.time, 0)
+        // 第二段前面有「一二三四」加兩個換行共 6 個字，全部 11 個字。
+        XCTAssertEqual(paragraphs.last?.time ?? 0, 600.0 / 11.0, accuracy: 0.001)
+    }
+
+    func test一直留著的錄音只有那篇刪了才刪() {
+        let now = Date()
+        let old = Transcript(
+            durationSeconds: 60,
+            rawText: "口語",
+            draftText: "文字",
+            polishedAt: now.addingTimeInterval(-30 * 24 * 60 * 60)
+        )
+        let orphan = UUID()
+        let doomed = RetainedRecordings.idsToDelete(
+            retainedIDs: [old.id, orphan],
+            transcripts: [old],
+            deletesOrphans: true,
+            keepsForever: true,
+            now: now,
+            availableBytes: 10
+        )
+        XCTAssertEqual(doomed, [orphan])
+    }
+
+    func test重點存在錄音旁邊接著錄時秒數往後接() throws {
+        let name = "marks-\(UUID().uuidString).wav"
+        let marks = RecordingMarks()
+        try marks.add(90, forRecordingNamed: name)
+        try marks.add(30, forRecordingNamed: name)
+        let url = try PendingRecordings().directoryURL().appending(path: name)
+        XCTAssertEqual(marks.load(forRecordingAt: url), [30, 90])
+        marks.delete(forRecordingAt: url)
+        XCTAssertEqual(marks.load(forRecordingAt: url), [])
+
+        var first = Transcript(durationSeconds: 600, rawText: "甲")
+        var second = Transcript(durationSeconds: 300, rawText: "乙")
+        second.marks = [10]
+        first.append(second)
+        XCTAssertEqual(first.marks, [610])
+    }
 }

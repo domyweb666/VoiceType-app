@@ -129,6 +129,7 @@ struct PendingRecordings {
         let segments = RecordingTranscriptionJob.segmentsDirectory(for: recording.url)
         try? fileManager.removeItem(at: segments)
         try? fileManager.removeItem(at: RecordingTranscriptionJob.progressURL(for: recording.url))
+        RecordingMarks().delete(forRecordingAt: recording.url)
     }
 
     /// D5：口語稿存進歷史之後由流水呼叫；畫面上的刪除走上面那個。

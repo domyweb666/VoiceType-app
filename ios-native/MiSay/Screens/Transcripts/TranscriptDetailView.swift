@@ -19,6 +19,8 @@ struct TranscriptDetailView: View {
     @State var isConfirmingRetranscribe = false
     /// K2：選 Markdown 要存到哪個資料夾。
     @State var isPickingMarkdownFolder = false
+    /// K5：聽原音與重點那一頁。
+    @State var showsOriginalAudio = false
     /// 底下那行一下就收的一句話（K2 存好了、存不進去）。
     @State var note: String?
     @State var copyCount = 0
@@ -60,6 +62,15 @@ struct TranscriptDetailView: View {
             .toolbar { toolbarContent }
             .safeAreaInset(edge: .bottom) { bottomLine }
             .sheet(isPresented: $showsRawText) { rawTextSheet }
+            .sheet(isPresented: $showsOriginalAudio) {
+                // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
+                OriginalAudioSheet(
+                    transcript: transcript,
+                    audioURL: transcript.isCombined == true
+                        ? nil
+                        : RetainedRecordings().existingURL(for: transcript.id)
+                )
+            }
             .fileImporter(
                 isPresented: $isPickingMarkdownFolder,
                 allowedContentTypes: [.folder],

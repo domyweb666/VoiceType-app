@@ -33,6 +33,8 @@ struct RecordingSheetView: View {
     @State private var resumeFailure: String?
     /// 按了停止、正在收掉邊錄邊轉（最多一兩秒）：停止與繼續錄都不給再按（S4 審查）。
     @State private var isStopping = false
+    /// K6：這段錄音標了幾個重點（觸覺回饋也跟著它）。
+    @State private var markCount = 0
 
     var body: some View {
         VStack(spacing: Token.Space.xl) {
@@ -162,8 +164,26 @@ private extension RecordingSheetView {
             RecordingWaveform(recorder: recorder)
             Spacer(minLength: Token.Space.s)
             stopButton
+            markButton
             spaceNote
         }
+    }
+
+    /// K6：講到重點按一下，記下第幾秒；整理完在詳情頁「⋯ → 聽原音與重點」看得到。
+    var markButton: some View {
+        Button(markCount == 0 ? "標記重點" : "標記重點（已標 \(markCount) 個）") {
+            guard let name = recorder.liveRecordingURL?.lastPathComponent else {
+                return
+            }
+            // 記不進去只是少一個標記，錄音照常；不跳錯。
+            let seconds = recorder.elapsedSeconds
+            if (try? RecordingMarks().add(seconds, forRecordingNamed: name)) != nil {
+                markCount += 1
+            }
+        }
+        .buttonStyle(TextButtonStyle())
+        .disabled(phase != .recording || isStopping)
+        .sensoryFeedback(Token.Haptics.copied, trigger: markCount)
     }
 
     /// 錄音中＝紅點＋計時在跳＋「正在聽」三樣一起（使用規則第 4 條）。

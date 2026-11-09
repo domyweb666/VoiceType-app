@@ -29,6 +29,15 @@ struct AdvancedSettingsView: View {
             .font(Token.Fonts.body)
             .listRowBackground(Token.Colors.rowBackground)
 
+            Section {
+                Toggle("錄音一直留著", isOn: $settings.keepsRecordingsForever)
+            } footer: {
+                Text(Self.keepRecordingsNote)
+                    .font(Token.Fonts.footnote)
+            }
+            .font(Token.Fonts.body)
+            .listRowBackground(Token.Colors.rowBackground)
+
             BackupSection()
 
             Section {
@@ -53,6 +62,9 @@ struct AdvancedSettingsView: View {
         .navigationTitle("進階")
         .navigationBarTitleDisplayMode(.inline)
     }
+
+    static let keepRecordingsNote = "關著時，文字稿存好後錄音留 7 天就刪。打開後一直留著，"
+        + "隨時能聽原音、重新轉錄；壓縮後每小時約 14 MB。那篇文字稿刪了，錄音跟著刪。"
 
     static let liveTranscriptionNote = "錄音中每講滿約 5 分鐘就先送去轉成文字，按停止後很快就好。"
         + "關著時，走路也會用行動網路，每小時約 14 MB。"

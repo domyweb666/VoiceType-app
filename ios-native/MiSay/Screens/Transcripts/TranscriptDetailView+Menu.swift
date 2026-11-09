@@ -17,6 +17,15 @@ extension TranscriptDetailView {
                     Label("看口語稿", systemImage: "waveform")
                 }
             }
+            // K5、K6：錄音還留著或標過重點，才有這頁。
+            let hasMarks = !(transcript.marks ?? []).isEmpty
+            if RetainedRecordings().exists(for: transcript.id) || hasMarks {
+                Button {
+                    showsOriginalAudio = true
+                } label: {
+                    Label("聽原音與重點", systemImage: "headphones")
+                }
+            }
             // K2：存成 Markdown，給 Obsidian 這類在電腦上寫東西的地方。
             Button(action: saveMarkdown) {
                 if let folder = MarkdownFolder().folderName {

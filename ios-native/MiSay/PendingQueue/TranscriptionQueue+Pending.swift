@@ -55,7 +55,15 @@ extension TranscriptionQueue {
         isProcessingPending = true
         defer { isProcessingPending = false }
         if let loaded = try? store.loadAll() {
-            retained.purge(loaded: loaded, excluding: inFlight)
+            let keepsForever = settings.keepsRecordingsForever
+            retained.purge(loaded: loaded, excluding: inFlight, keepsForever: keepsForever)
+            if keepsForever {
+                // 壓一小時的錄音要好幾秒，不佔畫面那條線。
+                let retained = retained
+                await Task.detached(priority: .utility) {
+                    retained.compressKept(transcripts: loaded.transcripts)
+                }.value
+            }
         }
         for recording in recordings.reversed() {
             // 清單是開跑時拍的照：這段時間面板可能已經整理完那一筆、錄音檔已刪。
