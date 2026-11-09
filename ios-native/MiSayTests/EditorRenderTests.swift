@@ -29,12 +29,24 @@ final class EditorRenderTests: XCTestCase {
         XCTAssertGreaterThan(Self.darkPixelCount(in: window), 200, summary)
     }
 
+    /// 對照組：同樣的擺法換成系統的 TextEditor（裡面也是 UITextView），確認這套量法本身找得到、畫得出來。
+    func test對照組_系統編輯框找得到也畫得出字() throws {
+        let window = show(SystemEditorHarness(text: sample))
+        let textView = try XCTUnwrap(Self.findTextView(in: window), "對照組也找不到：量法有問題")
+        XCTAssertGreaterThan(Self.darkPixelCount(in: window), 200, Self.describe(textView))
+    }
+
     // MARK: 幫手
 
     private func show(_ view: some View) -> UIWindow {
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-        window.rootViewController = UIHostingController(rootView: view)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow()
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        let host = UIHostingController(rootView: view)
+        window.rootViewController = host
         window.makeKeyAndVisible()
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
         settle()
         return window
     }
@@ -111,6 +123,18 @@ private struct EditorHarness: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(Token.Colors.rowBackground)
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+private struct SystemEditorHarness: View {
+    @State var text: String
+
+    var body: some View {
+        NavigationStack {
+            TextEditor(text: $text)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
