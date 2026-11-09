@@ -33,6 +33,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var combinedAt: Date?
     /// 錄音中標的重點，第幾秒（K6）。沒標過是 nil。
     var marks: [Double]?
+    /// 改寫成別的格式存下來的那幾份，舊的在前（W1）。沒改寫過是 nil。
+    var rewrites: [TranscriptRewrite]?
     var updatedAt: Date
 
     init(
@@ -115,6 +117,19 @@ struct Transcript: Codable, Identifiable, Hashable {
         }
         durationSeconds += other.durationSeconds
         combinedAt = Date()
+        updatedAt = Date()
+    }
+
+    /// W1：多存一份改寫。文字稿、原稿都不動，所以不影響「改了哪裡」的比對。
+    mutating func addRewrite(_ rewrite: TranscriptRewrite) {
+        rewrites = (rewrites ?? []) + [rewrite]
+        updatedAt = Date()
+    }
+
+    /// 刪光了回到 nil，跟沒改寫過的篇存起來一樣。
+    mutating func removeRewrite(id: UUID) {
+        let remaining = (rewrites ?? []).filter { $0.id != id }
+        rewrites = remaining.isEmpty ? nil : remaining
         updatedAt = Date()
     }
 
