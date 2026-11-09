@@ -36,6 +36,12 @@ extension TranscriptDetailView {
                 )
             }
             .disabled(isPolishing || currentText.isEmpty)
+            // W6：標籤，清單可以照標籤篩。
+            Button {
+                showsTags = true
+            } label: {
+                Label(Self.tagMenuTitle(transcript.tags ?? []), systemImage: "tag")
+            }
             // K5、K6：錄音還留著或標過重點，才有這頁。
             let hasMarks = !(transcript.marks ?? []).isEmpty
             if RetainedRecordings().exists(for: transcript.id) || hasMarks {

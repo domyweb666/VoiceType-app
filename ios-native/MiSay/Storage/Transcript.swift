@@ -35,6 +35,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var marks: [Double]?
     /// 改寫成別的格式存下來的那幾份，舊的在前（W1）。沒改寫過是 nil。
     var rewrites: [TranscriptRewrite]?
+    /// 使用者加的標籤（W6），清單可以照標籤篩。沒加過是 nil。
+    var tags: [String]?
     var updatedAt: Date
 
     init(
@@ -118,6 +120,50 @@ struct Transcript: Codable, Identifiable, Hashable {
         durationSeconds += other.durationSeconds
         combinedAt = Date()
         updatedAt = Date()
+    }
+
+    /// 合併至少要兩篇（W6）。
+    static let minimumMergeCount = 2
+
+    /// W6：好幾篇照錄的時間接成新的一篇（舊的在前），原本那幾篇不動。少於兩篇回 nil。
+    /// 接法跟「接著錄」同一套（`append`），所以重點秒數照樣往後接、標成好幾段接起來的。
+    static func merged(_ transcripts: [Transcript], at date: Date = Date()) -> Transcript? {
+        let ordered = transcripts.sorted { $0.createdAt < $1.createdAt }
+        guard ordered.count >= minimumMergeCount, let first = ordered.first else {
+            return nil
+        }
+        let firstDraft = first.draftText ?? first.rawText
+        var merged = Transcript(
+            createdAt: date,
+            durationSeconds: first.durationSeconds,
+            rawText: first.rawText,
+            draftText: firstDraft,
+            polishModel: first.polishModel,
+            polishStyle: first.polishStyle,
+            originalDraft: first.originalDraft ?? firstDraft
+        )
+        merged.marks = first.marks
+        for other in ordered.dropFirst() {
+            merged.append(other)
+        }
+        // 新的一篇從現在算起：原本那幾篇還沒學的修改留給它們自己學，這篇不再學一次。
+        merged.learnedDraft = merged.draftText
+        let tags = Self.tagsInUse(ordered)
+        merged.tags = tags.isEmpty ? nil : tags
+        merged.updatedAt = date
+        return merged
+    }
+
+    /// 這些篇用過的標籤，不重複（不分大小寫），照字排。
+    static func tagsInUse(_ transcripts: [Transcript]) -> [String] {
+        var seen = Set<String>()
+        var tags: [String] = []
+        for tag in transcripts.flatMap({ $0.tags ?? [] })
+            where seen.insert(tag.lowercased()).inserted
+        {
+            tags.append(tag)
+        }
+        return tags.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
     /// W1：多存一份改寫。文字稿、原稿都不動，所以不影響「改了哪裡」的比對。

@@ -28,6 +28,8 @@ struct TranscriptDetailView: View {
     @State var rewritingKind: RewriteKind?
     @State var rewriteTask: Task<Void, Never>?
     @State var rewriteFailure: String?
+    /// W6：編這篇標籤的那張頁。
+    @State var showsTags = false
     /// 底下那行一下就收的一句話（K2 存好了、存不進去）。
     @State var note: String?
     @State var copyCount = 0
@@ -72,6 +74,7 @@ struct TranscriptDetailView: View {
                 RawTextSheet(transcript: transcript, startsWithDiff: rawSheetStartsWithDiff)
             }
             .sheet(isPresented: $showsRewrites) { rewritesSheet }
+            .sheet(isPresented: $showsTags) { tagsSheet }
             .sheet(isPresented: $showsOriginalAudio) {
                 // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
                 OriginalAudioSheet(

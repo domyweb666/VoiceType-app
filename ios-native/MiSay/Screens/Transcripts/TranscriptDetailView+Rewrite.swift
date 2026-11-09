@@ -132,7 +132,7 @@ extension TranscriptDetailView {
 
     /// 先把手上改的字存掉，再拿存檔裡最新的那份改了存：這頁開著時，接著錄、別處整理完都可能讓存檔比手上的新，
     /// 拿手上的存會把那些蓋掉。存檔裡沒有這篇就是被刪了，不存。
-    private func updateStored(_ change: (inout Transcript) -> Void) throws {
+    func updateStored(_ change: (inout Transcript) -> Void) throws {
         flushAutosave()
         let stored = try TranscriptStore().loadAll().transcripts.first { $0.id == transcript.id }
         guard var updated = stored else {
