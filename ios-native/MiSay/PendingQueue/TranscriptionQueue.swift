@@ -55,6 +55,10 @@ final class TranscriptionQueue {
     var pendingRun: Task<Void, Never>?
     /// 邊錄邊轉那一輪（S4-1）；沒在錄是 nil。
     var liveRun: Task<Void, Never>?
+    /// K3 接著錄：錄音檔名 → 要接到哪一篇；口語稿存好後換成「新那篇的 id → 要接到哪一篇」。
+    /// 只記在記憶體：App 被殺的話，那段會變成獨立的一篇，字不會丟。
+    var appendTargets: [String: UUID] = [:]
+    var appendTargetsByTranscript: [UUID: UUID] = [:]
     var lastBackgroundedAt: Date?
     private let workingHold = BackgroundTimeHold()
 
@@ -171,6 +175,9 @@ final class TranscriptionQueue {
             try store.save(transcript)
         } catch {
             return .failure(StoppedOutcome(value: .storageFailed))
+        }
+        if let target = appendTargets.removeValue(forKey: name) {
+            appendTargetsByTranscript[transcript.id] = target
         }
         do {
             try retained.retain(recordingAt: url, for: transcript.id)

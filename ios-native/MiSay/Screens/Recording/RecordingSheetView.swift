@@ -20,6 +20,8 @@ struct RecordingSheetView: View {
     let recorder: Recorder
     let onOpenTranscript: (Transcript) -> Void
     let onOpenSettings: () -> Void
+    /// K3 接著錄：錄好的這段整理完要接到哪一篇後面；一般開錄是 nil。
+    var appendingTo: UUID?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -136,6 +138,9 @@ struct RecordingSheetView: View {
             await queue.finishLive()
             do {
                 let pendingURL = try PendingRecordings().accept(recordingAt: recordedURL)
+                if let appendingTo {
+                    queue.appendTargets[pendingURL.lastPathComponent] = appendingTo
+                }
                 phase = .processing(pendingURL)
             } catch {
                 phase = .failed("錄音停不下來或存不進去，檔案還在，重開米說會撿回來。")

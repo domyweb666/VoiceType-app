@@ -17,6 +17,8 @@ struct HomeView: View {
     @Environment(TranscriptionQueue.self) private var queue
     @Environment(Recorder.self) private var recorder
     @State private var isRecordingSheetShown = false
+    /// K3：這次打開面板是要接在哪一篇後面。
+    @State private var appendTarget: UUID?
     @State private var pendingCount = 0
     @State private var hasAPIKey = true
 
@@ -46,11 +48,15 @@ struct HomeView: View {
                 queue: queue,
                 recorder: recorder,
                 onOpenTranscript: openFromSheet,
-                onOpenSettings: openSettingsFromSheet
+                onOpenSettings: openSettingsFromSheet,
+                appendingTo: appendTarget
             )
             .presentationDetents([.medium])
             .presentationCornerRadius(Token.Shape.radiusSheet)
         }
+        // K1、K3：捷徑或「接著錄」丟來的開錄請求。冷啟動時請求在畫面出來前就到了，onAppear 補。
+        .onAppear { takeRecordingRequest() }
+        .onChange(of: RecordingLauncher.shared.request) { _, _ in takeRecordingRequest() }
         .task {
             recoverThenReloadPending()
             reloadKey()
@@ -76,6 +82,7 @@ struct HomeView: View {
         }
         .onChange(of: isRecordingSheetShown) { _, shown in
             if !shown {
+                appendTarget = nil
                 reloadPending()
                 reloadKey()
             }
@@ -86,6 +93,21 @@ struct HomeView: View {
                 reloadPending()
             }
         }
+    }
+
+    /// 面板已經開著（正在錄）就不理：一次只錄一段。
+    private func takeRecordingRequest() {
+        guard let request = RecordingLauncher.shared.request else {
+            return
+        }
+        RecordingLauncher.shared.request = nil
+        guard !isRecordingSheetShown, !recorder.isRecording else {
+            return
+        }
+        if case let .append(target) = request {
+            appendTarget = target
+        }
+        isRecordingSheetShown = true
     }
 
     /// 面板先收起，再請外層換到「文字稿」那頁、推到這一篇。

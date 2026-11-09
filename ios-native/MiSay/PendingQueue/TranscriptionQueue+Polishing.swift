@@ -55,8 +55,29 @@ extension TranscriptionQueue {
         } catch {
             return .draftNotSaved(working)
         }
-        TranscriptReadyNotice().post(for: polished)
-        return .finished(polished)
+        let finished = mergeIntoAppendTarget(polished)
+        TranscriptReadyNotice().post(for: finished)
+        return .finished(finished)
+    }
+
+    /// K3：這篇是「接著錄」錄的，整理好就接到原本那篇後面，自己這篇刪掉。
+    /// 原本那篇讀不到（剛好被刪了）或存不進去：照舊留成獨立的一篇，字不會丟。
+    private func mergeIntoAppendTarget(_ added: Transcript) -> Transcript {
+        guard let targetID = appendTargetsByTranscript.removeValue(forKey: added.id),
+              var target = (try? store.loadAll())?.transcripts.first(where: { $0.id == targetID })
+        else {
+            return added
+        }
+        target.append(added)
+        do {
+            try store.save(target)
+        } catch {
+            return added
+        }
+        // 刪不掉只會多一篇重複的，不會少字；下次使用者自己刪。
+        try? store.delete(id: added.id)
+        DiagnosticLog.shared.record("接著錄：接到原本那篇後面")
+        return target
     }
 
     func polishChunk(

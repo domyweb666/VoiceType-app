@@ -80,6 +80,9 @@ struct TranscriptDetailView: View {
             }
             .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
             .onChange(of: draftEdit) { _, _ in scheduleAutosave() }
+            // K3：接著錄、從錄音重新轉錄都可能在這頁不在畫面上時改了這篇；回來先讀最新的，
+            // 不然改字自動存會拿舊的那份蓋掉接上去的字。
+            .onAppear { reloadFromStore() }
             .onDisappear {
                 flushAutosave()
                 // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。
@@ -186,40 +189,6 @@ private extension TranscriptDetailView {
         .buttonBorderShape(.circle)
         .tint(Token.Colors.actionFill)
         .accessibilityLabel("完成")
-    }
-
-    var moreMenu: some View {
-        Menu {
-            // 片 F4：看得出這篇用哪種潤飾、哪個模型。只是說明，按不下去。
-            if let model = transcript.polishModel {
-                Section {
-                    Text(Self.polishNote(model: model, style: transcript.polishStyle))
-                }
-            }
-            if transcript.draftText != nil {
-                Button {
-                    showsRawText = true
-                } label: {
-                    Label("看口語稿", systemImage: "waveform")
-                }
-            }
-            // S2-5：錄音還留著才有這顆（文字稿存好後留 7 天）。
-            if RetainedRecordings().exists(for: transcript.id) {
-                Button {
-                    isConfirmingRetranscribe = true
-                } label: {
-                    Label("從錄音重新轉錄", systemImage: "arrow.clockwise")
-                }
-            }
-            Button(role: .destructive) {
-                isConfirmingDelete = true
-            } label: {
-                Label("刪除這篇文字稿", systemImage: "trash")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-        }
-        .accessibilityLabel("更多")
     }
 
     /// 底下一行：有狀態就講狀態（一次一件），沒有就在不打字時顯示字數。

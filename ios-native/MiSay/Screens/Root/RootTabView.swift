@@ -45,6 +45,12 @@ struct RootTabView: View {
         .onChange(of: NotificationRouter.shared.openTranscriptID) { _, id in
             openFromNotification(id)
         }
+        // K1、K3：有人要開錄，先切到錄音頁；面板由首頁打開。
+        .onChange(of: RecordingLauncher.shared.request) { _, request in
+            if request != nil {
+                page = .home
+            }
+        }
     }
 
     private func openFromNotification(_ id: UUID?) {
