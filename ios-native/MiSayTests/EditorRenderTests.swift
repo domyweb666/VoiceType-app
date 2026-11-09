@@ -59,10 +59,11 @@ final class EditorRenderTests: XCTestCase {
         let attributes = storage.length > 0 ? storage.attributes(at: 0, effectiveRange: nil) : [:]
         let color = attributes[.foregroundColor].map { "\($0)" } ?? "nil"
         let font = attributes[.font].map { "\($0)" } ?? "nil"
-        return "frame \(textView.frame) bounds \(textView.bounds) contentSize \(textView.contentSize) "
-            + "offset \(textView.contentOffset) inset \(textView.adjustedContentInset) used \(used) "
-            + "glyphs \(layoutManager.numberOfGlyphs) hidden \(textView.isHidden) alpha \(textView.alpha) "
-            + "color \(color) font \(font) window \(textView.window != nil)"
+        let place = "frame \(textView.frame) contentSize \(textView.contentSize) "
+            + "offset \(textView.contentOffset) inset \(textView.adjustedContentInset)"
+        let layout = "used \(used) glyphs \(layoutManager.numberOfGlyphs) "
+            + "hidden \(textView.isHidden) alpha \(textView.alpha) window \(textView.window != nil)"
+        return place + " " + layout + " color \(color) font \(font)"
     }
 
     /// 灰階低於一半的點（白底上的黑字）。
@@ -83,7 +84,8 @@ final class EditorRenderTests: XCTestCase {
         for row in 0 ..< cgImage.height {
             for column in 0 ..< cgImage.width {
                 let offset = row * cgImage.bytesPerRow + column * bytesPerPixel
-                let gray = (Int(bytes[offset]) + Int(bytes[offset + 1]) + Int(bytes[offset + 2])) / 3
+                let sum = Int(bytes[offset]) + Int(bytes[offset + 1]) + Int(bytes[offset + 2])
+                let gray = sum / 3
                 if gray < 128 {
                     count += 1
                 }
