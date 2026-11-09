@@ -57,7 +57,11 @@ struct RootTabView: View {
             importMessage ?? "",
             isPresented: Binding(
                 get: { importMessage != nil },
-                set: { if !$0 { importMessage = nil } }
+                set: { isShown in
+                    if !isShown {
+                        importMessage = nil
+                    }
+                }
             )
         ) {
             Button("好") {}

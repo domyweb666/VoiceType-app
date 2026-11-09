@@ -28,7 +28,8 @@ struct MarkdownFolder {
         }
         defer { folder.stopAccessingSecurityScopedResource() }
         do {
-            defaults.set(try folder.bookmarkData(), forKey: Self.bookmarkKey)
+            let bookmark = try folder.bookmarkData()
+            defaults.set(bookmark, forKey: Self.bookmarkKey)
         } catch {
             throw Failure.cannotAccess
         }

@@ -71,7 +71,7 @@ extension TranscriptDetailView {
     /// K3：先存好手上改的字、退出這頁，再請分頁列切到錄音頁開錄。退出是為了不留一份舊的在畫面上。
     func appendRecording() {
         flushAutosave()
-        RecordingLauncher.shared.request = .append(to: transcript.id)
+        RecordingLauncher.shared.request = .append(target: transcript.id)
         dismiss()
     }
 

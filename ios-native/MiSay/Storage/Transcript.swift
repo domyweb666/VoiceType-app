@@ -29,7 +29,7 @@ struct Transcript: Codable, Identifiable, Hashable {
     /// 文字稿存好的時間（S2-5）：留存錄音從這時起再留 7 天。舊的篇沒有這欄，用 `updatedAt`。
     var polishedAt: Date?
     /// 最後一次接著錄的時間（K3）：有值就是好幾段錄音接起來的，留存錄音只對得上第一段，
-    /// 不給「從錄音重新轉錄」、不給播原音。（不用 Bool?：規矩不准可選的布林。）
+    /// 不給「從錄音重新轉錄」、不給播原音。（用時間不用可選的布林：規矩不准。）
     var combinedAt: Date?
     /// 錄音中標的重點，第幾秒（K6）。沒標過是 nil。
     var marks: [Double]?

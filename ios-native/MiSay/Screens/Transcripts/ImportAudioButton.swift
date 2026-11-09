@@ -18,7 +18,14 @@ struct ImportAudioButton: View {
         }
         .alert(
             message ?? "",
-            isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })
+            isPresented: Binding(
+                get: { message != nil },
+                set: { isShown in
+                    if !isShown {
+                        message = nil
+                    }
+                }
+            )
         ) {
             Button("好") {}
         }

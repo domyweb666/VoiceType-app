@@ -8,7 +8,7 @@ import Observation
 final class RecordingLauncher {
     enum Request: Equatable {
         case new
-        case append(to: UUID)
+        case append(target: UUID)
     }
 
     static let shared = RecordingLauncher()
