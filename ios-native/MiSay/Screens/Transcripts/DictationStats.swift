@@ -37,6 +37,36 @@ struct DictationStats: Equatable {
         return max(typingSeconds - spokenSeconds, 0)
     }
 
+    /// 首頁頂端那一行（2026-11-09 米：首頁上面太空；四格卡留在設定頁，首頁只放縮小的一行）。
+    /// 本週有講就講本週，本週還沒講就講累計；一篇都沒有回 nil，整行不出現，新用戶不會看到一排 0。
+    static func homeSummary(
+        for transcripts: [Transcript],
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) -> String? {
+        guard !transcripts.isEmpty else {
+            return nil
+        }
+        let thisWeek = transcripts.filter {
+            calendar.isDate($0.createdAt, equalTo: now, toGranularity: .weekOfYear)
+        }
+        let isThisWeek = !thisWeek.isEmpty
+        let stats = DictationStats(transcripts: isThisWeek ? thisWeek : transcripts)
+        var parts = [
+            (isThisWeek ? "本週講了 " : "累計講了 ") + durationText(stats.spokenSeconds),
+            "約 \(stats.spokenCharacters.formatted()) 字",
+        ]
+        if stats.savedSeconds > 0 {
+            parts.append("省下 " + durationText(stats.savedSeconds))
+        }
+        return parts.joined(separator: "・")
+    }
+
+    private static func durationText(_ seconds: Double) -> String {
+        let duration = duration(seconds)
+        return duration.value + " " + duration.unit
+    }
+
     /// 「45 秒」「12 分鐘」「3 小時 5 分」：數字與單位分開，卡片上單位字比較小。
     static func duration(_ seconds: Double) -> (value: String, unit: String) {
         let total = Int(seconds.rounded())

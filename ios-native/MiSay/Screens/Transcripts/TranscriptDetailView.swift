@@ -21,6 +21,11 @@ struct TranscriptDetailView: View {
     @State var isPickingMarkdownFolder = false
     /// K5：聽原音與重點那一頁。
     @State var showsOriginalAudio = false
+    /// W1：改寫成其他格式那張頁、正在改寫哪一種、改寫沒成功那句話。
+    @State var showsRewrites = false
+    @State var rewritingKind: RewriteKind?
+    @State var rewriteTask: Task<Void, Never>?
+    @State var rewriteFailure: String?
     /// 底下那行一下就收的一句話（K2 存好了、存不進去）。
     @State var note: String?
     @State var copyCount = 0
@@ -62,6 +67,7 @@ struct TranscriptDetailView: View {
             .toolbar { toolbarContent }
             .safeAreaInset(edge: .bottom) { bottomLine }
             .sheet(isPresented: $showsRawText) { rawTextSheet }
+            .sheet(isPresented: $showsRewrites) { rewritesSheet }
             .sheet(isPresented: $showsOriginalAudio) {
                 // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
                 OriginalAudioSheet(
@@ -108,6 +114,8 @@ struct TranscriptDetailView: View {
             }
             .onDisappear { queue.openForEditing.remove(transcript.id) }
             .onDisappear {
+                // 離開這頁就停：再打開這篇是另一份畫面，改寫完存回來會跟它互相蓋。
+                cancelRewrite()
                 flushAutosave()
                 // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。
                 EditLearningRunner.start()

@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// 快門式錄音鈕的長相（使用規則第 14 條）：金環、有厚度的酒紅圓盤、玉米麥克風圖。
+/// 快門式錄音鈕的長相（使用規則第 14 條）：金環、有厚度的玉米黃圓盤、實心麥克風。
 /// 只管長相；按下縮放與開面板在 `HomeView`。
-/// 2026-11-08 米：中間換成玉米麥克風圖，圓盤從玉米黃換成 App icon 的酒紅，不然玉米跟底分不開。
+/// 2026-11-09 米：玉米麥克風圖不好看，換回 11/07 畫布那版；酒紅圓盤是為了襯玉米圖才改的，一起換回來。
 struct RecordButtonLabel: View {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -11,10 +11,11 @@ struct RecordButtonLabel: View {
             Circle()
                 .strokeBorder(Token.Colors.actionRing, lineWidth: Token.Shape.recordRing)
             disc
-            Image("玉米麥克風")
+            Image(systemName: "mic.fill")
                 .resizable()
                 .scaledToFit()
-                .frame(height: Token.Shape.recordGlyph)
+                .foregroundStyle(Token.Colors.actionInk)
+                .frame(width: Token.Shape.recordGlyph, height: Token.Shape.recordGlyph)
                 .accessibilityHidden(true)
         }
         .frame(width: Token.Shape.recordTap, height: Token.Shape.recordTap)
@@ -23,7 +24,7 @@ struct RecordButtonLabel: View {
     /// 上亮下暗是一圈從亮到暗的描邊，不是漸層底。
     private var disc: some View {
         Circle()
-            .fill(Token.Colors.recordDiscFill)
+            .fill(Token.Colors.actionFill)
             .overlay {
                 Circle()
                     .strokeBorder(rim, lineWidth: Token.Elevation.recordRimWidth)

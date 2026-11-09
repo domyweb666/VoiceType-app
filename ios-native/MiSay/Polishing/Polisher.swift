@@ -1,6 +1,6 @@
 import Foundation
 
-/// 方塊 M4：口語稿 → 草稿。system 與 user 分開送（安全標準五）、只送這一篇、回來的當純文字。
+/// 方塊 M4：口語稿 → 草稿；W1 起也把文字稿改寫成別的格式。system 與 user 分開送（安全標準五）、只送這一篇、回來的當純文字。
 /// 只對可重試的錯誤重試，最多 3 次（PRD）。模型與潤飾方式由 M7 決定；提示詞全文在 `PolishStyle`。
 struct Polisher {
     enum Failure: Error, Equatable {
@@ -44,11 +44,35 @@ struct Polisher {
             vocabulary: vocabulary,
             habits: habits
         )
+        return try await complete(
+            system: system,
+            user: style.userContent(rawText: rawText),
+            model: model
+        )
+    }
+
+    /// W1 改寫成別的格式：從文字稿出發，整篇一次送（長度上限在 `RewriteKind`）。
+    /// 學到的改稿習慣是給潤飾用的，不帶；詞彙照帶，人名品牌才不會在改寫時又寫錯。
+    func rewrite(
+        text: String,
+        kind: RewriteKind,
+        model: String,
+        vocabulary: [String]
+    ) async throws -> String {
+        try await complete(
+            system: Self.systemContent(prompt: kind.prompt, vocabulary: vocabulary),
+            user: RewriteKind.userContent(text: text),
+            model: model
+        )
+    }
+
+    /// 潤飾與改寫共用：送一次 chat completions，可重試的錯誤重試，回來的當純文字。
+    private func complete(system: String, user: String, model: String) async throws -> String {
         let request = ChatRequest(
             model: model,
             messages: [
                 ChatMessage(role: "system", content: system),
-                ChatMessage(role: "user", content: style.userContent(rawText: rawText)),
+                ChatMessage(role: "user", content: user),
             ],
             temperature: Self.temperature(for: model)
         )

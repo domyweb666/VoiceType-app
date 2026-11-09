@@ -6,6 +6,7 @@ import SwiftUI
 /// 片 D6：出現時、回到前景時自動續轉待轉錄。
 /// 2026-11-02 米：左右滑換頁（11/08 改成底部分頁列 `RootTabView`），首頁不再有「文字稿」「⋯」兩顆鈕；面板的「打開這篇」「去設定」交給外層換頁。
 /// 2026-11-07 統一風格：錄音鈕改快門式（`RecordButtonLabel`）、提示改「按中間的鈕」、沒金鑰時鈕上方多一張卡。
+/// 2026-11-09 米：上緣多一行口述統計（`DictationStats.homeSummary`）；提示改成長錄音的講法。
 struct HomeView: View {
     /// 外層的三頁現在停在首頁。從設定頁滑回來時要重看金鑰在不在。
     let isCurrentPage: Bool
@@ -21,6 +22,7 @@ struct HomeView: View {
     @State private var appendTarget: UUID?
     @State private var pendingCount = 0
     @State private var hasAPIKey = true
+    @State private var statsLine: String?
 
     var body: some View {
         ZStack {
@@ -30,10 +32,13 @@ struct HomeView: View {
                 .overlay { recordButton }
                 .overlay { hintBelowButton }
                 .ignoresSafeArea()
-            // 金鑰卡貼上緣、待轉錄列貼下緣，中間空著的地方點得到後面的鈕。
+            // 金鑰卡與統計貼上緣、待轉錄列貼下緣，中間空著的地方點得到後面的鈕。
             VStack {
                 if !hasAPIKey {
                     noKeyCard
+                }
+                if let statsLine {
+                    statsRow(statsLine)
                 }
                 Spacer()
                 if pendingCount > 0 {
@@ -78,12 +83,15 @@ struct HomeView: View {
         .onChange(of: isCurrentPage) { _, isShown in
             if isShown {
                 reloadKey()
+                // 在文字稿頁刪了篇，回來數字要跟著變。
+                reloadStats()
             }
         }
         .onChange(of: isRecordingSheetShown) { _, shown in
             if !shown {
                 appendTarget = nil
                 reloadPending()
+                reloadStats()
                 reloadKey()
             }
         }
@@ -91,6 +99,7 @@ struct HomeView: View {
             // 背景整理完一筆（或面板收起後才整理完）就重算待轉錄數。
             if activity == .idle {
                 reloadPending()
+                reloadStats()
             }
         }
     }
@@ -129,11 +138,18 @@ struct HomeView: View {
             _ = try? PendingRecordings().recoverAbandonedRecordings()
         }
         reloadPending()
+        reloadStats()
     }
 
     private func reloadPending() {
         // 讀不到清單時列就不出現；進清單頁會看到讀取失敗的字。
         pendingCount = (try? PendingRecordings().list().count) ?? 0
+    }
+
+    /// 讀不到文字稿就不顯示這一行；文字稿頁會講讀取失敗。
+    private func reloadStats() {
+        let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
+        statsLine = DictationStats.homeSummary(for: transcripts)
     }
 
     /// 讀不到 Keychain 就當沒金鑰：卡片多出現一次不傷人，設定頁會講讀取失敗。
@@ -143,7 +159,7 @@ struct HomeView: View {
     }
 }
 
-/// 首頁的四塊：沒金鑰的卡、錄音鈕、提示、待轉錄列。
+/// 首頁的五塊：沒金鑰的卡、統計、錄音鈕、提示、待轉錄列。
 private extension HomeView {
     @ViewBuilder
     var recordButton: some View {
@@ -195,6 +211,22 @@ private extension HomeView {
         .padding(.top, Token.Space.s)
     }
 
+    /// 一行小字放在凹槽底上，只給人看、不能按（能按的才用金色）；完整的四格卡在設定頁。
+    func statsRow(_ line: String) -> some View {
+        Text(line)
+            .font(Token.Fonts.secondary)
+            .foregroundStyle(Token.Colors.textSecondary)
+            .multilineTextAlignment(.center)
+            .padding(.vertical, Token.Space.s)
+            .padding(.horizontal, Token.Space.m)
+            .background(
+                Token.Colors.sunkenBackground,
+                in: RoundedRectangle(cornerRadius: Token.Shape.radiusField)
+            )
+            .padding(.horizontal, Token.Space.l)
+            .padding(.top, Token.Space.s)
+    }
+
     /// 提示的上緣對齊正中央，再往下推半顆鈕，剛好接在鈕下方。
     var hintBelowButton: some View {
         firstTimeHint
@@ -204,10 +236,10 @@ private extension HomeView {
 
     var firstTimeHint: some View {
         VStack(spacing: Token.Space.s) {
-            Text("按中間的鈕，說一段話")
+            Text("按中間的鈕，開始講")
                 .font(Token.Fonts.rowTitle)
                 .foregroundStyle(Token.Colors.textPrimary)
-            Text("說完會變成可以直接貼上的文字，自動幫你複製。")
+            Text("講多久都可以，講完會整理成文字稿。")
                 .font(Token.Fonts.secondary)
                 .foregroundStyle(Token.Colors.textSecondary)
         }

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// 詳情頁右上的「⋯」（K 組塊拆檔：主檔快到 300 行）：潤飾說明、看口語稿、接著錄、從錄音重新轉錄、刪除。
+/// 詳情頁右上的「⋯」（K 組塊拆檔：主檔快到 300 行）：潤飾說明、看口語稿、改寫成其他格式、接著錄、
+/// 從錄音重新轉錄、刪除。
 extension TranscriptDetailView {
     var moreMenu: some View {
         Menu {
@@ -17,6 +18,16 @@ extension TranscriptDetailView {
                     Label("看口語稿", systemImage: "waveform")
                 }
             }
+            // W1：改寫成別的格式，存成這篇底下的另一份。整理中不給：文字稿還沒定。
+            Button {
+                showsRewrites = true
+            } label: {
+                Label(
+                    Self.rewriteMenuTitle(copies: transcript.rewrites?.count ?? 0),
+                    systemImage: "arrow.triangle.branch"
+                )
+            }
+            .disabled(isPolishing || currentText.isEmpty)
             // K5、K6：錄音還留著或標過重點，才有這頁。
             let hasMarks = !(transcript.marks ?? []).isEmpty
             if RetainedRecordings().exists(for: transcript.id) || hasMarks {

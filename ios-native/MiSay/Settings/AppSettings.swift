@@ -22,6 +22,7 @@ final class AppSettings {
         static let autoVocabulary = "autoVocabulary"
         static let autoAddedVocabulary = "autoAddedVocabulary"
         static let rejectedVocabulary = "rejectedVocabulary"
+        static let lastAutoVocabularyAt = "lastAutoVocabularyAt"
         static let learnFromEdits = "learnFromEdits"
         static let learnedHabits = "learnedHabits"
     }
@@ -45,6 +46,7 @@ final class AppSettings {
         autoVocabulary = defaults.object(forKey: Key.autoVocabulary) as? Bool ?? true
         autoAddedVocabulary = defaults.stringArray(forKey: Key.autoAddedVocabulary) ?? []
         rejectedVocabulary = defaults.stringArray(forKey: Key.rejectedVocabulary) ?? []
+        lastAutoVocabularyAt = defaults.object(forKey: Key.lastAutoVocabularyAt) as? Date
         learnFromEdits = defaults.bool(forKey: Key.learnFromEdits)
         learnedHabits = defaults.stringArray(forKey: Key.learnedHabits) ?? []
     }
@@ -100,6 +102,11 @@ final class AppSettings {
         didSet { defaults.set(rejectedVocabulary, forKey: Key.rejectedVocabulary) }
     }
 
+    /// 上次真的自動加進一個新詞的時間；詞彙頁狀態列寫「3 天前」。從沒加過是 nil（2026-11-09）。
+    private(set) var lastAutoVocabularyAt: Date? {
+        didSet { defaults.set(lastAutoVocabularyAt, forKey: Key.lastAutoVocabularyAt) }
+    }
+
     /// 學到的修改習慣接在潤飾提示詞後面。預設關。
     var learnFromEdits: Bool {
         didSet { defaults.set(learnFromEdits, forKey: Key.learnFromEdits) }
@@ -126,7 +133,7 @@ final class AppSettings {
 
     /// 加進自訂詞彙，回真的留下來的那幾個。已經有的、被刪過的不加；超過上限刪最舊的自動詞。
     @discardableResult
-    func addAutoVocabulary(_ words: [String]) -> [String] {
+    func addAutoVocabulary(_ words: [String], now: Date = .now) -> [String] {
         let existing = Set(vocabulary.map { $0.lowercased() })
         let rejected = Set(rejectedVocabulary.map { $0.lowercased() })
         var added: [String] = []
@@ -143,14 +150,18 @@ final class AppSettings {
             let oldest = autoAddedVocabulary.removeFirst()
             vocabulary.removeAll { $0 == oldest }
         }
-        return added.filter { autoAddedVocabulary.contains($0) }
+        let kept = added.filter { autoAddedVocabulary.contains($0) }
+        if !kept.isEmpty {
+            lastAutoVocabularyAt = now
+        }
+        return kept
     }
 
-    /// 詞彙頁左滑刪除。刪的是自動加的詞，就記住不再加回來。
-    func removeVocabulary(atOffsets offsets: IndexSet) {
-        let removed = offsets.map { vocabulary[$0] }
-        vocabulary.remove(atOffsets: offsets)
-        for word in removed where autoAddedVocabulary.contains(word) {
+    /// 詞彙頁左滑刪除。照詞刪不照位置：詞彙頁有篩選與搜尋，畫面上的第幾列對不上清單的第幾個（2026-11-09）。
+    /// 刪的是自動加的詞，就記住不再加回來。
+    func removeVocabulary(_ word: String) {
+        vocabulary.removeAll { $0 == word }
+        if autoAddedVocabulary.contains(word) {
             autoAddedVocabulary.removeAll { $0 == word }
             rejectedVocabulary.append(word)
         }
