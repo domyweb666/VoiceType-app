@@ -3,6 +3,14 @@ import Foundation
 /// 從錄音重新轉錄（S2-5）：留存區還有這篇的錄音時，用它重轉一次，換掉口語稿，再重新潤飾。
 /// 存回同一篇（id 不變），錄音留著不動；進度檔放在留存錄音旁邊，轉完就清。
 extension TranscriptionQueue {
+    /// K4：一直留著的是 m4a，先解回 WAV 才切得了段；解一小時要好幾秒，放背景。
+    private func recordingForRetranscription(of id: UUID) async -> URL? {
+        let retained = retained
+        return await Task.detached(priority: .userInitiated) {
+            try? retained.wavForRetranscription(of: id)
+        }.value
+    }
+
     func retranscribe(_ transcript: Transcript) async -> Outcome? {
         let name = transcript.id.uuidString
         guard !inFlight.contains(name) else {
@@ -10,13 +18,7 @@ extension TranscriptionQueue {
         }
         // 解碼之前就算在用：背景壓縮不會同時動這個檔（K 審查）。
         inFlight.insert(name)
-        // K4：一直留著的是 m4a，先解回 WAV 才切得了段；解一小時要好幾秒，放背景。
-        let retained = retained
-        let id = transcript.id
-        let decoded = await Task.detached(priority: .userInitiated) {
-            try? retained.wavForRetranscription(of: id)
-        }.value
-        guard let url = decoded else {
+        guard let url = await recordingForRetranscription(of: transcript.id) else {
             inFlight.remove(name)
             return .recordingUnreadable
         }

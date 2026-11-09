@@ -93,6 +93,19 @@ struct RetainedRecordings {
         }
     }
 
+    /// 待轉錄的錄音搬進來（同一個 volume 是改名）。上一輪搬到一半留下同名檔時，先清掉舊的再搬。
+    func retain(recordingAt source: URL, for transcriptID: UUID) throws {
+        let destination = try url(for: transcriptID)
+        do {
+            if fileManager.fileExists(atPath: destination.path) {
+                try fileManager.removeItem(at: destination)
+            }
+            try fileManager.moveItem(at: source, to: destination)
+        } catch {
+            throw Failure.cannotMoveIn
+        }
+    }
+
     /// 照規則清掉可以刪的。刪不掉的留著下次再試：只佔空間，不影響任何一篇。
     /// 有讀不到的文字稿時，找不到對應那篇的錄音一律不刪：那可能是讀不到的那篇，錄音是它僅剩的一份。
     /// `excluding` 是正在用的那幾篇的 id（例如正在從錄音重新轉錄）：用到一半不刪。
