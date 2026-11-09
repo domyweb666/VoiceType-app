@@ -15,13 +15,8 @@ final class KnowledgeWorkerTests: XCTestCase {
         let name = MarkdownExport.fileName(for: transcript)
         XCTAssertEqual(name, "2026-11-09 1430 今天想講訂閱制 定價這件.md")
         let content = MarkdownExport.content(for: transcript)
-        let header = "---
-date: 2026-11-09 14:30
-length: 61 分鐘
-source: 米說
----
-
-"
+        let header = ["---", "date: 2026-11-09 14:30", "length: 61 分鐘", "source: 米說", "---", "", ""]
+            .joined(separator: "\n")
         XCTAssertTrue(content.hasPrefix(header))
         XCTAssertTrue(content.hasSuffix("先從成本算起。\n"))
     }
