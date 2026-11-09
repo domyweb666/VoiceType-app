@@ -17,6 +17,21 @@ extension TranscriptDetailView {
                     Label("看口語稿", systemImage: "waveform")
                 }
             }
+            // K2：存成 Markdown，給 Obsidian 這類在電腦上寫東西的地方。
+            Button(action: saveMarkdown) {
+                if let folder = MarkdownFolder().folderName {
+                    Label("存成 Markdown 到「\(folder)」", systemImage: "square.and.arrow.down")
+                } else {
+                    Label("存成 Markdown…", systemImage: "square.and.arrow.down")
+                }
+            }
+            if MarkdownFolder().folderName != nil {
+                Button {
+                    isPickingMarkdownFolder = true
+                } label: {
+                    Label("Markdown 換個資料夾…", systemImage: "folder")
+                }
+            }
             // K3：接著錄，錄好的那段接在這篇後面。
             Button {
                 appendRecording()

@@ -11,6 +11,8 @@ struct TranscriptStatusStrip: View {
         case saveFailed
         case empty
         case copied
+        /// 一下就收的一句話（K2 存成 Markdown 的結果）。
+        case note(String)
         /// 轉錄時字數少得不對勁的段（從 1 數，S2-2）。
         case possiblyMissing([Int])
     }
@@ -26,6 +28,7 @@ struct TranscriptStatusStrip: View {
         saveFailed: Bool,
         isEmpty: Bool = false,
         showsCopied: Bool = false,
+        note: String? = nil,
         possiblyMissing: [Int] = []
     ) -> Kind {
         if isPolishing {
@@ -42,6 +45,9 @@ struct TranscriptStatusStrip: View {
         }
         if showsCopied {
             return .copied
+        }
+        if let note {
+            return .note(note)
         }
         return possiblyMissing.isEmpty ? .hidden : .possiblyMissing(possiblyMissing)
     }
@@ -70,6 +76,8 @@ struct TranscriptStatusStrip: View {
             StatusStrip(glyph: .note, message: "沒有文字可以複製")
         case .copied:
             StatusStrip(glyph: .done, message: "已複製")
+        case let .note(message):
+            StatusStrip(glyph: .done, message: message)
         case let .possiblyMissing(segments):
             StatusStrip(glyph: .note, message: Self.possiblyMissingMessage(segments))
         }
