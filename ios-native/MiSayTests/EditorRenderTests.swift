@@ -29,6 +29,36 @@ final class EditorRenderTests: XCTestCase {
         XCTAssertGreaterThan(Self.darkPixelCount(in: window), 200, summary)
     }
 
+    /// 照米的操作走真的詳情頁：打開、點進正文、按完成。只數編輯框那塊的深色點（頂上的金色圖示也算深色）。
+    func test詳情頁打開_點進去_按完成_字都在() throws {
+        let transcript = Transcript(durationSeconds: 60, rawText: "口語", draftText: sample)
+        let detail = NavigationStack {
+            TranscriptDetailView(transcript: transcript, onDelete: { _ in })
+        }
+        .environment(TranscriptionQueue())
+        let window = show(detail)
+        let textView = try XCTUnwrap(Self.findTextView(in: window), "詳情頁裡找不到編輯框")
+        XCTAssertGreaterThan(
+            Self.darkPixelCount(in: window, inside: textView),
+            200,
+            "剛打開：" + Self.describe(textView)
+        )
+        textView.becomeFirstResponder()
+        settle()
+        XCTAssertGreaterThan(
+            Self.darkPixelCount(in: window, inside: textView),
+            200,
+            "點進去：" + Self.describe(textView)
+        )
+        textView.resignFirstResponder()
+        settle()
+        XCTAssertGreaterThan(
+            Self.darkPixelCount(in: window, inside: textView),
+            200,
+            "按完成：" + Self.describe(textView)
+        )
+    }
+
     /// 對照組：同樣的擺法換成系統的 TextEditor（裡面也是 UITextView），確認這套量法本身找得到、畫得出來。
     func test對照組_系統編輯框找得到也畫得出字() throws {
         let window = show(SystemEditorHarness(text: sample))
@@ -79,7 +109,8 @@ final class EditorRenderTests: XCTestCase {
     }
 
     /// 灰階低於一半的點（白底上的黑字）。
-    private static func darkPixelCount(in window: UIWindow) -> Int {
+    private static func darkPixelCount(in window: UIWindow, inside view: UIView? = nil) -> Int {
+        let region = view.map { $0.convert($0.bounds, to: window) } ?? window.bounds
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
@@ -93,8 +124,10 @@ final class EditorRenderTests: XCTestCase {
         }
         let bytesPerPixel = cgImage.bitsPerPixel / 8
         var count = 0
-        for row in 0 ..< cgImage.height {
-            for column in 0 ..< cgImage.width {
+        let rows = max(0, Int(region.minY)) ..< min(cgImage.height, Int(region.maxY))
+        let columns = max(0, Int(region.minX)) ..< min(cgImage.width, Int(region.maxX))
+        for row in rows {
+            for column in columns {
                 let offset = row * cgImage.bytesPerRow + column * bytesPerPixel
                 let sum = Int(bytes[offset]) + Int(bytes[offset + 1]) + Int(bytes[offset + 2])
                 let gray = sum / 3
