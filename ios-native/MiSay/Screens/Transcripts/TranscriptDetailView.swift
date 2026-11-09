@@ -11,6 +11,8 @@ struct TranscriptDetailView: View {
     @State var transcript: Transcript
     @State var draftEdit: String
     @State var showsRawText = false
+    /// W3：口語稿那張頁一打開就停在「AI 改了什麼」。
+    @State var rawSheetStartsWithDiff = false
     @State var autosaveTask: Task<Void, Never>?
     @State var polishTask: Task<Void, Never>?
     @State var isPolishing = false
@@ -66,7 +68,9 @@ struct TranscriptDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .safeAreaInset(edge: .bottom) { bottomLine }
-            .sheet(isPresented: $showsRawText) { rawTextSheet }
+            .sheet(isPresented: $showsRawText) {
+                RawTextSheet(transcript: transcript, startsWithDiff: rawSheetStartsWithDiff)
+            }
             .sheet(isPresented: $showsRewrites) { rewritesSheet }
             .sheet(isPresented: $showsOriginalAudio) {
                 // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
@@ -128,7 +132,7 @@ struct TranscriptDetailView: View {
     }
 }
 
-/// 畫面的各塊：正文、頂上一排、底下一行、口語稿那張頁。
+/// 畫面的各塊：正文、頂上一排、底下一行。口語稿那張頁在 `RawTextSheet`。
 private extension TranscriptDetailView {
     @ViewBuilder
     var page: some View {
@@ -238,27 +242,6 @@ private extension TranscriptDetailView {
                 .padding(.horizontal, Token.Space.l)
                 .padding(.vertical, Token.Space.s)
         }
-    }
-
-    /// 口語稿：唯讀、可以選字複製，看完拉下去。
-    var rawTextSheet: some View {
-        NavigationStack {
-            ScrollView {
-                rawText
-                    .padding(Token.Space.l)
-            }
-            .background(Token.Colors.rowBackground)
-            .navigationTitle("口語稿")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { showsRawText = false }
-                        .tint(Token.Colors.link)
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .presentationCornerRadius(Token.Shape.radiusSheet)
     }
 
     var statusKind: TranscriptStatusStrip.Kind {
