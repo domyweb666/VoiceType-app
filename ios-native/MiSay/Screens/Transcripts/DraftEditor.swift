@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// W4（2026-11-09）：文字稿的編輯框，多了選取範圍。選一段之後，鍵盤上方「改這段」選縮短、講清楚一點、
-/// 改口語、改書面；改好升起 `PassagePreviewSheet` 給你比，按「換上」才換進文字稿。
-/// 選取範圍要 iOS 18 的 `TextEditor(text:selection:)`；iOS 17 照舊只用一般編輯框，沒有這個功能。
+/// 文字稿的編輯框（iOS 18 起），多了選取範圍，鍵盤上方一排：
+/// - W5 標題、粗體、清單：只插 Markdown 記號（`MarkdownFormatting`），文字稿還是純文字。
+/// - W4「改這段」：選一段叫 AI 縮短、講清楚一點、改口語、改書面；改好升起 `PassagePreviewSheet`，按「換上」才換。
+/// 選取範圍要 iOS 18 的 `TextEditor(text:selection:)`；iOS 17 照舊只用一般編輯框，沒有這一排。
 @available(iOS 18, *)
-struct SelectionRewriteEditor: View {
+struct DraftEditor: View {
     @Binding var text: String
     @State private var selection: TextSelection?
     @State private var request: PassagePreviewSheet.Request?
@@ -14,6 +15,7 @@ struct SelectionRewriteEditor: View {
         TextEditor(text: $text, selection: $selection)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
+                    formatButtons
                     Spacer()
                     passageMenu
                 }
@@ -23,6 +25,63 @@ struct SelectionRewriteEditor: View {
                     self.request = nil
                 }
             }
+    }
+
+    /// W5：三顆都是切換，再按一次拿掉。圖示配無障礙標籤，不只靠圖。
+    @ViewBuilder
+    private var formatButtons: some View {
+        Button {
+            format { MarkdownFormatting.toggleLinePrefix(
+                MarkdownFormatting.headingPrefix,
+                in: $0,
+                selection: $1
+            ) }
+        } label: {
+            Image(systemName: "number")
+        }
+        .accessibilityLabel("標題")
+        Button {
+            format(MarkdownFormatting.toggleBold(in:selection:))
+        } label: {
+            Image(systemName: "bold")
+        }
+        .accessibilityLabel("粗體")
+        Button {
+            format { MarkdownFormatting.toggleLinePrefix(
+                MarkdownFormatting.listPrefix,
+                in: $0,
+                selection: $1
+            ) }
+        } label: {
+            Image(systemName: "list.bullet")
+        }
+        .accessibilityLabel("清單")
+    }
+
+    /// 游標或選取在第幾個字；還沒點進來沒有游標，就當在最後面。
+    private var selectionOffsets: Range<Int> {
+        guard let selection, case let .selection(range) = selection.indices,
+              range.upperBound <= text.endIndex
+        else {
+            return text.count ..< text.count
+        }
+        let lower = text.distance(from: text.startIndex, to: range.lowerBound)
+        return lower ..< lower + text.distance(from: range.lowerBound, to: range.upperBound)
+    }
+
+    /// 改完的字是新字串，游標照第幾個字放回去；超出就停在最後，不越界。
+    private func format(_ change: (String, Range<Int>) -> MarkdownFormatting.Edit) {
+        let edit = change(text, selectionOffsets)
+        text = edit.text
+        let end = text.endIndex
+        let lower = text.index(
+            text.startIndex,
+            offsetBy: edit.selection.lowerBound,
+            limitedBy: end
+        ) ?? end
+        let upper = text.index(lower, offsetBy: edit.selection.count, limitedBy: end) ?? end
+        selection = lower == upper ? TextSelection(insertionPoint: lower) :
+            TextSelection(range: lower ..< upper)
     }
 
     private var passageMenu: some View {

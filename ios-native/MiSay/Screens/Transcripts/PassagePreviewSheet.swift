@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// W4 改一段：上面原本、下面改好的，按「換上」才換進文字稿；按「不要」什麼都不動。
-/// 送出與換上在 `SelectionRewriteEditor`，這張頁只顯示。
+/// 送出與換上在 `DraftEditor`，這張頁只顯示。
 struct PassagePreviewSheet: View {
     /// 一次改一段的請求。位置記第幾個字：等的時候字可能被改過，舊的 String.Index 不能再用。
     struct Request: Identifiable {

@@ -139,10 +139,11 @@ private extension TranscriptDetailView {
         if transcript.draftText == nil {
             unpolishedPage
         } else {
-            // W4：iOS 18 起可以選一段叫 AI 改（`SelectionRewriteEditor`）；iOS 17 拿不到選取範圍，只能打字。
+            // iOS 18 起鍵盤上方多一排：格式（W5）、選一段叫 AI 改（W4），在 `DraftEditor`；
+            // iOS 17 拿不到選取範圍，只能打字。
             Group {
                 if #available(iOS 18, *) {
-                    SelectionRewriteEditor(text: $draftEdit)
+                    DraftEditor(text: $draftEdit)
                 } else {
                     TextEditor(text: $draftEdit)
                 }
