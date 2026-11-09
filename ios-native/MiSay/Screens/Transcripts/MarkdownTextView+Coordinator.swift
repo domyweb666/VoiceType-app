@@ -101,6 +101,8 @@ extension MarkdownTextView.Coordinator: NSTextStorageDelegate {
 
 extension MarkdownTextView.Coordinator: NSLayoutManagerDelegate {
     /// 行首的 `- ` 那個 `-` 畫成圓點；字本身不變，複製、存檔照樣是 `-`。
+    /// 六個參數是系統代理方法的樣子，改不了。
+    // swiftlint:disable:next function_parameter_count
     func layoutManager(
         _ layoutManager: NSLayoutManager,
         shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>,

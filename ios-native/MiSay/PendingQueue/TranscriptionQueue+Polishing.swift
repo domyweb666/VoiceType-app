@@ -65,11 +65,13 @@ extension TranscriptionQueue {
     /// 後兩種接上去，對方存回來時會拿舊的那份蓋掉接上去的字。
     /// 2026-11-09：打字時在游標處接著錄的，插在記下的位置；那附近被改掉找不到，就接在最後面、記下來讓詳情頁講一聲。
     private func mergeIntoAppendTarget(_ added: Transcript) -> Transcript {
-        guard let appendTarget = appendTargetsByTranscript.removeValue(forKey: added.id),
-              !inFlight.contains(appendTarget.transcriptID.uuidString),
-              !openForEditing.contains(appendTarget.transcriptID),
-              var target = (try? store.loadAll())?.transcripts
-              .first(where: { $0.id == appendTarget.transcriptID })
+        guard let appendTarget = appendTargetsByTranscript.removeValue(forKey: added.id) else {
+            return added
+        }
+        let targetID = appendTarget.transcriptID
+        guard !inFlight.contains(targetID.uuidString),
+              !openForEditing.contains(targetID),
+              var target = (try? store.loadAll())?.transcripts.first(where: { $0.id == targetID })
         else {
             return added
         }

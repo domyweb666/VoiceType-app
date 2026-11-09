@@ -8,8 +8,8 @@ import Observation
 final class RecordingLauncher {
     enum Request: Equatable {
         case new
-        /// `at` 是打字時按麥克風記下的游標位置（2026-11-09）；「⋯ → 接著錄」是 nil，接在最後面。
-        case append(target: UUID, at: InsertionPoint?)
+        /// `insertion` 是打字時按麥克風記下的游標位置（2026-11-09）；「⋯ → 接著錄」是 nil，接在最後面。
+        case append(target: UUID, insertion: InsertionPoint?)
     }
 
     static let shared = RecordingLauncher()
