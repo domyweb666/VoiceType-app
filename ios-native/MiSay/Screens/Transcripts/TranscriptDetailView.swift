@@ -35,8 +35,7 @@ struct TranscriptDetailView: View {
     @State var copyCount = 0
     @State var showsCopied = false
     @State var saveFailed = false
-    /// 編輯框是 UIKit 的（邊打邊變樣），不吃 `@FocusState`，由它自己回報有沒有在打字。
-    @State var isEditing = false
+    @FocusState var isEditing: Bool
 
     /// 刪除交給清單處理（它要顯示「已刪除・復原」）。
     let onDelete: (Transcript) -> Void
@@ -146,14 +145,30 @@ private extension TranscriptDetailView {
         if transcript.draftText == nil {
             unpolishedPage
         } else {
-            // 打字時底下一排：格式（W5）、在這裡接著錄、選一段叫 AI 改（W4），在 `DraftEditor`。
-            // 字型、行距、內距都在編輯框裡面（`MarkdownTextView`、`MarkdownStyler`）。
-            DraftEditor(
-                text: $draftEdit,
-                isEditing: $isEditing,
-                canRecordHere: !isPolishing,
-                onRecordHere: insertRecording(at:)
-            )
+            // iOS 18 起鍵盤上方多一排：格式（W5）、在這裡接著錄、選一段叫 AI 改（W4），在 `DraftEditor`；
+            // iOS 17 拿不到選取範圍，只能打字。
+            Group {
+                if #available(iOS 18, *) {
+                    DraftEditor(
+                        text: $draftEdit,
+                        canRecordHere: !isPolishing,
+                        onRecordHere: insertRecording(at:)
+                    )
+                } else {
+                    TextEditor(text: $draftEdit)
+                }
+            }
+            .font(Token.Fonts.body)
+            .foregroundStyle(Token.Colors.textPrimary)
+            .lineSpacing(Token.Space.lineSpacing)
+            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
+            .focused($isEditing)
+            // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
+            // 上緣留一點白（米 11/09：第一行貼著頂上那排太近）。
+            .padding(.horizontal, Token.Space.m)
+            .padding(.top, Token.Space.m)
+            .accessibilityLabel("文字稿正文")
         }
     }
 

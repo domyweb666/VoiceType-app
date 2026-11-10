@@ -1,7 +1,7 @@
 @testable import MiSay
 import XCTest
 
-/// v0.2.7（2026-11-09 米的四點）：在游標處接著錄、編輯框邊打邊變樣、聽原音整段對字。
+/// v0.2.7（2026-11-09 米的四點）：在游標處接著錄、聽原音整段對字。
 final class EditorInsertAndListenTests: XCTestCase {
     // MARK: 在游標處接著錄
 
@@ -56,38 +56,6 @@ final class EditorInsertAndListenTests: XCTestCase {
         let point = InsertionPoint(offset: 3, in: "原本是另一份完全不同的字")
         XCTAssertFalse(target.insert(added, at: point))
         XCTAssertEqual(target.draftText, "全新的字\n\n補的。")
-    }
-
-    // MARK: 編輯框邊打邊變樣
-
-    private typealias Styler = MarkdownStyler
-
-    func test標題記號與標題字分開() {
-        XCTAssertEqual(Styler.runs(in: "## 吸引力法則"), [
-            .init(role: .headingMarker, range: NSRange(location: 0, length: 3)),
-            .init(role: .headingText, range: NSRange(location: 3, length: 5)),
-        ])
-        XCTAssertEqual(Styler.runs(in: "##沒有空白不算"), [])
-        XCTAssertEqual(Styler.runs(in: "####### 七個不算"), [])
-    }
-
-    func test粗體只認同一行成對的記號() {
-        XCTAssertEqual(Styler.runs(in: "要**寫完**才睡"), [
-            .init(role: .boldMarker, range: NSRange(location: 1, length: 2)),
-            .init(role: .boldText, range: NSRange(location: 3, length: 2)),
-            .init(role: .boldMarker, range: NSRange(location: 5, length: 2)),
-        ])
-        XCTAssertEqual(Styler.runs(in: "只有**一邊"), [])
-        XCTAssertEqual(Styler.runs(in: "中間沒字****"), [])
-    }
-
-    func test清單的減號只認行首後面接空白() {
-        XCTAssertEqual(Styler.runs(in: "- 洗澡"), [
-            .init(role: .listMarker, range: NSRange(location: 0, length: 1)),
-        ])
-        let text = "睡覺\n- 洗澡\n散步 - 寫完" as NSString
-        XCTAssertTrue(Styler.isListMarker(at: 3, in: text))
-        XCTAssertFalse(Styler.isListMarker(at: 11, in: text), "句子中間的減號不換")
     }
 
     // MARK: 聽原音整段對字

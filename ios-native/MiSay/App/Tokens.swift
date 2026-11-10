@@ -151,32 +151,6 @@ enum Token {
         static let failed: SensoryFeedback = .warning
         static let copied: SensoryFeedback = .impact(weight: .light)
     }
-
-    /// 文字稿編輯框（2026-11-09 邊打邊變樣）是 UIKit 的 UITextView，要 UIKit 的顏色與字型。
-    /// 顏色指向同一組顏色資源，深色、增加對比照樣跟著換；字型每次現拿，跟著系統字級走。
-    enum Editor {
-        static let textPrimary = UIColor(named: "文字-主") ?? .label
-        static let textSecondary = UIColor(named: "文字-次") ?? .secondaryLabel // Markdown 記號
-        static let cursor = UIColor(named: "強調-可點") ?? .tintColor
-        static var body: UIFont {
-            UIFont.preferredFont(forTextStyle: .body)
-        }
-
-        static var heading: UIFont { // `## ` 那行
-            bold(UIFont.preferredFont(forTextStyle: .title2))
-        }
-
-        static var marker: UIFont { // 標題前面的 `## `，縮小
-            UIFont.preferredFont(forTextStyle: .footnote)
-        }
-
-        static func bold(_ font: UIFont) -> UIFont {
-            guard let descriptor = font.fontDescriptor.withSymbolicTraits(.traitBold) else {
-                return font
-            }
-            return UIFont(descriptor: descriptor, size: 0)
-        }
-    }
 }
 
 /// 角色色（不進介面語意層：不當文字色、不當按鈕色）。玉米插圖只在文字稿空清單與收成那一刻

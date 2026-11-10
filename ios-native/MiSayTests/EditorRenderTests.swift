@@ -2,32 +2,12 @@
 import SwiftUI
 import XCTest
 
-/// 2026-11-10 米真機：v0.2.7 打開文字稿，正文一片白（字數照樣是 64 字）。
-/// 單元測試看不到畫面，所以這裡把編輯框真的放進視窗、畫成圖，數深色的點：有畫出字，深色點就會有幾百個。
+/// 2026-11-10 米真機：v0.2.7 打開文字稿，正文一片白（字數照樣是 64 字），退回系統 TextEditor。
+/// 單元測試看不到畫面，所以這裡把詳情頁真的放進視窗、畫成圖，數編輯框那塊的深色點：有畫出字就會有幾百個。
+/// 之後換編輯框，這個測試要先過。
 @MainActor
 final class EditorRenderTests: XCTestCase {
     private let sample = "等一下我就是，東西提交完之後我去睡覺。睡飽之後就洗澡，洗完澡，就趕快散步，寫完心理法則。"
-
-    func test編輯框放進視窗畫得出字() throws {
-        let window = show(EditorHarness(text: sample))
-        let textView = try XCTUnwrap(Self.findTextView(in: window), "視窗裡找不到編輯框")
-        let summary = Self.describe(textView)
-        XCTAssertEqual(textView.textStorage.string, sample, summary)
-        XCTAssertGreaterThan(textView.bounds.height, 100, summary)
-        XCTAssertGreaterThan(Self.darkPixelCount(in: window), 200, summary)
-    }
-
-    func test點進去打字之後還畫得出字() throws {
-        let window = show(EditorHarness(text: sample))
-        let textView = try XCTUnwrap(Self.findTextView(in: window), "視窗裡找不到編輯框")
-        textView.becomeFirstResponder()
-        textView.selectedRange = NSRange(location: 3, length: 0)
-        textView.insertText("好")
-        settle()
-        let summary = Self.describe(textView)
-        XCTAssertTrue(textView.textStorage.string.contains("好"), summary)
-        XCTAssertGreaterThan(Self.darkPixelCount(in: window), 200, summary)
-    }
 
     /// 照米的操作走真的詳情頁：打開、點進正文、按完成。只數編輯框那塊的深色點（頂上的金色圖示也算深色）。
     func test詳情頁打開_點進去_按完成_字都在() throws {
@@ -137,26 +117,6 @@ final class EditorRenderTests: XCTestCase {
             }
         }
         return count
-    }
-}
-
-/// 照詳情頁的擺法：底色、字數那行都不要，只看編輯框本身。
-private struct EditorHarness: View {
-    @State var text: String
-    @State private var isEditing = false
-
-    var body: some View {
-        NavigationStack {
-            DraftEditor(
-                text: $text,
-                isEditing: $isEditing,
-                canRecordHere: true,
-                onRecordHere: { _ in }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Token.Colors.rowBackground)
-            .navigationBarTitleDisplayMode(.inline)
-        }
     }
 }
 
