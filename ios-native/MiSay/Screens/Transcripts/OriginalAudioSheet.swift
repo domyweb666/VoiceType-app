@@ -1,13 +1,18 @@
 import AVFoundation
 import SwiftUI
 
-/// 詳情頁「⋯ → 聽原音與重點」（K5、K6）：上面是錄音中標的重點，下面是一段一段的文字稿，點了就從那裡附近開始播。
-/// 轉錄不給每句話的時間（gpt-transcribe 沒有時間戳），位置照字數比例估，誤差約幾十秒，所以從前 10 秒開始放。
-/// 錄音已經刪了（超過 7 天）的篇只列重點與段落，不能播。
-/// 2026-11-09 米：要一邊聽一邊對文字稿，抓 AI 聽錯的地方。所以段落整段顯示不截斷，播到哪段就標出來、捲過去。
+/// 詳情頁「⋯ → 聽原音與重點」（K5、K6）：上面是錄音中標的重點，下面是口語稿，點了就從那裡開始播。
+/// 2026-11-15 米：要像有聲書那樣標出正在講哪句、重點的範圍太模糊。所以改成放口語稿（錄音講的原話，
+/// 時間對得上），播到哪句就把那句標出來、還沒講到的字變淡；重點是按下去那句加前一句，在口語稿裡畫底線。
+/// 轉錄不給每句話的時間（gpt-transcribe 沒有時間戳），位置是在每 5 分鐘一段裡照字數估的（`SpokenTimeline`），
+/// 會差幾秒，所以從前 3 秒開始放。錄音已經刪了（超過 7 天）的篇只列重點與口語稿，不能播。
 struct OriginalAudioSheet: View {
     let transcript: Transcript
     let audioURL: URL?
+    private let sentences: [SpokenTimeline.Sentence]
+    private let blocks: [SpokenTimeline.Block]
+    private let passages: [SpokenTimeline.Passage]
+    private let markedSentences: Set<Int>
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -16,34 +21,52 @@ struct OriginalAudioSheet: View {
     @State private var currentTime: Double = 0
     @State private var loadFailed = false
 
-    static let leadInSeconds: Double = 10
+    static let leadInSeconds: Double = 3
     static let skipSeconds: Double = 15
-    static let previewCharacterCount = 40
-    /// 重點那欄每筆只給兩行（米說重點那欄 OK，只改文字稿那欄）。
-    static let markLineLimit = 2
+    static let tickMilliseconds = 250
     static let noAudioMessage = "錄音已經刪了（或這篇是接著錄的好幾段），只能看文字。"
         + "設定 → 進階可以讓錄音一直留著。"
+    static let preciseNote = "位置是照每 5 分鐘一段估的，可能差幾秒。畫底線的是你錄音時標的重點。"
+    static let roughNote = "這篇錄的時候還沒記下每一段的時間，位置是照整篇字數估的，可能差幾十秒。"
+
+    init(transcript: Transcript, audioURL: URL?) {
+        self.transcript = transcript
+        self.audioURL = audioURL
+        let sentences = SpokenTimeline.sentences(of: transcript)
+        let passages = SpokenTimeline.passages(marks: transcript.marks ?? [], in: sentences)
+        self.sentences = sentences
+        self.passages = passages
+        blocks = SpokenTimeline.blocks(sentences)
+        markedSentences = Set(passages.flatMap(\.sentenceIndexes))
+    }
 
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
                 List {
-                    if let marks = transcript.marks, !marks.isEmpty {
+                    if !passages.isEmpty {
                         Section("重點") {
-                            ForEach(marks, id: \.self) { mark in
-                                row(time: mark, text: Self.nearbyText(at: mark, in: transcript))
-                                    .lineLimit(Self.markLineLimit)
+                            ForEach(passages) { passage in
+                                row(time: passage.markSeconds, startsAt: passage.start) {
+                                    Text(passage.text)
+                                        .foregroundStyle(Token.Colors.textPrimary)
+                                }
                             }
                         }
                     }
-                    Section("文字稿") {
-                        ForEach(paragraphs, id: \.offset) { paragraph in
-                            paragraphRow(paragraph)
+                    Section {
+                        ForEach(blocks) { block in
+                            blockRow(block)
                         }
+                    } header: {
+                        Text("口語稿")
+                    } footer: {
+                        Text(footnote)
+                            .font(Token.Fonts.footnote)
                     }
                 }
-                .onChange(of: playingParagraphOffset) { _, offset in
-                    follow(offset, with: proxy)
+                .onChange(of: playingBlockID) { _, blockID in
+                    follow(blockID, with: proxy)
                 }
             }
             .safeAreaInset(edge: .bottom) { controls }
@@ -59,62 +82,88 @@ struct OriginalAudioSheet: View {
         .onDisappear { player?.stop() }
     }
 
-    private var paragraphs: [Paragraph] {
-        Self.paragraphs(of: transcript)
+    private var footnote: String {
+        SpokenTimeline.isPrecise(transcript) ? Self.preciseNote : Self.roughNote
     }
 
-    /// 播到（或停在）哪一段；還沒按過播放是 nil，什麼都不標。
-    private var playingParagraphOffset: Int? {
+    /// 播到（或停在）哪一句；還沒按過播放是 nil，什麼都不標。
+    private var playingSentenceIndex: Int? {
         guard player != nil else {
             return nil
         }
-        return Self.paragraph(at: currentTime, in: paragraphs)?.offset
+        return SpokenTimeline.sentence(at: currentTime, in: sentences)?.index
     }
 
-    /// 播放中換到下一段就捲過去；暫停時不動，人可能正往回找。
-    private func follow(_ offset: Int?, with proxy: ScrollViewProxy) {
-        guard let offset, isPlaying else {
+    private var playingBlockID: Int? {
+        guard let index = playingSentenceIndex else {
+            return nil
+        }
+        return blocks.first { $0.sentences.contains { $0.index == index } }?.id
+    }
+
+    /// 播放中換到下一列就捲過去；暫停時不動，人可能正往回找。
+    private func follow(_ blockID: Int?, with proxy: ScrollViewProxy) {
+        guard let blockID, isPlaying else {
             return
         }
         if reduceMotion {
-            proxy.scrollTo(offset, anchor: .top)
+            proxy.scrollTo(blockID, anchor: .center)
         } else {
-            withAnimation { proxy.scrollTo(offset, anchor: .top) }
+            withAnimation { proxy.scrollTo(blockID, anchor: .center) }
         }
     }
 
-    /// 文字稿的段落整段顯示。正在播的那段換底色、時間那行換成一句話：位置是估的，所以寫「大約」。
-    private func paragraphRow(_ paragraph: Paragraph) -> some View {
-        let isPlayingHere = paragraph.offset == playingParagraphOffset
-        return row(
-            time: paragraph.time,
-            text: paragraph.text,
-            playingLabel: isPlayingHere ? "大約播到這段" : nil
-        )
-        .id(paragraph.offset)
-        .listRowBackground(
-            isPlayingHere ? Token.Colors.accentSoft : Token.Colors.rowBackground
-        )
+    private func blockRow(_ block: SpokenTimeline.Block) -> some View {
+        row(time: block.start, startsAt: block.start) {
+            Text(Self.styled(block, playing: playingSentenceIndex, marked: markedSentences))
+        }
+        .id(block.id)
     }
 
-    private func row(time: Double, text: String, playingLabel: String? = nil) -> some View {
+    private func row(
+        time: Double,
+        startsAt start: Double,
+        @ViewBuilder text: () -> some View
+    ) -> some View {
         Button {
-            play(from: time - Self.leadInSeconds)
+            play(from: start - Self.leadInSeconds)
         } label: {
             VStack(alignment: .leading, spacing: Token.Space.xs) {
-                Text(playingLabel ?? "\(RecordingSheetView.formatElapsed(max(0, time))) 附近")
+                Text("\(RecordingSheetView.formatElapsed(max(0, time))) 附近")
                     .font(Token.Fonts.footnote)
-                    .foregroundStyle(
-                        playingLabel == nil ? Token.Colors.textSecondary : Token.Colors.link
-                    )
-                Text(text)
+                    .foregroundStyle(Token.Colors.textSecondary)
+                text()
                     .font(Token.Fonts.body)
-                    .foregroundStyle(Token.Colors.textPrimary)
                     .lineSpacing(Token.Space.lineSpacing)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .disabled(audioURL == nil)
+        .listRowBackground(Token.Colors.rowBackground)
+    }
+
+    /// 一列的字：正在講的那句換底色，還沒講到的變淡，重點畫底線。還沒播的時候全部照平常的顏色。
+    static func styled(
+        _ block: SpokenTimeline.Block,
+        playing: Int?,
+        marked: Set<Int>
+    ) -> AttributedString {
+        var result = AttributedString()
+        for sentence in block.sentences {
+            var piece = AttributedString(sentence.text)
+            let isUpcoming = playing.map { sentence.index > $0 } ?? false
+            piece.swiftUI.foregroundColor = isUpcoming
+                ? Token.Colors.textSecondary
+                : Token.Colors.textPrimary
+            if sentence.index == playing {
+                piece.swiftUI.backgroundColor = Token.Colors.accentSoft
+            }
+            if marked.contains(sentence.index) {
+                piece.swiftUI.underlineStyle = .single
+            }
+            result += piece
+        }
+        return result
     }
 
     @ViewBuilder
@@ -190,72 +239,14 @@ struct OriginalAudioSheet: View {
         }
     }
 
-    /// 播放進度半秒更新一次；頁面關掉，`.task` 被取消就停。
+    /// 播放進度一秒更新四次（一句話兩三秒，半秒一次會慢半拍）；頁面關掉，`.task` 被取消就停。
     private func tick() async {
         while !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(500))
+            try? await Task.sleep(for: .milliseconds(Self.tickMilliseconds))
             if let player {
                 currentTime = player.currentTime
                 isPlaying = player.isPlaying
             }
         }
-    }
-}
-
-/// 位置怎麼估（純函式，CI 測得到）。
-extension OriginalAudioSheet {
-    struct Paragraph: Equatable {
-        let offset: Int
-        let time: Double
-        let text: String
-    }
-
-    /// 重點那句從這些字後面開始抓，才不會從「，」或半句話開頭。
-    static let sentenceEnds: Set<Character> = ["。", "！", "？", "!", "?", "\n"]
-    /// 往前找不到句子開頭時，至少不要從標點或空白開始。
-    static let leadingTrim: Set<Character> = ["，", "、", "。", "！", "？", ",", " ", "　", "\n"]
-
-    /// 文字稿照空行或換行分段；每段的時間＝它前面有幾個字 ÷ 全部字數 × 錄音長度。
-    static func paragraphs(of transcript: Transcript) -> [Paragraph] {
-        let text = transcript.displayText
-        let total = max(1, text.count)
-        var paragraphs: [Paragraph] = []
-        var offset = 0
-        for line in text.components(separatedBy: "\n") {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if !trimmed.isEmpty {
-                let time = Double(offset) / Double(total) * transcript.durationSeconds
-                paragraphs.append(Paragraph(offset: offset, time: time, text: trimmed))
-            }
-            offset += line.count + 1
-        }
-        return paragraphs
-    }
-
-    /// 播到這個秒數大約在哪一段：開始時間不超過它的最後一段。
-    static func paragraph(at seconds: Double, in paragraphs: [Paragraph]) -> Paragraph? {
-        paragraphs.last { $0.time <= seconds } ?? paragraphs.first
-    }
-
-    /// 重點附近那句：照時間比例找到字的位置，從那裡往前找它所在那句的開頭（最多退一個預覽長度），
-    /// 找不到就照舊從位置前面一點開始。一樣用字數估。
-    static func nearbyText(at seconds: Double, in transcript: Transcript) -> String {
-        let characters = Array(transcript.displayText)
-        guard !characters.isEmpty, transcript.durationSeconds > 0 else {
-            return ""
-        }
-        let ratio = min(1, max(0, seconds / transcript.durationSeconds))
-        let center = min(characters.count - 1, Int(Double(characters.count) * ratio))
-        let roughStart = max(0, center - previewCharacterCount / 2)
-        let floor = max(0, center - previewCharacterCount)
-        var cursor = center
-        while cursor > floor, !sentenceEnds.contains(characters[cursor - 1]) {
-            cursor -= 1
-        }
-        let foundSentence = cursor == 0 || sentenceEnds.contains(characters[cursor - 1])
-        let slice = characters[(foundSentence ? cursor : roughStart)...]
-            .drop { leadingTrim.contains($0) }
-        return String(slice.prefix(previewCharacterCount))
-            .replacingOccurrences(of: "\n", with: " ")
     }
 }

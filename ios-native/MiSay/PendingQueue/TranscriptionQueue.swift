@@ -183,6 +183,7 @@ final class TranscriptionQueue {
         )
         let marks = RecordingMarks().load(forRecordingAt: url)
         transcript.marks = marks.isEmpty ? nil : marks
+        transcript.timeline = job.timeline(forRecordingAt: url)
         do {
             try store.save(transcript)
         } catch {

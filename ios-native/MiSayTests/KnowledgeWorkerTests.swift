@@ -38,16 +38,6 @@ final class KnowledgeWorkerTests: XCTestCase {
         XCTAssertEqual(first.unlearnedEdit?.to, "第一段改過\n\n第二段草稿", "接上去的那段不算修改，只有原本改過的那段算")
     }
 
-    func test聽原音段落照字數比例估時間() {
-        let draft = ["一二三四", "", "五六七八九"].joined(separator: "\n")
-        let transcript = Transcript(durationSeconds: 100, rawText: "口語", draftText: draft)
-        let paragraphs = OriginalAudioSheet.paragraphs(of: transcript)
-        XCTAssertEqual(paragraphs.map(\.text), ["一二三四", "五六七八九"], "整段給，不截斷")
-        XCTAssertEqual(paragraphs.first?.time, 0)
-        // 第二段前面有「一二三四」加兩個換行共 6 個字，全部 11 個字。
-        XCTAssertEqual(paragraphs.last?.time ?? 0, 600.0 / 11.0, accuracy: 0.001)
-    }
-
     func test一直留著的錄音只有那篇刪了才刪() {
         let now = Date()
         let old = Transcript(

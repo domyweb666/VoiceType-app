@@ -75,6 +75,12 @@ struct RecordingTranscriptionJob {
         return count == 0 ? nil : Array(progress.polishedDrafts.prefix(count))
     }
 
+    /// 口語稿存進歷史前讀：每段在錄音裡的起訖秒數與字數（2026-11-15，聽原音跟讀用）。
+    func timeline(forRecordingAt recordingURL: URL) -> [TimelineSpan]? {
+        let progress = loadProgress(for: recordingURL)
+        return SpokenTimeline.spans(segments: progress.segments ?? [], texts: progress.segmentTexts)
+    }
+
     /// 口語稿存進歷史前讀：可能漏字的段，從 1 數。沒有就是 nil（存進文字稿時不多一欄）。
     func possiblyMissingSegments(forRecordingAt recordingURL: URL) -> [Int]? {
         let suspects = loadProgress(for: recordingURL).suspectSegments

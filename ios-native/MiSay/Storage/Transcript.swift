@@ -33,6 +33,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var combinedAt: Date?
     /// 錄音中標的重點，第幾秒（K6）。沒標過是 nil。
     var marks: [Double]?
+    /// 口語稿每段在錄音裡的起訖秒數與字數（2026-11-15，聽原音跟讀用）。舊的篇、接著錄過的篇是 nil。
+    var timeline: [TimelineSpan]?
     /// 改寫成別的格式存下來的那幾份，舊的在前（W1）。沒改寫過是 nil。
     var rewrites: [TranscriptRewrite]?
     /// 使用者加的標籤（W6），清單可以照標籤篩。沒加過是 nil。
@@ -87,8 +89,13 @@ struct Transcript: Codable, Identifiable, Hashable {
     }
 
     /// 從錄音重新轉錄（S2-5）：換成新的口語稿，文字稿與跟它有關的欄位全部清掉，等重新潤飾。
-    mutating func replaceRawText(_ text: String, possiblyMissing: [Int]?) {
+    mutating func replaceRawText(
+        _ text: String,
+        possiblyMissing: [Int]?,
+        timeline newTimeline: [TimelineSpan]? = nil
+    ) {
         rawText = text
+        timeline = newTimeline
         possiblyMissingSegments = possiblyMissing
         draftText = nil
         originalDraft = nil
@@ -118,6 +125,8 @@ struct Transcript: Codable, Identifiable, Hashable {
             marks = (marks ?? []) + shifted
         }
         durationSeconds += other.durationSeconds
+        // 接上去之後留著的錄音只對得上第一段，時間對照表跟著作廢。
+        timeline = nil
         combinedAt = Date()
         updatedAt = Date()
     }

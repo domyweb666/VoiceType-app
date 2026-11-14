@@ -42,7 +42,8 @@ extension TranscriptionQueue {
         var updated = transcript
         updated.replaceRawText(
             rawText,
-            possiblyMissing: job.possiblyMissingSegments(forRecordingAt: url)
+            possiblyMissing: job.possiblyMissingSegments(forRecordingAt: url),
+            timeline: job.timeline(forRecordingAt: url)
         )
         do {
             try store.save(updated)

@@ -58,22 +58,80 @@ final class EditorInsertAndListenTests: XCTestCase {
         XCTAssertEqual(target.draftText, "全新的字\n\n補的。")
     }
 
-    // MARK: 聽原音整段對字
+    // MARK: 聽原音逐句跟讀（2026-11-15）
 
-    func test播到幾秒就標那一段() {
-        let draft = ["一二三四", "", "五六七八九"].joined(separator: "\n")
-        let transcript = Transcript(durationSeconds: 110, rawText: "口語", draftText: draft)
-        let paragraphs = OriginalAudioSheet.paragraphs(of: transcript)
-        XCTAssertEqual(OriginalAudioSheet.paragraph(at: 0, in: paragraphs)?.text, "一二三四")
-        XCTAssertEqual(OriginalAudioSheet.paragraph(at: 59, in: paragraphs)?.text, "一二三四")
-        XCTAssertEqual(OriginalAudioSheet.paragraph(at: 61, in: paragraphs)?.text, "五六七八九")
+    /// 兩段各 100 秒：第一段 10 個字、第二段 20 個字。
+    private func twoSpanTranscript(marks: [Double]? = nil) -> Transcript {
+        var transcript = Transcript(
+            durationSeconds: 200,
+            rawText: "一二三四。五六七八。" + "甲乙丙丁戊己庚辛壬。" + "子丑寅卯辰巳午未申。"
+        )
+        transcript.timeline = [
+            TimelineSpan(startSeconds: 0, endSeconds: 100, characterCount: 10),
+            TimelineSpan(startSeconds: 100, endSeconds: 200, characterCount: 20),
+        ]
+        transcript.marks = marks
+        return transcript
     }
 
-    func test重點那句從句子開頭抓_不從逗號開始() {
-        let draft = String(repeating: "甲", count: 30) + "。今天要聚焦在吸引力法則上面，要把它寫完。"
-            + String(repeating: "乙", count: 30)
-        let transcript = Transcript(durationSeconds: 100, rawText: "口語", draftText: draft)
-        let text = OriginalAudioSheet.nearbyText(at: 50, in: transcript)
-        XCTAssertTrue(text.hasPrefix("今天要聚焦"), text)
+    func test每句的時間在自己那一段裡照字數估() {
+        let transcript = twoSpanTranscript()
+        XCTAssertTrue(SpokenTimeline.isPrecise(transcript))
+        let sentences = SpokenTimeline.sentences(of: transcript)
+        XCTAssertEqual(sentences.map(\.text), ["一二三四。", "五六七八。", "甲乙丙丁戊己庚辛壬。", "子丑寅卯辰巳午未申。"])
+        XCTAssertEqual(sentences.map(\.start), [0, 50, 100, 150])
+        XCTAssertEqual(sentences.last?.end, 200)
+        // 照整篇字數比例的話，第三句會被估在 66 秒，差了半分鐘。
+        XCTAssertEqual(SpokenTimeline.sentence(at: 99, in: sentences)?.text, "五六七八。")
+        XCTAssertEqual(SpokenTimeline.sentence(at: 101, in: sentences)?.text, "甲乙丙丁戊己庚辛壬。")
+    }
+
+    func test對照表字數對不上就照整篇估() {
+        var transcript = twoSpanTranscript()
+        transcript.timeline = [TimelineSpan(startSeconds: 0, endSeconds: 100, characterCount: 7)]
+        XCTAssertFalse(SpokenTimeline.isPrecise(transcript))
+        let sentences = SpokenTimeline.sentences(of: transcript)
+        XCTAssertEqual(sentences[2].start, 200.0 * 10 / 30, accuracy: 0.001)
+    }
+
+    func test重點是按下去那句加前一句() {
+        let transcript = twoSpanTranscript(marks: [10, 160])
+        let sentences = SpokenTimeline.sentences(of: transcript)
+        let passages = SpokenTimeline.passages(marks: transcript.marks ?? [], in: sentences)
+        XCTAssertEqual(passages.map(\.text), ["一二三四。", "甲乙丙丁戊己庚辛壬。子丑寅卯辰巳午未申。"])
+        XCTAssertEqual(passages.map(\.start), [0, 100])
+        XCTAssertEqual(passages.last?.sentenceIndexes, [2, 3])
+    }
+
+    func test太長沒句號的句子在逗號斷開_一列湊滿才換() {
+        let long = String(repeating: "字", count: 29) + "，" + String(repeating: "詞", count: 5) + "，尾"
+        let sentences = SpokenTimeline.sentences(of: Transcript(durationSeconds: 60, rawText: long))
+        XCTAssertEqual(sentences.map(\.text.count), [30, 7])
+        let many = (0 ..< 5).map { _ in String(repeating: "句", count: 49) + "。" }.joined()
+        let blocks = SpokenTimeline.blocks(
+            SpokenTimeline.sentences(of: Transcript(durationSeconds: 60, rawText: many))
+        )
+        XCTAssertEqual(blocks.map(\.sentences.count), [3, 2])
+    }
+
+    func test進度檔少一段的字就不給對照表() {
+        let segments = [
+            WAVSegmenter.Segment(startFrame: 0, endFrame: 160),
+            WAVSegmenter.Segment(startFrame: 160, endFrame: 480),
+        ]
+        XCTAssertNil(SpokenTimeline.spans(segments: segments, texts: [0: "甲"], framesPerSecond: 16))
+        let spans = SpokenTimeline.spans(
+            segments: segments,
+            texts: [0: "甲", 1: "乙丙"],
+            framesPerSecond: 16
+        )
+        XCTAssertEqual(spans?.map(\.endSeconds), [10, 30])
+        XCTAssertEqual(spans?.map(\.characterCount), [1, 2])
+    }
+
+    func test接著錄之後對照表作廢() {
+        var transcript = twoSpanTranscript()
+        transcript.append(Transcript(durationSeconds: 60, rawText: "後面接的"))
+        XCTAssertNil(transcript.timeline)
     }
 }
