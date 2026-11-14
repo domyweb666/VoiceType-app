@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>玉米火柴人動作庫</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* 版面：左邊是攝影棚式舞台，右邊是動作清單與即時關節角度；手機寬度時上下堆疊 */
+:root{
+  --bg:#F7F4EC;
+  --panel:#ffffff;
+  --ink:#2b2329;
+  --muted:#75697a;
+  --line:#e2dde5;
+  --accent:#916B1B;
+  --accent-ink:#ffffff;
+  --leaf:#5f8f34;
+  --stage-a:#fffdf7;
+  --stage-b:#ece4d0;
+  --font-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#1b171d;--panel:#262029;--ink:#f1ecf3;--muted:#a79bad;--line:#3a323e;
+    --accent:#D9AE4E;--accent-ink:#2B2006;--leaf:#9cc86a;--stage-a:#f4efe2;--stage-b:#d8cfb8;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#1b171d;--panel:#262029;--ink:#f1ecf3;--muted:#a79bad;--line:#3a323e;
+  --accent:#D9AE4E;--accent-ink:#2B2006;--leaf:#9cc86a;--stage-a:#f4efe2;--stage-b:#d8cfb8;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 20px 40px;display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-direction:column;gap:6px}
+h1{font-size:26px;font-weight:900;margin:0;letter-spacing:.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);font-size:14.5px;max-width:62ch}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+.stage{position:relative;border-radius:22px;background:radial-gradient(120% 90% at 50% 30%,var(--stage-a),var(--stage-b));border:1px solid var(--line);overflow:hidden}
+.stage svg{display:block;width:100%;height:auto;max-height:560px}
+.stage-bar{position:absolute;left:14px;right:14px;top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.now{font-size:13px;font-weight:700;color:#2b2329;background:rgba(255,255,255,.78);border-radius:999px;padding:5px 12px}
+.toggle{font:inherit;font-size:13px;font-weight:700;border:1px solid rgba(43,35,41,.18);background:rgba(255,255,255,.78);color:#2b2329;border-radius:999px;padding:5px 14px;cursor:pointer}
+.side{display:flex;flex-direction:column;gap:18px}
+.group{display:flex;flex-direction:column;gap:10px}
+.group h2{font-size:13px;font-weight:700;color:var(--muted);margin:0;letter-spacing:.08em}
+.acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.act{font:inherit;text-align:left;display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.act b{font-size:15px;font-weight:700}
+.act span{font-size:12px;color:var(--muted)}
+.act[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.act[aria-pressed="true"] span{color:var(--accent-ink);opacity:.82}
+.dirs{display:flex;gap:6px;flex-wrap:wrap}
+.dir{font:inherit;font-size:14px;font-weight:700;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.dir[aria-pressed="true"]{border-color:var(--leaf);box-shadow:inset 0 0 0 1.5px var(--leaf)}
+.dirs[hidden]{display:none}
+button:focus-visible{outline:3px solid var(--leaf);outline-offset:2px}
+.joints{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.joint{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 9px;display:flex;flex-direction:column;gap:1px}
+.joint i{font-style:normal;font-family:var(--font-body);font-size:11.5px;color:var(--muted)}
+.joint em{font-style:normal;font-size:14px;font-weight:600}
+.note{font-size:13.5px;color:var(--muted);margin:0;max-width:60ch}
+.sizes{display:flex;gap:18px;align-items:flex-end;background:radial-gradient(120% 90% at 50% 30%,var(--stage-a),var(--stage-b));border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+.sizes figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px}
+.sizes figcaption{font-size:11.5px;color:#5b5147}
+.sizes svg{display:block}
+@media (max-width:760px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  h1{font-size:22px}
+  .joints{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>玉米火柴人動作庫</h1>
+    <p>米說用的版本。身體和十二個動作照原本的動作庫，頭套換成玉米，先畫三種給米挑。右邊可以切換頭套，下面那排是縮小後的樣子。</p>
+  </header>
+
+  <div class="layout">
+    <div class="stage">
+      <svg id="stage" viewBox="0 -50 320 450" role="img" aria-label="戴玉米頭套的火柴人動畫">
+        <defs>
+          <radialGradient id="gEgg" cx="34%" cy="38%" r="78%">
+            <stop offset="0" stop-color="#9a5cb0"/><stop offset=".45" stop-color="#6b2f86"/><stop offset="1" stop-color="#3f1750"/>
+          </radialGradient>
+          <radialGradient id="gFace" cx="42%" cy="36%" r="75%">
+            <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e6e2e8"/>
+          </radialGradient>
+          <linearGradient id="gLeaf" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#8dbb52"/><stop offset="1" stop-color="#4f7d2a"/>
+          </linearGradient>
+          <radialGradient id="gCorn" cx="36%" cy="30%" r="85%">
+            <stop offset="0" stop-color="#F8E29A"/><stop offset=".5" stop-color="#E9C46A"/><stop offset="1" stop-color="#C99A2E"/>
+          </radialGradient>
+          <clipPath id="cCobA"><path d="M0,-138 C30,-138 46,-100 46,-56 C46,-20 28,6 0,6 C-28,6 -46,-20 -46,-56 C-46,-100 -30,-138 0,-138 Z"/></clipPath>
+          <clipPath id="cCobB"><path d="M0,-142 C34,-142 51,-98 49,-52 C47,-16 28,6 0,6 C-28,6 -47,-16 -49,-52 C-51,-98 -34,-142 0,-142 Z"/></clipPath>
+        </defs>
+        <g id="char"></g>
+      </svg>
+      <div class="stage-bar">
+        <span class="now" id="now">待機</span>
+        <button class="toggle" id="toggle" type="button">暫停</button>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="group">
+        <h2>頭套</h2>
+        <div class="dirs" id="heads"></div>
+        <p class="note" id="headNote"></p>
+        <div class="sizes">
+          <figure><svg width="36" height="36" viewBox="-84 -172 168 188" aria-hidden="true"><g id="s36g"></g></svg><figcaption>36 pt 說明卡頭像</figcaption></figure>
+          <figure><svg width="72" height="72" viewBox="-84 -172 168 188" aria-hidden="true"><g id="s72g"></g></svg><figcaption>72 pt</figcaption></figure>
+          <figure><svg width="68" height="96" viewBox="0 -50 320 450" aria-hidden="true"><g id="s96g"></g></svg><figcaption>96 pt 全身（整理中）</figcaption></figure>
+        </div>
+      </div>
+      <div class="group">
+        <h2>動作</h2>
+        <div class="acts" id="acts"></div>
+        <div class="dirs" id="dirs" hidden></div>
+      </div>
+      <div class="group">
+        <h2>即時關節角度</h2>
+        <div class="joints" id="joints"></div>
+        <p class="note">0° 是垂直向下，正值往畫面右邊轉。手肘與膝蓋是相對於上一節的角度。移植到 SwiftUI 時搬的就是這八個數字。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="core">
+/* ===== 純計算：姿勢與繪製（不碰 DOM，可在任何環境執行）===== */
+var RIG = { hipX:160, hipY:260, ground:380, thigh:62, shin:62, torso:78, shoulderDrop:12, shoulderHalf:6, upper:44, fore:44 };
+
+function basePose(){
+  return { rx:0, ry:0, lean:0, head:0, hy:0, sh:0,
+           lS:-38, lE:143, rS:38, rE:-143,
+           lH:-14, lK:0, rH:14, rK:0,
+           eyeH:12, lookX:0, lookY:0, brow:2, browY:0, squash:0,
+           tl:1, hs:1, sx:1,
+           mouth:'smile', happy:0, bubble:0, zzz:0, sweat:0, spark:0, t:0 };
+}
+function ss(a,b,x){ var k=Math.max(0,Math.min(1,(x-a)/(b-a))); return k*k*(3-2*k); }
+
+var ANIMS = {
+  idle: function(t){
+    var b=Math.sin(t*2.2), tb=t%3.6;
+    return { sh:-1.2*b, hy:-1.2*b, lean:1.4*Math.sin(t*1.1), head:1.5*Math.sin(t*0.9),
+             eyeH:(tb>3.46?1.5:12) };
+  },
+  wave: function(t){
+    return { rS:110, rE:40+22*Math.sin(t*9), lS:-16, lE:-6,
+             head:5+2*Math.sin(t*4.5), lean:2, brow:5, browY:-1, mouth:'smile',
+             hy:-1*Math.sin(t*4.5) };
+  },
+  point: function(t,d){
+    var k=Math.sin(t*5), o={ brow:4 };
+    if(d==='right'){ o.rS=92; o.rE=0; o.lS=-40; o.lE=100; o.lean=3+1.5*k; o.head=3; o.lookX=3; }
+    else if(d==='left'){ o.lS=-92; o.lE=0; o.rS=40; o.rE=-100; o.lean=-3-1.5*k; o.head=-3; o.lookX=-3; }
+    else if(d==='up'){ o.rS=105; o.rE=62; o.lS=-40; o.lE=100; o.hy=-1.5*k; o.sh=-1.5*k; o.head=-4; o.lookY=-3; o.lookX=1; }
+    else { o.rS=30; o.rE=8; o.lS=-40; o.lE=100; o.lean=2; o.head=9+1.5*k; o.lookY=3.5; o.lookX=2; }
+    return o;
+  },
+  think: function(t){
+    return { rS:42, rE:165, lS:-30, lE:120, head:-8+1.5*Math.sin(t*1.6), lean:-1.5,
+             lookX:-2, lookY:-3, brow:3, browY:-2, bubble:1, mouth:'flat' };
+  },
+  cheer: function(t){
+    var P=0.72, p=(t%P)/P, h=p<0.8?Math.sin(Math.PI*p/0.8):0, s=p>=0.8?Math.sin(Math.PI*(p-0.8)/0.2):0, w=Math.sin(t*15);
+    return { ry:-34*h, squash:0.07*s, lS:-105, lE:-62-8*w, rS:105, rE:62+8*w,
+             lH:-14-12*h, lK:34*h, rH:14+12*h, rK:-34*h,
+             brow:-4, browY:-3, happy:1, mouth:'open', head:3*w*0.3 };
+  },
+  shrug: function(t){
+    var c=t%2.4, u=ss(0,0.3,c)*(1-ss(1.5,1.9,c));
+    return { sh:-6*u, lS:-16-14*u, lE:-6-82*u, rS:16+14*u, rE:6+82*u,
+             head:8*u, brow:2-12*u, browY:-3*u, mouth:(u>0.4?'wavy':'smile'), lookY:-1*u };
+  },
+  oops: function(t){
+    return { rS:112, rE:45+7*Math.sin(t*12), lS:-16, lE:-6, head:9, lean:2,
+             brow:-12, browY:-1, lookY:3, lookX:-1, mouth:'wavy', sweat:1 };
+  },
+  bigcheer: function(t){
+    var P=1.15, p=(t%P)/P, air=p<0.72, q=p/0.72, h=air?Math.sin(Math.PI*q):0, s=air?0:Math.sin(Math.PI*(p-0.72)/0.28), w=Math.sin(t*18);
+    return { ry:-54*h, squash:0.09*s, sx:(air?Math.cos(2*Math.PI*q):1),
+             lS:-112, lE:-58-12*w, rS:112, rE:58+12*w,
+             lH:-14-16*h, lK:44*h, rH:14+16*h, rK:-44*h,
+             brow:-6, browY:-4, happy:1, mouth:'open', spark:1 };
+  },
+  focus: function(t){
+    var k=Math.sin(t*13), b=Math.sin(t*1.8);
+    return { ry:98, lH:-75, lK:160, rH:75, rK:-160, tl:0.92,
+             lS:-26, lE:58+7*k, rS:26, rE:-58+7*Math.sin(t*13+1.4),
+             head:4+1.2*b, hy:2, lookY:4, eyeH:(t%4.2>4.05?1.5:9), brow:10, browY:1, mouth:'flat' };
+  },
+  please: function(t){
+    var k=Math.sin(t*7);
+    return { lS:-50, lE:167, rS:50, rE:-167, sh:-2-1.5*k, hy:-1.5*k, head:7+1.5*k, lean:1,
+             brow:-15, browY:-2, eyeH:13, lookY:-1.5, mouth:'o' };
+  },
+  bow: function(t){
+    var c=t%2.6, u=ss(0,0.45,c)*(1-ss(1.5,2.0,c));
+    return { lS:-12, lE:-4, rS:12, rE:4, tl:1-0.3*u, hs:1-0.14*u, hy:8*u, lookY:6*u,
+             eyeH:12-10.5*ss(0.4,0.8,u), brow:2, browY:2*u };
+  },
+  sleep: function(t){
+    var n=Math.sin(t*1.4);
+    return { head:13+3*n, lean:3+0.8*n, hy:1, eyeH:1.5, brow:0, browY:2, mouth:'o', zzz:1, sh:-1*n };
+  }
+};
+
+function poseAt(name,t,dirName){
+  var p=basePose(), o=ANIMS[name](t,dirName), k;
+  for(k in o) p[k]=o[k];
+  p.t=t; return p;
+}
+function blend(a,b,k){
+  var o={}, key;
+  for(key in b){ o[key]=(typeof b[key]==='number' && typeof a[key]==='number') ? a[key]+(b[key]-a[key])*k : (k<0.5?a[key]:b[key]); }
+  o.t=b.t; return o;
+}
+
+function dirv(a){ var r=a*Math.PI/180; return [Math.sin(r),Math.cos(r)]; }
+function f(n){ return Math.round(n*10)/10; }
+function seg(a,b,w){ return '<line x1="'+f(a[0])+'" y1="'+f(a[1])+'" x2="'+f(b[0])+'" y2="'+f(b[1])+'" stroke="#39323a" stroke-width="'+w+'" stroke-linecap="round"/>'; }
+function add(p,v,l){ return [p[0]+v[0]*l, p[1]+v[1]*l]; }
+
+/* ===== 頭套：只換這一塊，臉的五官與身體共用 ===== */
+var HEAD='cornA';
+function kernels(clipId, faceGap){
+  var s='<g clip-path="url(#'+clipId+')">', r=0, y, x;
+  for(y=-136;y<=6;y+=11,r++){
+    for(x=-58+(r%2?6.5:0);x<=58;x+=13){
+      if(Math.sqrt(x*x+(y+46)*(y+46))<faceGap) continue;
+      s+='<ellipse cx="'+x+'" cy="'+y+'" rx="5.2" ry="4.4" fill="#B98A22" opacity=".42"/>';
+    }
+  }
+  return s+'</g>';
+}
+var HEADS={
+  /* A 整根玉米：臉直接長在玉米上，跟空清單那根同一個樣子 */
+  cornA:{ disc:false, hood:(function(){
+    var s='';
+    s+='<path d="M-3,-136 C-10,-150 -6,-160 -14,-166 M0,-137 C0,-152 6,-158 2,-168 M3,-136 C12,-148 10,-158 18,-162" fill="none" stroke="#916B1B" stroke-width="3" stroke-linecap="round"/>';
+    s+='<path d="M0,-138 C30,-138 46,-100 46,-56 C46,-20 28,6 0,6 C-28,6 -46,-20 -46,-56 C-46,-100 -30,-138 0,-138 Z" fill="url(#gCorn)"/>';
+    s+=kernels('cCobA',35);
+    s+='<circle cx="0" cy="-46" r="31" fill="#F6DE95"/>';
+    s+='<path d="M-2,8 C-26,13 -52,-6 -63,-46 C-44,-38 -18,-22 -2,8 Z" fill="url(#gLeaf)"/>';
+    s+='<path d="M2,8 C26,13 52,-6 63,-46 C44,-38 18,-22 2,8 Z" fill="url(#gLeaf)"/>';
+    return s;
+  })() },
+  /* B 玉米頭套：人戴著玉米帽，白臉從洞裡露出來，葉子往外剝開 */
+  cornB:{ disc:true, ring:'#7A5916', hood:(function(){
+    var s='';
+    s+='<path d="M-4,7 C-34,11 -56,-14 -54,-68 C-68,-62 -79,-38 -72,-14 C-63,5 -34,15 -4,7 Z" fill="#4f7d2a"/>';
+    s+='<path d="M4,7 C34,11 56,-14 54,-68 C68,-62 79,-38 72,-14 C63,5 34,15 4,7 Z" fill="#4f7d2a"/>';
+    s+='<path d="M0,-142 C34,-142 51,-98 49,-52 C47,-16 28,6 0,6 C-28,6 -47,-16 -49,-52 C-51,-98 -34,-142 0,-142 Z" fill="url(#gCorn)"/>';
+    s+=kernels('cCobB',31);
+    s+='<path d="M-3,8 C-30,12 -50,-8 -52,-44 C-36,-34 -16,-18 -3,8 Z" fill="url(#gLeaf)"/>';
+    s+='<path d="M3,8 C30,12 50,-8 52,-44 C36,-34 16,-18 3,8 Z" fill="url(#gLeaf)"/>';
+    return s;
+  })() },
+  /* C 一顆玉米粒：最簡單，縮到 36 pt 還認得出來 */
+  cornC:{ disc:false, hood:(function(){
+    var s='';
+    s+='<path d="M0,-130 C-4,-146 -20,-152 -30,-146 C-24,-134 -12,-128 0,-130 Z" fill="url(#gLeaf)"/>';
+    s+='<path d="M0,-130 C4,-148 22,-156 34,-148 C28,-134 14,-127 0,-130 Z" fill="#587f2e"/>';
+    s+='<path d="M-42,-94 C-42,-122 -22,-132 0,-132 C22,-132 42,-122 42,-94 C42,-58 32,-12 0,5 C-32,-12 -42,-58 -42,-94 Z" fill="url(#gCorn)"/>';
+    s+='<path d="M-20,-10 C-10,2 10,2 20,-10 C12,-2 -12,-2 -20,-10 Z" fill="#F8EBC0"/>';
+    s+='<path d="M-29,-102 C-25,-116 -14,-122 -2,-123" fill="none" stroke="#FFF6D6" stroke-opacity=".8" stroke-width="5" stroke-linecap="round"/>';
+    return s;
+  })() },
+  /* 原版茄子，留著對照 */
+  eggplant:{ disc:true, ring:'#34143f', hood:
+    '<path d="M-45,-40 C-48,-80 -20,-114 20,-126 C44,-133 60,-114 56,-88 C52,-56 46,-22 30,-8 C12,6 -14,6 -30,-6 C-41,-14 -45,-28 -45,-40 Z" fill="url(#gEgg)"/>'+
+    '<path d="M-30,-92 C-18,-108 0,-118 18,-121" fill="none" stroke="#c9a2d8" stroke-opacity=".45" stroke-width="5" stroke-linecap="round"/>'+
+    '<path d="M34,-128 C33,-142 38,-152 46,-160 L58,-153 C52,-146 49,-138 50,-128 Z" fill="#587f2e"/>'+
+    '<path d="M6,-120 C16,-137 48,-142 66,-124 C70,-112 68,-100 70,-88 C60,-96 56,-106 50,-104 C48,-96 44,-86 36,-84 C36,-96 30,-104 24,-102 C18,-100 10,-98 2,-102 C8,-108 8,-114 6,-120 Z" fill="url(#gLeaf)"/>' }
+};
+
+function headSVG(p){
+  var s='', ex=p.lookX, ey=p.lookY, i, sx, H=HEADS[HEAD];
+  s+=H.hood;
+  if(H.disc){
+    s+='<circle cx="0" cy="-46" r="33" fill="'+H.ring+'"/>';
+    s+='<circle cx="0" cy="-46" r="30" fill="url(#gFace)" stroke="#2b2329" stroke-width="3"/>';
+  }
+  for(i=0;i<2;i++){
+    sx=i?1:-1;
+    var cx=sx*11+ex, cy=-48+ey;
+    if(p.happy>0.5){
+      s+='<path d="M'+f(cx-5)+','+f(cy+3)+' Q'+f(cx)+','+f(cy-6)+' '+f(cx+5)+','+f(cy+3)+'" fill="none" stroke="#2b2329" stroke-width="3.6" stroke-linecap="round"/>';
+    } else {
+      var h=Math.max(1.5,p.eyeH);
+      s+='<rect x="'+f(cx-2.3)+'" y="'+f(cy-h/2)+'" width="4.6" height="'+f(h)+'" rx="2.3" fill="#2b2329"/>';
+    }
+    var bx=sx*12+ex*0.5, by=-61+p.browY+ey*0.5, br=p.brow*Math.PI/180, c=8*Math.cos(br), sn=8*Math.sin(br);
+    s+='<line x1="'+f(bx-sx*c)+'" y1="'+f(by+sn)+'" x2="'+f(bx+sx*c)+'" y2="'+f(by-sn)+'" stroke="#2b2329" stroke-width="3.4" stroke-linecap="round"/>';
+  }
+  var mx=ex*0.5, my=-30+ey*0.5;
+  if(p.mouth==='smile') s+='<path d="M'+f(mx-6)+','+f(my-1)+' Q'+f(mx)+','+f(my+5)+' '+f(mx+6)+','+f(my-1)+'" fill="none" stroke="#2b2329" stroke-width="3" stroke-linecap="round"/>';
+  else if(p.mouth==='open') s+='<path d="M'+f(mx-7)+','+f(my-2)+' Q'+f(mx)+','+f(my+10)+' '+f(mx+7)+','+f(my-2)+' Z" fill="#2b2329"/>';
+  else if(p.mouth==='wavy') s+='<path d="M'+f(mx-7)+','+f(my)+' q3.5,-4 7,0 t7,0" fill="none" stroke="#2b2329" stroke-width="3" stroke-linecap="round"/>';
+  else if(p.mouth==='o') s+='<circle cx="'+f(mx)+'" cy="'+f(my)+'" r="2.6" fill="none" stroke="#2b2329" stroke-width="2.6"/>';
+  else s+='<line x1="'+f(mx-5)+'" y1="'+f(my)+'" x2="'+f(mx+5)+'" y2="'+f(my)+'" stroke="#2b2329" stroke-width="3" stroke-linecap="round"/>';
+  if(p.sweat>0.5){
+    var d=(p.t*0.9)%1;
+    s+='<path d="M-21,'+f(-66+d*6)+' q-4,7 0,9 q4,-2 0,-9 Z" fill="#7ec3ea" opacity="'+f(1-d*0.6)+'"/>';
+  }
+  return s;
+}
+
+function renderChar(p){
+  var R=RIG, s='';
+  var hip=[R.hipX+p.rx, R.hipY+p.ry];
+  var up=dirv(180-p.lean);
+  var TL=R.torso*p.tl;
+  var neck=add(hip,up,TL);
+  var sho=add(hip,up,TL-R.shoulderDrop); sho[1]+=p.sh;
+  var lift=Math.max(0,-p.ry/40);
+  s+='<ellipse cx="'+f(R.hipX+p.rx)+'" cy="'+(R.ground+7)+'" rx="'+f(62*(1-lift*0.35))+'" ry="'+f(8*(1-lift*0.35))+'" fill="#2b2329" opacity="'+f(0.16*(1-lift*0.5))+'"/>';
+  s+='<g transform="translate('+R.hipX+','+R.ground+') scale('+f(p.sx*(1+p.squash*0.6)*100)/100+','+f((1-p.squash)*100)/100+') translate('+(-R.hipX)+','+(-R.ground)+')">';
+  var legs=[[p.lH,p.lK,-1],[p.rH,p.rK,1]], i;
+  for(i=0;i<2;i++){
+    var kn=add(hip,dirv(legs[i][0]),R.thigh), an=add(kn,dirv(legs[i][0]+legs[i][1]),R.shin);
+    s+=seg(hip,kn,9)+seg(kn,an,9)+seg(an,[an[0]+legs[i][2]*12,an[1]+1],9);
+  }
+  s+=seg(hip,[neck[0],neck[1]+p.sh*0.5],9);
+  s+='<g transform="translate('+f(neck[0])+','+f(neck[1]+p.hy+p.sh*0.5)+') rotate('+f(p.head+p.lean)+') scale(1,'+f(p.hs*100)/100+')">'+headSVG(p)+'</g>';
+  var arms=[[p.lS,p.lE],[p.rS,p.rE]];
+  for(i=0;i<2;i++){
+    var so=[sho[0]+(i?R.shoulderHalf:-R.shoulderHalf),sho[1]], el=add(so,dirv(arms[i][0]),R.upper), ha=add(el,dirv(arms[i][0]+arms[i][1]),R.fore);
+    s+=seg(so,el,8.5)+seg(el,ha,8.5);
+  }
+  if(p.bubble>0.5){
+    var bx=neck[0], by=neck[1], dots=[[-58,-104,4],[-70,-120,5.5],[-86,-140,7.5]];
+    for(i=0;i<3;i++){
+      var o=0.35+0.65*Math.max(0,Math.sin(p.t*3-i*0.9));
+      s+='<circle cx="'+f(bx+dots[i][0])+'" cy="'+f(by+dots[i][1])+'" r="'+dots[i][2]+'" fill="#916B1B" opacity="'+f(o)+'"/>';
+    }
+  }
+  if(p.zzz>0.5){
+    for(i=0;i<3;i++){
+      var ph=((p.t*0.45)+i/3)%1;
+      s+='<text x="'+f(neck[0]+74+ph*34)+'" y="'+f(neck[1]-128-ph*52)+'" font-family="system-ui,sans-serif" font-weight="800" font-size="'+f(11+ph*12)+'" fill="#916B1B" opacity="'+f(Math.sin(Math.PI*ph))+'">Z</text>';
+    }
+  }
+  s+='</g>';
+  if(p.spark>0.5){
+    var sp=[[52,60,'#e9b93a'],[268,84,'#5f8f34'],[36,170,'#916B1B'],[284,190,'#e9b93a'],[70,-8,'#5f8f34'],[250,-14,'#916B1B']];
+    for(i=0;i<sp.length;i++){
+      var a=0.5+0.5*Math.sin(p.t*6+i*1.7), r=4+7*a;
+      s+='<path transform="translate('+sp[i][0]+','+sp[i][1]+') rotate('+f(p.t*60+i*30)+')" d="M0,'+f(-r)+' L'+f(r*0.28)+','+f(-r*0.28)+' L'+f(r)+',0 L'+f(r*0.28)+','+f(r*0.28)+' L0,'+f(r)+' L'+f(-r*0.28)+','+f(r*0.28)+' L'+f(-r)+',0 L'+f(-r*0.28)+','+f(-r*0.28)+' Z" fill="'+sp[i][2]+'" opacity="'+f(0.35+0.65*a)+'"/>';
+    }
+  }
+  return s;
+}
+</script>
+
+<script>
+(function(){
+  var ACTS=[
+    {id:'idle', name:'待機', use:'首頁、說明卡頭像'},
+    {id:'wave', name:'揮手', use:'初次見面、引導第一步'},
+    {id:'point',name:'指向', use:'聚光燈引導'},
+    {id:'think',name:'思考', use:'AI 回覆中、載入'},
+    {id:'cheer',name:'慶祝', use:'完成任務、存檔成功'},
+    {id:'bigcheer',name:'大慶祝', use:'達成目標、連續天數里程碑'},
+    {id:'shrug',name:'聳肩', use:'清單是空的'},
+    {id:'oops', name:'抓頭', use:'操作失敗、斷線'},
+    {id:'focus',name:'專注', use:'計時中、錄音中'},
+    {id:'please',name:'拜託', use:'請求通知權限、請求評分'},
+    {id:'bow',name:'鞠躬', use:'引導最後一步、完成設定'},
+    {id:'sleep',name:'打瞌睡', use:'長時間沒操作'}
+  ];
+  var DIRS=[['up','上'],['right','右'],['down','下'],['left','左']];
+  var JOINTS=[['lS','左肩'],['lE','左肘'],['rS','右肩'],['rE','右肘'],['lH','左髖'],['lK','左膝'],['rH','右髖'],['rK','右膝']];
+  var $=function(id){return document.getElementById(id);};
+  var charEl=$('char'), actsEl=$('acts'), dirsEl=$('dirs'), jointsEl=$('joints'), nowEl=$('now'), toggleEl=$('toggle');
+
+  var state={ name:'idle', dir:'right', clock:0, start:0, from:basePose(), switchAt:-1, playing:true, last:null, shown:basePose() };
+  var reduce=false;
+  try{ reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(reduce){ state.playing=false; }
+
+  ACTS.forEach(function(a){
+    var b=document.createElement('button');
+    b.type='button'; b.className='act'; b.id='act-'+a.id;
+    b.innerHTML='<b>'+a.name+'</b><span>'+a.use+'</span>';
+    b.addEventListener('click',function(){ go(a.id); });
+    actsEl.appendChild(b);
+  });
+  DIRS.forEach(function(d){
+    var b=document.createElement('button');
+    b.type='button'; b.className='dir'; b.id='dir-'+d[0]; b.textContent='指'+d[1];
+    b.addEventListener('click',function(){ state.dir=d[0]; go('point'); });
+    dirsEl.appendChild(b);
+  });
+  var HEADLIST=[
+    ['cornA','A 整根玉米','臉直接長在玉米上，跟現在空清單那根是同一個角色。'],
+    ['cornB','B 玉米頭套','人戴著玉米帽，白臉從洞裡露出來，最接近原本茄子的做法。'],
+    ['cornC','C 一顆玉米粒','形狀最簡單，縮到 36 pt 還認得出來。'],
+    ['eggplant','原版茄子','留著對照，不會用在米說。']
+  ];
+  var headsEl=$('heads');
+  HEADLIST.forEach(function(h){
+    var b=document.createElement('button');
+    b.type='button'; b.className='dir'; b.id='head-'+h[0]; b.textContent=h[1];
+    b.addEventListener('click',function(){ HEAD=h[0]; sync(); if(!state.playing) draw(); });
+    headsEl.appendChild(b);
+  });
+  JOINTS.forEach(function(j){
+    var d=document.createElement('div'); d.className='joint';
+    d.innerHTML='<i>'+j[1]+'</i><em id="j-'+j[0]+'">0°</em>';
+    jointsEl.appendChild(d);
+  });
+
+  function go(id){
+    state.from=state.shown; state.switchAt=state.clock; state.start=state.clock; state.name=id;
+    sync(); if(!state.playing) draw();
+  }
+  function sync(){
+    ACTS.forEach(function(a){ $('act-'+a.id).setAttribute('aria-pressed', a.id===state.name?'true':'false'); });
+    DIRS.forEach(function(d){ $('dir-'+d[0]).setAttribute('aria-pressed', d[0]===state.dir?'true':'false'); });
+    HEADLIST.forEach(function(h){
+      $('head-'+h[0]).setAttribute('aria-pressed', h[0]===HEAD?'true':'false');
+      if(h[0]===HEAD) $('headNote').textContent=h[2];
+    });
+    dirsEl.hidden = state.name!=='point';
+    var a=ACTS.filter(function(x){return x.id===state.name;})[0];
+    nowEl.textContent=a.name;
+    toggleEl.textContent=state.playing?'暫停':'播放';
+  }
+  function draw(){
+    var t=state.clock-state.start, target=poseAt(state.name,t,state.dir), p=target;
+    if(state.switchAt>=0){
+      var k=(state.clock-state.switchAt)/0.28;
+      if(k<1){ k=k*k*(3-2*k); p=blend(state.from,target,k); } else state.switchAt=-1;
+    }
+    state.shown=p;
+    var full=renderChar(p), head=headSVG(p);
+    charEl.innerHTML=full;
+    $('s36g').innerHTML=head; $('s72g').innerHTML=head; $('s96g').innerHTML=full;
+    JOINTS.forEach(function(j){ $('j-'+j[0]).textContent=Math.round(p[j[0]])+'°'; });
+  }
+  function frame(ts){
+    if(state.last===null) state.last=ts;
+    var dt=Math.min(0.05,(ts-state.last)/1000); state.last=ts;
+    if(state.playing){ state.clock+=dt; draw(); }
+    requestAnimationFrame(frame);
+  }
+  toggleEl.addEventListener('click',function(){ state.playing=!state.playing; sync(); });
+
+  sync(); draw();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

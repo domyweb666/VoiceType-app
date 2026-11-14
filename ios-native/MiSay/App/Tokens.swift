@@ -110,8 +110,8 @@ enum Token {
         static let recordDisc = DomyTokens.Size.heroButton // 180：裡面那顆玉米黃圓盤
         static let recordRing = DomyTokens.Size.heroRingWidth // 3：外環線寬
         static let recordGlyph: CGFloat = 64 // 圓盤中間的麥克風（domy 錄音畫面）
-        static let cornWidth: CGFloat = 88 // 空清單那根玉米
-        static let cornHeight: CGFloat = 112
+        static let mascotWidth: CGFloat = 84 // 空清單那個戴玉米頭套的火柴人（`StickFigure`）
+        static let mascotHeight: CGFloat = 168
     }
 
     /// 陰影：domy 兩級。錄音大鈕與浮在清單上的狀態條用第 2 級，導覽列的白圓鈕用第 1 級

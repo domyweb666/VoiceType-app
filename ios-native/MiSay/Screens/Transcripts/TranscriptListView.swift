@@ -196,6 +196,7 @@ private extension TranscriptListView {
     }
 
     /// 玉米只在這裡出現（使用規則第 3 條），當系統空狀態的圖。讀不到時不裝可愛，只講讀取失敗。
+    /// 2026-11-15 動 1：靜態那根換成戴玉米頭套的火柴人（`StickFigure`），會輕輕晃、會眨眼。
     @ViewBuilder
     var emptyState: some View {
         if loadFailed {
@@ -205,7 +206,7 @@ private extension TranscriptListView {
                 Label {
                     Text("還沒有文字稿")
                 } icon: {
-                    CornIllustration()
+                    StickFigure()
                 }
             } description: {
                 Text("到「錄音」分頁按中間的鈕，說一段話。說完的字會排在這裡，最新的在最上面。")
