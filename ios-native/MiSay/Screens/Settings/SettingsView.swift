@@ -4,6 +4,7 @@ import SwiftUI
 /// 第一層只留短短幾列、右邊帶現況，細節和說明都在子頁：金鑰（`APIKeySettingsView`）、
 /// 從修改學習（`LearningSettingsView`）、進階（`AdvancedSettingsView`：模型、備份、診斷紀錄）。
 /// 最上面是口述統計（同天米說要從文字稿頁搬過來）。改了馬上存（M7），下一筆整理就照新的走。
+/// 2026-11-14 照 domy-design：統計卡淡金底、潤飾方式改淡金膠囊；列與箭頭還是系統的。
 struct SettingsView: View {
     @Bindable private var settings = AppSettings.shared
     @State private var hasAPIKey = false
@@ -12,10 +13,12 @@ struct SettingsView: View {
     var body: some View {
         Form {
             if let stats {
+                // domy：統計卡自己有淡金底，不疊在白卡上，邊緣貼齊下面的白卡。
                 Section {
                     DictationStatsCard(stats: stats)
+                        .listRowInsets(EdgeInsets())
                 }
-                .listRowBackground(Token.Colors.rowBackground)
+                .listRowBackground(Color.clear)
             }
             Section {
                 NavigationLink {
@@ -44,11 +47,24 @@ struct SettingsView: View {
 
     private var polishSection: some View {
         Section {
-            // 2026-11-08 米：提示詞不給改，改成二選一。
-            Picker("潤飾方式", selection: $settings.polishStyle) {
-                ForEach(PolishStyle.allCases) { style in
-                    Text(style.title).tag(style)
+            // 2026-11-08 米：提示詞不給改，改成二選一。2026-11-14 照 domy：右邊是淡金膠囊，點了開選單。
+            LabeledContent("潤飾方式") {
+                Menu {
+                    Picker("潤飾方式", selection: $settings.polishStyle) {
+                        ForEach(PolishStyle.allCases) { style in
+                            Text(style.title).tag(style)
+                        }
+                    }
+                } label: {
+                    AccentCapsule {
+                        Text(settings.polishStyle.title)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .imageScale(.small)
+                            .accessibilityHidden(true)
+                    }
                 }
+                .accessibilityLabel("潤飾方式：\(settings.polishStyle.title)")
+                .accessibilityHint("點兩下更改")
             }
             NavigationLink {
                 VocabularyView()

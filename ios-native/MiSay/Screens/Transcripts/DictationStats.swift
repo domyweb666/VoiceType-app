@@ -82,7 +82,8 @@ struct DictationStats: Equatable {
     }
 }
 
-/// 白卡片、兩欄兩列：大數字＋小單位在上，說明在下。
+/// 兩欄兩列：大數字＋小單位在上，說明在下。
+/// 2026-11-14 照 domy-design 的 StatGrid：淡金底、淡金細框、20 圓角、20 內距，自己畫底，不放進白卡。
 struct DictationStatsCard: View {
     let stats: DictationStats
 
@@ -103,7 +104,15 @@ struct DictationStatsCard: View {
                 cell(spoken.value, unit: spoken.unit, label: "總口述時間")
             }
         }
-        .padding(.vertical, Token.Space.s)
+        .padding(Token.Space.screen)
+        .background(
+            Token.Colors.accentTint,
+            in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+                .strokeBorder(Token.Colors.accentSoft, lineWidth: Token.Shape.hairline)
+        }
     }
 
     private func cell(_ value: String, unit: String, label: String) -> some View {

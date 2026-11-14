@@ -185,7 +185,7 @@ private extension TranscriptDetailView {
                         .buttonStyle(TextButtonStyle())
                 }
             }
-            .padding(.horizontal, Token.Space.l)
+            .padding(.horizontal, Token.Space.screen)
             .padding(.top, Token.Space.s)
         }
     }
@@ -232,18 +232,18 @@ private extension TranscriptDetailView {
         }
     }
 
-    /// 這頁唯一的玉米黃：打字時才出現，按了收鍵盤（字早就自動存了）。
+    /// 這頁唯一的主要按鈕（domy：金棕底白字）：打字時才出現，按了收鍵盤（字早就自動存了）。
     var doneButton: some View {
         Button {
             isEditing = false
         } label: {
             Image(systemName: "checkmark")
                 .fontWeight(.semibold)
-                .foregroundStyle(Token.Colors.actionInk)
+                .foregroundStyle(Token.Colors.onAccent)
         }
         .buttonStyle(.borderedProminent)
         .buttonBorderShape(.circle)
-        .tint(Token.Colors.actionFill)
+        .tint(Token.Colors.accent)
         .accessibilityLabel("完成")
     }
 
@@ -252,14 +252,14 @@ private extension TranscriptDetailView {
     var bottomLine: some View {
         if statusKind != .hidden {
             TranscriptStatusStrip(kind: statusKind, onCancel: cancelPolish, onRetry: polishThis)
-                .padding(.horizontal, Token.Space.l)
+                .padding(.horizontal, Token.Space.screen)
                 .padding(.bottom, Token.Space.s)
         } else if !isEditing, !currentText.isEmpty {
             Text(Self.characterCount(currentText))
                 .font(Token.Fonts.footnote)
                 .foregroundStyle(Token.Colors.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.horizontal, Token.Space.l)
+                .padding(.horizontal, Token.Space.screen)
                 .padding(.vertical, Token.Space.s)
         }
     }

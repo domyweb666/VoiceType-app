@@ -202,7 +202,7 @@ private extension VocabularyView {
         .foregroundStyle(Token.Colors.textSecondary)
     }
 
-    /// 這頁唯一的主要動作，所以是玉米黃（一頁一顆玉米黃）。長相交給系統按鈕，跟 `PrimaryButtonStyle` 同一套，只是圓的。
+    /// 這頁唯一的主要動作，跟 `PrimaryButtonStyle` 同一套（domy：金棕底白字），只是圓的；長相交給系統按鈕。
     @ViewBuilder
     var addButton: some View {
         let button = Button {
@@ -211,12 +211,12 @@ private extension VocabularyView {
         } label: {
             Image(systemName: "plus")
                 .font(Token.Fonts.icon.weight(.semibold))
-                .foregroundStyle(Token.Colors.actionInk)
+                .foregroundStyle(Token.Colors.onAccent)
                 .frame(width: Token.Shape.minTap, height: Token.Shape.minTap)
         }
         .controlSize(.large)
         .buttonBorderShape(.circle)
-        .tint(Token.Colors.actionFill)
+        .tint(Token.Colors.accent)
         .accessibilityLabel("新增詞彙")
         .padding(Token.Space.l)
 

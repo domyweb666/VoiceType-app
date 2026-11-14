@@ -4,6 +4,7 @@ import SwiftUI
 /// 讀不到的篇數照 PRD 說「原檔已保留」，不自己清空。
 /// 片 D6「打開這篇」從錄音面板進來時先推到那一篇；返回落在清單，刪除照樣走「已刪除・復原」。
 /// 2026-11-07 統一風格：分「今天／本週／更早」、列是日期在上兩行預覽、空清單有玉米、狀態條統一。
+/// 2026-11-14 照 domy-design：列本來就是 domy 的 ListRow（日期在上、內容兩行），顏色與圓角跟著代號換。
 /// W6：照標籤篩、選幾篇合併成一篇，在 `TranscriptListView+Organize.swift`。
 struct TranscriptListView: View {
     /// 一組：標題與照時間排好的那幾篇。
@@ -165,6 +166,7 @@ private extension TranscriptListView {
     var emptyOverlay: some View {
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
         // 2026-11-08 米選原生：空狀態都用系統的 ContentUnavailableView（圖示、標題、說明、按鈕）。
+        // 2026-11-14 照 domy 的 EmptyState：下一步那顆是小的主要按鈕（這頁沒有別的主要按鈕）。
         // 不用系統內建的搜尋空狀態：它的字跟著 App 語系走，可能跑出英文。
         if visibleTranscripts.isEmpty, !keyword.isEmpty {
             ContentUnavailableView {
@@ -175,7 +177,7 @@ private extension TranscriptListView {
                 Button("清除搜尋") {
                     query = ""
                 }
-                .buttonStyle(TextButtonStyle())
+                .buttonStyle(PrimaryButtonStyle(isCompact: true))
             }
         } else if visibleTranscripts.isEmpty, let selectedTag {
             ContentUnavailableView {
@@ -186,7 +188,7 @@ private extension TranscriptListView {
                 Button("看全部") {
                     self.selectedTag = nil
                 }
-                .buttonStyle(TextButtonStyle())
+                .buttonStyle(PrimaryButtonStyle(isCompact: true))
             }
         } else if visibleTranscripts.isEmpty, unreadableCount == 0 {
             emptyState
@@ -211,7 +213,7 @@ private extension TranscriptListView {
                 Button("去錄音") {
                     onOpenHome()
                 }
-                .buttonStyle(TextButtonStyle())
+                .buttonStyle(PrimaryButtonStyle(isCompact: true))
             }
         }
     }
@@ -227,12 +229,12 @@ private extension TranscriptListView {
                 action: undoDeletion,
                 isFloating: true
             )
-            .padding(.horizontal, Token.Space.l)
+            .padding(.horizontal, Token.Space.screen)
             .padding(.bottom, Token.Space.s)
         } else if deleteFailed {
             // 清單有東西時空狀態那句不會出現，刪不掉要在這裡講，不然那篇像是自己跑回來。
             StatusStrip(glyph: .failed, message: "沒刪掉，這篇還在。再刪一次看看。")
-                .padding(.horizontal, Token.Space.l)
+                .padding(.horizontal, Token.Space.screen)
                 .padding(.bottom, Token.Space.s)
         }
     }

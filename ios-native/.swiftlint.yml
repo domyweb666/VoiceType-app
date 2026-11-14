@@ -5,6 +5,8 @@ included:
 excluded:
   - .build
   - DerivedData
+  # 從 domy-design 複製來的代號檔，由它的 build-swift 產生、不手改，格式照 domy 那邊
+  - MiSay/App/DomyTokens.swift
 
 opt_in_rules:
   - cyclomatic_complexity

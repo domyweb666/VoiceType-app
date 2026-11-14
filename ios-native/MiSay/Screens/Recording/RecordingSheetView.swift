@@ -191,16 +191,15 @@ private extension RecordingSheetView {
         .sensoryFeedback(Token.Haptics.copied, trigger: markCount)
     }
 
-    /// 錄音中＝紅點＋計時在跳＋「正在聽」三樣一起（使用規則第 4 條）。
+    /// 錄音中＝圓點＋計時在跳＋「正在聽」三樣一起（使用規則第 4 條）。
+    /// 2026-11-14 照 domy 的錄音畫面：圓點和字一起放進淡金膠囊，圓點用金棕不用紅。
     var listeningLine: some View {
-        HStack(spacing: Token.Space.s) {
+        AccentCapsule {
             Circle()
                 .fill(Token.Colors.recordingFill)
                 .frame(width: Token.Space.s, height: Token.Space.s)
                 .accessibilityHidden(true)
             Text(recorder.isWaitingForSound ? "接回去了，還沒聽到聲音" : "正在聽")
-                .font(Token.Fonts.secondary)
-                .foregroundStyle(Token.Colors.textSecondary)
         }
     }
 
@@ -217,7 +216,8 @@ private extension RecordingSheetView {
         }
     }
 
-    /// 80pt 紅鈕；外圈 1.4 秒呼吸一次（4pt → 12pt）。減少動態時不呼吸，紅點本來就在「正在聽」旁邊。
+    /// 80pt 金棕鈕（domy：進行中用產品色實心＋方塊）；外圈 1.4 秒呼吸一次（4pt → 12pt）。
+    /// 減少動態時不呼吸，圓點本來就在「正在聽」旁邊。
     var stopButton: some View {
         Button {
             stopRecording()
@@ -281,10 +281,7 @@ private extension RecordingSheetView {
     /// 開不起來或收不進去：走到這裡時已經沒在錄了，只剩「完成」。
     func failedContent(_ message: String) -> some View {
         VStack(spacing: Token.Space.m) {
-            Image(systemName: "exclamationmark.circle.fill")
-                .font(Token.Fonts.largeTitle)
-                .foregroundStyle(Token.Colors.danger)
-                .accessibilityHidden(true)
+            IconCircle.failure
             Text(message)
                 .font(Token.Fonts.body)
                 .foregroundStyle(Token.Colors.textPrimary)

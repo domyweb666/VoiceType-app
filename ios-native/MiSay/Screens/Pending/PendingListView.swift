@@ -55,11 +55,11 @@ struct PendingListView: View {
             // 清單還有東西時 overlay 不出現，刪不掉要另外講，不然按了像沒反應。
             if deleteFailed {
                 StatusStrip(glyph: .failed, message: "沒刪掉，錄音還在，再試一次。")
-                    .padding(.horizontal, Token.Space.l)
+                    .padding(.horizontal, Token.Space.screen)
                     .padding(.bottom, Token.Space.s)
             } else if processFailed {
                 StatusStrip(glyph: .failed, message: "這段沒整理成功，錄音還在。有網路、有金鑰時再試一次。")
-                    .padding(.horizontal, Token.Space.l)
+                    .padding(.horizontal, Token.Space.screen)
                     .padding(.bottom, Token.Space.s)
             }
         }

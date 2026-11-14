@@ -93,7 +93,7 @@ struct OriginalAudioSheet: View {
         )
         .id(paragraph.offset)
         .listRowBackground(
-            isPlayingHere ? Token.Colors.sunkenBackground : Token.Colors.rowBackground
+            isPlayingHere ? Token.Colors.accentSoft : Token.Colors.rowBackground
         )
     }
 

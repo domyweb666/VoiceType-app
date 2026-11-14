@@ -7,6 +7,7 @@ import SwiftUI
 /// 2026-11-02 米：左右滑換頁（11/08 改成底部分頁列 `RootTabView`），首頁不再有「文字稿」「⋯」兩顆鈕；面板的「打開這篇」「去設定」交給外層換頁。
 /// 2026-11-07 統一風格：錄音鈕改快門式（`RecordButtonLabel`）、提示改「按中間的鈕」、沒金鑰時鈕上方多一張卡。
 /// 2026-11-09 米：上緣多一行口述統計（`DictationStats.homeSummary`）；提示改成長錄音的講法。
+/// 2026-11-14 照 domy-design 的錄音畫面：統計那行是 InfoStrip、提示第一行升一級、左右邊距 20。
 struct HomeView: View {
     /// 外層的三頁現在停在首頁。從設定頁滑回來時要重看金鑰在不在。
     let isCurrentPage: Bool
@@ -212,23 +213,23 @@ private extension HomeView {
             )
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, Token.Space.l)
+        .padding(.horizontal, Token.Space.screen)
         .padding(.top, Token.Space.s)
     }
 
-    /// 一行小字放在凹槽底上，只給人看、不能按（能按的才用金色）；完整的四格卡在設定頁。
+    /// domy 的 InfoStrip：一行小字放在凹槽底上，只給人看、不能按；完整的四格卡在設定頁。
     func statsRow(_ line: String) -> some View {
         Text(line)
             .font(Token.Fonts.secondary)
             .foregroundStyle(Token.Colors.textSecondary)
             .multilineTextAlignment(.center)
             .padding(.vertical, Token.Space.s)
-            .padding(.horizontal, Token.Space.m)
+            .padding(.horizontal, Token.Space.l)
             .background(
                 Token.Colors.sunkenBackground,
                 in: RoundedRectangle(cornerRadius: Token.Shape.radiusField)
             )
-            .padding(.horizontal, Token.Space.l)
+            .padding(.horizontal, Token.Space.screen)
             .padding(.top, Token.Space.s)
     }
 
@@ -240,9 +241,9 @@ private extension HomeView {
     }
 
     var firstTimeHint: some View {
-        VStack(spacing: Token.Space.s) {
+        VStack(spacing: Token.Space.xs) {
             Text("按中間的鈕，開始講")
-                .font(Token.Fonts.rowTitle)
+                .font(Token.Fonts.sectionTitle)
                 .foregroundStyle(Token.Colors.textPrimary)
             Text("講多久都可以，講完會整理成文字稿。")
                 .font(Token.Fonts.secondary)
@@ -283,7 +284,7 @@ private extension HomeView {
         // iOS 26 會替 NavigationLink 套一層灰色的系統按鈕底，比白卡片大一圈、看起來像被蓋住；
         // 卡片自己有底，關掉系統那層（2026-11-02 米真機截圖）。
         .buttonStyle(.plain)
-        .padding(.horizontal, Token.Space.l)
+        .padding(.horizontal, Token.Space.screen)
         .padding(.bottom, Token.Space.l)
     }
 }

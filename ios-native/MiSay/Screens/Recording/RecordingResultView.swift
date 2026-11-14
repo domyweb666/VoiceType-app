@@ -237,7 +237,7 @@ private extension RecordingResultView {
             HStack(spacing: Token.Space.s) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(Token.Fonts.icon)
-                    .foregroundStyle(Token.Colors.link)
+                    .foregroundStyle(Token.Colors.accent)
                     .accessibilityHidden(true)
                 Text(isCopied ? "好了，已經複製" : "好了")
                     .font(Token.Fonts.sectionTitle)
@@ -267,18 +267,16 @@ private extension RecordingResultView {
             )
     }
 
+    /// 跟 `IconCircle` 同一個淡金圓（domy 的空狀態圖示），裡面轉圈。
     var spinner: some View {
         ProgressView()
-            .tint(Token.Colors.link)
+            .tint(Token.Colors.accent)
             .frame(width: Token.Shape.iconCircle, height: Token.Shape.iconCircle)
-            .background(Token.Colors.sunkenBackground, in: Circle())
+            .background(Token.Colors.accentSoft, in: Circle())
     }
 
     var failureIcon: some View {
-        Image(systemName: "exclamationmark.circle.fill")
-            .font(Token.Fonts.largeTitle)
-            .foregroundStyle(Token.Colors.danger)
-            .accessibilityHidden(true)
+        IconCircle.failure
     }
 
     func message(_ text: String) -> some View {
