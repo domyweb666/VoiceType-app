@@ -46,7 +46,9 @@ enum EditLearningRunner {
             return true
         }
         let hunks = EditDiff.hunks(from: edit.from, to: edit.to)
-        if !hunks.isEmpty {
+        if hunks.isEmpty {
+            report(hunkCount: 0, addedWords: 0, failed: false, settings: settings)
+        } else {
             do {
                 let result = try await learner.learn(
                     from: hunks,
@@ -57,6 +59,7 @@ enum EditLearningRunner {
                 apply(result, hunkCount: hunks.count, settings: settings)
             } catch {
                 DiagnosticLog.shared.record("從修改學習沒成功：\(error)")
+                report(hunkCount: hunks.count, addedWords: 0, failed: true, settings: settings)
                 return false
             }
         }
@@ -69,9 +72,21 @@ enum EditLearningRunner {
         if settings.learnFromEdits {
             settings.learnedHabits = result.habits
         }
+        report(hunkCount: hunkCount, addedWords: added.count, failed: false, settings: settings)
         // 診斷紀錄只記數字，不記詞與習慣的內容（關於米說那頁的承諾）。
         DiagnosticLog.shared.record(
             "從修改學習：\(hunkCount) 處修改，加 \(added.count) 個詞，習慣 \(settings.learnedHabits.count) 條"
+        )
+    }
+
+    /// 「從修改學習」頁那一行「上次」。
+    private static func report(hunkCount: Int, addedWords: Int, failed: Bool, settings: AppSettings) {
+        settings.lastLearningReport = LearningReport(
+            date: .now,
+            hunkCount: hunkCount,
+            addedWords: addedWords,
+            habitCount: settings.learnedHabits.count,
+            failed: failed
         )
     }
 

@@ -73,7 +73,8 @@ struct EditLearner {
     static func systemPrompt(wantsHabits: Bool) -> String {
         let habitRule = wantsHabits
             ? """
-            habits：這個人改稿的習慣，寫成給潤飾用的指示，每條一句、具體做得到（例如「數字一律寫阿拉伯數字」）。\
+            habits：這個人改稿的習慣，寫成給潤飾用的指示，每條一句、具體做得到。\
+            每一條都要在這次的修改或目前的清單裡找得到根據，沒有根據的不要寫。\
             會給你目前的清單：有新證據才新增或改寫，跟這次修改無關的條目原樣留著，總共最多 \(maxHabits) 條。\
             只出現一次、看不出規律的修改不要寫成習慣；專有名詞寫對不算習慣。
             """

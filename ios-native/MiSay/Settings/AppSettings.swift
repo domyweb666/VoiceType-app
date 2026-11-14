@@ -25,6 +25,7 @@ final class AppSettings {
         static let lastAutoVocabularyAt = "lastAutoVocabularyAt"
         static let learnFromEdits = "learnFromEdits"
         static let learnedHabits = "learnedHabits"
+        static let lastLearningReport = "lastLearningReport"
     }
 
     /// 自動加入的詞最多留幾個：轉錄提示詞整段只能 200 字，詞太多會被截掉。
@@ -49,6 +50,8 @@ final class AppSettings {
         lastAutoVocabularyAt = defaults.object(forKey: Key.lastAutoVocabularyAt) as? Date
         learnFromEdits = defaults.bool(forKey: Key.learnFromEdits)
         learnedHabits = defaults.stringArray(forKey: Key.learnedHabits) ?? []
+        lastLearningReport = defaults.data(forKey: Key.lastLearningReport)
+            .flatMap { try? JSONDecoder().decode(LearningReport.self, from: $0) }
     }
 
     /// 錄音面板「整理中」那句費用說明只出現第一次（06-首次體驗 錄音面板「第一次」）。
@@ -115,6 +118,16 @@ final class AppSettings {
     /// 學到的習慣，最多 10 條。只能刪，不給打字改（11/08「提示詞不給改」）。
     var learnedHabits: [String] {
         didSet { defaults.set(learnedHabits, forKey: Key.learnedHabits) }
+    }
+
+    /// 上次學習的結果（2026-11-15）；從沒學過是 nil。
+    var lastLearningReport: LearningReport? {
+        didSet {
+            defaults.set(
+                lastLearningReport.flatMap { try? JSONEncoder().encode($0) },
+                forKey: Key.lastLearningReport
+            )
+        }
     }
 
     /// 潤飾真的要用的習慣：開關關著就是空的；學到的留著，再打開馬上能用。

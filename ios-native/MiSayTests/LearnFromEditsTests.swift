@@ -130,6 +130,33 @@ final class LearnFromEditsTests: XCTestCase {
         XCTAssertEqual(Polisher.systemContent(prompt: "P", vocabulary: [], habits: []), "P")
     }
 
+    func test提示詞裡不放習慣的範例_免得被照抄() {
+        XCTAssertFalse(EditLearner.systemPrompt(wantsHabits: true).contains("阿拉伯數字"))
+    }
+
+    func test上次學習那句照結果寫() {
+        func report(_ hunks: Int, _ words: Int, failed: Bool = false) -> LearningReport {
+            LearningReport(
+                date: .now, hunkCount: hunks, addedWords: words, habitCount: 2, failed: failed
+            )
+        }
+        XCTAssertEqual(report(3, 1).summary, "看了 3 處修改，加了 1 個詞，習慣現在 2 條。")
+        XCTAssertEqual(report(0, 0).summary, "只改了標點或空白，沒有送出去。")
+        XCTAssertTrue(report(3, 0, failed: true).summary.hasPrefix("沒送成功"))
+    }
+
+    func test上次學習的結果重開還在() throws {
+        let settings = try makeSettings()
+        XCTAssertNil(settings.lastLearningReport)
+        let report = LearningReport(
+            date: Date(timeIntervalSince1970: 1000), hunkCount: 2, addedWords: 1, habitCount: 0,
+            failed: false
+        )
+        settings.lastLearningReport = report
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        XCTAssertEqual(AppSettings(defaults: defaults).lastLearningReport, report)
+    }
+
     // MARK: - 工具
 
     private func makeSettings() throws -> AppSettings {

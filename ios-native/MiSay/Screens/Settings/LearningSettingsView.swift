@@ -40,11 +40,22 @@ struct LearningSettingsView: View {
                 }
             }
         } footer: {
-            Text(Self.note)
-                .font(Token.Fonts.footnote)
+            VStack(alignment: .leading, spacing: Token.Space.s) {
+                Text(Self.note)
+                if let report = settings.lastLearningReport {
+                    Text(Self.lastLine(report))
+                }
+            }
+            .font(Token.Fonts.footnote)
         }
         .font(Token.Fonts.body)
         .listRowBackground(Token.Colors.rowBackground)
+    }
+
+    /// 「上次（11月15日 上午12:09）：看了 3 處修改…」
+    static func lastLine(_ report: LearningReport) -> String {
+        let time = report.date.formatted(date: .abbreviated, time: .shortened)
+        return "上次（\(time)）：" + report.summary
     }
 
     static let note = "你改完文字稿離開時，米說會把改過的那幾段（不是整篇）送去判斷。"
@@ -64,9 +75,15 @@ struct LearnedHabitsView: View {
                     Text(habit)
                         .font(Token.Fonts.body)
                         .foregroundStyle(Token.Colors.textPrimary)
-                }
-                .onDelete { offsets in
-                    settings.learnedHabits.remove(atOffsets: offsets)
+                        // 2026-11-15 米：左滑刪不掉。換成明確的左滑鈕，長按也能刪，兩條路。
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button("刪掉", role: .destructive) { remove(habit) }
+                        }
+                        .contextMenu {
+                            Button("刪掉這條", systemImage: "trash", role: .destructive) {
+                                remove(habit)
+                            }
+                        }
                 }
             } footer: {
                 Text(footer)
@@ -109,11 +126,15 @@ struct LearnedHabitsView: View {
         }
     }
 
+    private func remove(_ habit: String) {
+        settings.learnedHabits.removeAll { $0 == habit }
+    }
+
     private var footer: String {
         guard !settings.learnedHabits.isEmpty else {
             return ""
         }
         let state = settings.learnFromEdits ? "潤飾時會照這些做。" : "「從我的修改學習」關著，現在不會用。"
-        return state + "左滑可以刪掉一條；刪掉的之後有新的修改還可能再學回來。"
+        return state + "左滑或長按可以刪掉一條；刪掉的之後有新的修改還可能再學回來。"
     }
 }
