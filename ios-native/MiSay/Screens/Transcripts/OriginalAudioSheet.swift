@@ -6,6 +6,7 @@ import SwiftUI
 /// 時間對得上），播到哪句就把那句標出來、還沒講到的字變淡；重點是按下去那句加前一句，在口語稿裡畫底線。
 /// 轉錄不給每句話的時間（gpt-transcribe 沒有時間戳），位置是在每 5 分鐘一段裡照字數估的（`SpokenTimeline`），
 /// 會差幾秒，所以從前 3 秒開始放。錄音已經刪了（超過 7 天）的篇只列重點與口語稿，不能播。
+/// 播放列與播放的動作在 `OriginalAudioSheet+Playback.swift`（型別超過 200 行，SwiftLint 會擋）。
 struct OriginalAudioSheet: View {
     let transcript: Transcript
     let audioURL: URL?
@@ -16,10 +17,11 @@ struct OriginalAudioSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var player: AVAudioPlayer?
-    @State private var isPlaying = false
-    @State private var currentTime: Double = 0
-    @State private var loadFailed = false
+    /// 這四個播放狀態不加 private：播放的動作在 `OriginalAudioSheet+Playback.swift`。
+    @State var player: AVAudioPlayer?
+    @State var isPlaying = false
+    @State var currentTime: Double = 0
+    @State var loadFailed = false
 
     static let leadInSeconds: Double = 3
     static let skipSeconds: Double = 15
@@ -164,89 +166,5 @@ struct OriginalAudioSheet: View {
             result += piece
         }
         return result
-    }
-
-    @ViewBuilder
-    private var controls: some View {
-        if audioURL == nil {
-            StatusStrip(glyph: .note, message: Self.noAudioMessage)
-                .padding(Token.Space.l)
-        } else if loadFailed {
-            StatusStrip(glyph: .failed, message: "錄音打不開，文字稿不受影響。")
-                .padding(Token.Space.l)
-        } else {
-            HStack(spacing: Token.Space.xl) {
-                Button("往前 15 秒", systemImage: "gobackward.15") { skip(-Self.skipSeconds) }
-                Button(
-                    isPlaying ? "暫停" : "播放",
-                    systemImage: isPlaying ? "pause.fill" : "play.fill"
-                ) {
-                    if isPlaying {
-                        pause()
-                    } else {
-                        play(from: currentTime)
-                    }
-                }
-                Button("往後 15 秒", systemImage: "goforward.15") { skip(Self.skipSeconds) }
-                Text(RecordingSheetView.formatElapsed(currentTime))
-                    .font(Token.Fonts.secondary)
-                    .monospacedDigit()
-            }
-            .labelStyle(.iconOnly)
-            .font(Token.Fonts.rowTitle)
-            .tint(Token.Colors.link)
-            .padding(Token.Space.l)
-            .frame(maxWidth: .infinity)
-            .background(Token.Colors.rowBackground)
-        }
-    }
-
-    private func play(from seconds: Double) {
-        guard let player = loadedPlayer() else {
-            return
-        }
-        player.currentTime = min(max(0, seconds), player.duration)
-        player.play()
-        isPlaying = true
-        currentTime = player.currentTime
-    }
-
-    private func pause() {
-        player?.pause()
-        isPlaying = false
-    }
-
-    private func skip(_ seconds: Double) {
-        play(from: currentTime + seconds)
-    }
-
-    /// 第一次按才開檔：只是打開這頁看重點的人不用等。
-    private func loadedPlayer() -> AVAudioPlayer? {
-        if let player {
-            return player
-        }
-        guard let audioURL else {
-            return nil
-        }
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-            let loaded = try AVAudioPlayer(contentsOf: audioURL)
-            player = loaded
-            return loaded
-        } catch {
-            loadFailed = true
-            return nil
-        }
-    }
-
-    /// 播放進度一秒更新四次（一句話兩三秒，半秒一次會慢半拍）；頁面關掉，`.task` 被取消就停。
-    private func tick() async {
-        while !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(Self.tickMilliseconds))
-            if let player {
-                currentTime = player.currentTime
-                isPlaying = player.isPlaying
-            }
-        }
     }
 }
