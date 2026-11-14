@@ -80,7 +80,12 @@ enum EditLearningRunner {
     }
 
     /// 「從修改學習」頁那一行「上次」。
-    private static func report(hunkCount: Int, addedWords: Int, failed: Bool, settings: AppSettings) {
+    private static func report(
+        hunkCount: Int,
+        addedWords: Int,
+        failed: Bool,
+        settings: AppSettings
+    ) {
         settings.lastLearningReport = LearningReport(
             date: .now,
             hunkCount: hunkCount,
