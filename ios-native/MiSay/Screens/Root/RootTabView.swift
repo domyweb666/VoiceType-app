@@ -23,7 +23,8 @@ struct RootTabView: View {
         TabView(selection: $page) {
             NavigationStack {
                 TranscriptListView(opening: openingTranscript, onOpenHome: { page = .home })
-                    .id(openingTranscript?.id)
+                    // 引 2：按「重看教學」也重建一次，同一篇才會再被推進去。
+                    .id([openingTranscript?.id.uuidString ?? "", String(coach.replayRequests)])
             }
             .tabItem { Label("文字稿", systemImage: "doc.text") }
             .tag(Page.transcripts)
@@ -46,6 +47,7 @@ struct RootTabView: View {
         }
         .tint(Token.Colors.link)
         .overlay { CoachOverlay(coach: coach) }
+        .onChange(of: coach.replayRequests) { _, _ in replayTour() }
         .environment(coach)
         // S4-3：點了「文字稿好了」通知。冷啟動時 id 在畫面出來前就到了，onChange 看不到，要 onAppear 補。
         .onAppear { openFromNotification(NotificationRouter.shared.openTranscriptID) }
@@ -86,6 +88,16 @@ struct RootTabView: View {
         // 那篇讀不到（剛好被刪了）就停在原本的分頁，什麼都不做。
         let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
         guard let transcript = transcripts.first(where: { $0.id == id }) else {
+            return
+        }
+        open(transcript)
+    }
+
+    /// 引 2：設定頁按了「重看教學」。切到文字稿、打開最新一篇錄音整理好的，那一頁出現時引導自己開始。
+    private func replayTour() {
+        let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
+        guard let transcript = CoachTour.replayTranscript(in: transcripts) else {
+            coach.cancelReplay()
             return
         }
         open(transcript)

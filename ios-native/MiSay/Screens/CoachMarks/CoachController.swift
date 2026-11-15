@@ -11,6 +11,10 @@ final class CoachController {
     let steps: [CoachStep]
     private(set) var stepIndex = 0
     private(set) var isActive = false
+    /// 設定頁按了「重看教學」、還沒開始：下一個出現的文字稿詳情頁不管看沒看過都開始。
+    private(set) var wantsReplay = false
+    /// 每按一次加一。根畫面看到它變了就切到文字稿、打開最新一篇。
+    private(set) var replayRequests = 0
     /// 目標元件回報的螢幕座標（`CoachTarget`）。沒回報的那一步不挖洞，說明卡照樣出現。
     var frames: [String: CGRect] = [:]
     private let defaults: UserDefaults
@@ -43,8 +47,23 @@ final class CoachController {
         guard !isActive, !steps.isEmpty else {
             return
         }
+        wantsReplay = false
         stepIndex = 0
         isActive = true
+    }
+
+    /// 設定頁「重看教學」。引導正在跑就不理。
+    func requestReplay() {
+        guard !isActive else {
+            return
+        }
+        wantsReplay = true
+        replayRequests += 1
+    }
+
+    /// 找不到可以帶引導的文字稿：收回剛才那次要求，免得之後打開別篇突然開始。
+    func cancelReplay() {
+        wantsReplay = false
     }
 
     /// 下一步；已經是最後一步就結束。

@@ -82,6 +82,41 @@ final class CoachMarksTests: XCTestCase {
         XCTAssertFalse(coach.hasCompleted)
     }
 
+    func test重看教學看過也能再開始() {
+        let coach = CoachController(defaults: defaults)
+        coach.startIfFirstTime()
+        coach.skip()
+        coach.requestReplay()
+        XCTAssertTrue(coach.wantsReplay)
+        XCTAssertEqual(coach.replayRequests, 1)
+        coach.start()
+        XCTAssertFalse(coach.wantsReplay)
+        XCTAssertEqual(coach.currentStep?.id, "hello")
+        coach.requestReplay()
+        XCTAssertEqual(coach.replayRequests, 1, "引導正在跑，再按不算")
+    }
+
+    func test重看教學找不到文字稿就收回() {
+        let coach = CoachController(defaults: defaults)
+        coach.requestReplay()
+        coach.cancelReplay()
+        XCTAssertFalse(coach.wantsReplay)
+        XCTAssertFalse(coach.isActive)
+    }
+
+    func test重看教學打開最新一篇錄音整理好的() {
+        let unpolished = Transcript(durationSeconds: 30, rawText: "還沒整理")
+        let written = Transcript.blankDraft()
+        let newest = Transcript(durationSeconds: 60, rawText: "口語稿", draftText: "文字稿")
+        let older = Transcript(durationSeconds: 90, rawText: "舊的口語稿", draftText: "舊的文字稿")
+        XCTAssertFalse(CoachTour.isEligible(unpolished))
+        XCTAssertFalse(CoachTour.isEligible(written))
+        XCTAssertTrue(CoachTour.isEligible(newest))
+        let picked = CoachTour.replayTranscript(in: [unpolished, written, newest, older])
+        XCTAssertEqual(picked?.id, newest.id)
+        XCTAssertNil(CoachTour.replayTranscript(in: [unpolished, written]))
+    }
+
     func test洞的四個數值進出動畫是同一組() {
         var shape = SpotlightShape(
             hole: CGRect(x: 10, y: 20, width: 30, height: 40),

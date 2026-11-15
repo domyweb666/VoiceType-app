@@ -20,6 +20,16 @@ enum CoachTour {
     static let copyTarget = "detail.copy"
     static let moreTarget = "detail.more"
 
+    /// 錄音整理好的文字稿才帶引導。還沒整理的、自己開的新文稿（鍵盤會自己升起來）不帶。
+    static func isEligible(_ transcript: Transcript) -> Bool {
+        transcript.draftText != nil && !transcript.isWritten
+    }
+
+    /// 「重看教學」要打開哪一篇：清單裡（最新在上）第一篇帶得了引導的。一篇都沒有就是 nil。
+    static func replayTranscript(in transcripts: [Transcript]) -> Transcript? {
+        transcripts.first(where: isEligible)
+    }
+
     static let steps: [CoachStep] = [
         CoachStep(
             id: "hello",

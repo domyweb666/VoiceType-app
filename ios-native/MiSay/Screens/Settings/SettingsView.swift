@@ -9,6 +9,9 @@ struct SettingsView: View {
     @Bindable private var settings = AppSettings.shared
     @State private var hasAPIKey = false
     @State private var stats: DictationStats?
+    /// 引 2：有沒有一篇錄音整理好的文字稿可以拿來重看教學。
+    @State private var canReplayTour = false
+    @Environment(CoachController.self) private var coach: CoachController?
 
     var body: some View {
         Form {
@@ -29,6 +32,7 @@ struct SettingsView: View {
             }
             .listRowBackground(Token.Colors.rowBackground)
             polishSection
+            replayTourSection
             Section {
                 NavigationLink("進階") {
                     AdvancedSettingsView()
@@ -85,6 +89,19 @@ struct SettingsView: View {
         .listRowBackground(Token.Colors.rowBackground)
     }
 
+    /// 引 2：再看一次文字稿那一頁的引導。會切到「文字稿」分頁、打開最新一篇。
+    private var replayTourSection: some View {
+        Section {
+            Button("重看教學") { coach?.requestReplay() }
+                .foregroundStyle(canReplayTour ? Token.Colors.link : Token.Colors.textSecondary)
+                .disabled(!canReplayTour)
+        } footer: {
+            Text(canReplayTour ? Self.replayNote : Self.noReplayNote)
+                .font(Token.Fonts.footnote)
+        }
+        .listRowBackground(Token.Colors.rowBackground)
+    }
+
     /// 推入列右邊帶現況，讓人不用點進去就知道裡面有沒有東西。
     private func detailRow(_ title: String, value: String) -> some View {
         LabeledContent {
@@ -101,10 +118,14 @@ struct SettingsView: View {
         hasAPIKey = !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
         stats = transcripts.isEmpty ? nil : DictationStats(transcripts: transcripts)
+        canReplayTour = CoachTour.replayTranscript(in: transcripts) != nil
     }
 
     /// 兩種潤飾一句話講完。改了只影響之後錄的，整理好的不會被重做（11/08 重新潤飾拿掉了）。
     static let styleNote = "保留原聲只刪卡詞和重講，留住你講話的節奏；大幅潤飾會拆句、改語法，讀起來比較順。"
+
+    static let replayNote = "會打開最新一篇文字稿，帶你再看一次那一頁怎麼用。"
+    static let noReplayNote = "先錄一篇才有東西可以看。"
 
     /// 「0.1.4（5）」：版本號＋建置號，回報問題時對得上 TestFlight 那一版。
     static var versionText: String {
