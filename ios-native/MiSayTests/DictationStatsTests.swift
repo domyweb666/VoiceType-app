@@ -27,6 +27,20 @@ final class DictationStatsTests: XCTestCase {
         XCTAssertEqual(DictationStats(transcripts: [slow]).savedSeconds, 0)
     }
 
+    func test自己打的新文稿不算節省時間() {
+        // 2026-11-16 模擬器上：只有一篇自己打的五千多字，口述 0 字卻寫省了 2 小時 22 分。
+        var typed = Transcript.blankDraft()
+        typed.draftText = String(repeating: "字", count: 400)
+        XCTAssertEqual(DictationStats(transcripts: [typed]).savedSeconds, 0)
+
+        let spoken = Transcript(durationSeconds: 120, rawText: String(repeating: "字", count: 400))
+        XCTAssertEqual(
+            DictationStats(transcripts: [typed, spoken]).savedSeconds,
+            480,
+            accuracy: 0.001
+        )
+    }
+
     func test沒有錄音時速度是零() {
         XCTAssertEqual(DictationStats(transcripts: []).charactersPerMinute, 0)
     }

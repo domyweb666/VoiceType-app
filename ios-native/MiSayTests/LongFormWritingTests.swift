@@ -85,6 +85,19 @@ final class LongFormWritingTests: XCTestCase {
         XCTAssertEqual(headings.map(\.offset), [0, 11])
     }
 
+    func test從電腦貼來的換行_位置照樣對得上() {
+        // `\r\n` 在 Swift 是一個字。以前每一行多算一個，第二個標題會偏兩個字。
+        let pasted = "# 甲\r\n內文\r\n## 乙\r\n尾"
+        let headings = DraftOutline.headings(in: pasted)
+        XCTAssertEqual(headings.map(\.title), ["甲", "乙"])
+        XCTAssertEqual(headings.map(\.offset), [0, 7])
+        let characters = Array(pasted)
+        XCTAssertEqual(String(characters[7 ..< 11]), "## 乙")
+
+        let swapped = DraftOutline.moving(headings, from: 1, toOffset: 0, in: pasted)
+        XCTAssertEqual(swapped, "## 乙\r\n尾\r\n# 甲\r\n內文")
+    }
+
     func test沒有標題就列每段開頭() {
         let paragraphs = DraftOutline.paragraphs(in: "甲\n\n乙丙")
         XCTAssertEqual(paragraphs.map(\.title), ["甲", "乙丙"])

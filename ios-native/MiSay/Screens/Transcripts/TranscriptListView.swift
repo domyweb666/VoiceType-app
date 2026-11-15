@@ -58,7 +58,11 @@ struct TranscriptListView: View {
                             selectableRow(transcript, showsDate: showsDate)
                         } else {
                             NavigationLink {
-                                TranscriptDetailView(transcript: transcript, onDelete: softDelete)
+                                TranscriptDetailView(
+                                    transcript: transcript,
+                                    onDelete: softDelete,
+                                    onLeave: reload
+                                )
                             } label: {
                                 row(transcript, showsDate: showsDate)
                             }
@@ -91,7 +95,7 @@ struct TranscriptListView: View {
             organizeToolbar
         }
         .navigationDestination(item: $openedTranscript) { transcript in
-            TranscriptDetailView(transcript: transcript, onDelete: softDelete)
+            TranscriptDetailView(transcript: transcript, onDelete: softDelete, onLeave: reload)
         }
         .task {
             reload()

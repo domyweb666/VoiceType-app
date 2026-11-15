@@ -123,7 +123,7 @@ enum DraftOutline {
         for (index, start) in starts.enumerated() {
             let end = index + 1 < starts.count ? starts[index + 1] : characters.count
             let segment = Array(characters[start ..< end])
-            let trailing = segment.reversed().prefix { $0 == "\n" }.count
+            let trailing = segment.reversed().prefix { $0.isNewline }.count
             bodies.append(String(segment.dropLast(trailing)))
             gaps.append(String(segment.suffix(trailing)))
         }
@@ -143,14 +143,22 @@ enum DraftOutline {
             .replacingOccurrences(of: "\n", with: " ")
     }
 
-    /// 每一行與它從第幾個字開始。
+    /// 每一行與它從第幾個字開始。一個字一個字數：從電腦貼過來的稿子換行是 `\r\n`，Swift 當成一個字，
+    /// 用 `\n` 切再加行長會每行多算一個，游標越後面偏越多（2026-11-16 模擬器上量到）。
     private static func lines(of text: String) -> [(offset: Int, line: String)] {
         var result: [(offset: Int, line: String)] = []
-        var offset = 0
-        for line in text.components(separatedBy: "\n") {
-            result.append((offset, line))
-            offset += line.count + 1
+        var start = 0
+        var line = ""
+        for (offset, character) in text.enumerated() {
+            if character.isNewline {
+                result.append((start, line))
+                start = offset + 1
+                line = ""
+            } else {
+                line.append(character)
+            }
         }
+        result.append((start, line))
         return result
     }
 }

@@ -50,6 +50,9 @@ struct TranscriptDetailView: View {
 
     /// 刪除交給清單處理（它要顯示「已刪除・復原」）。
     let onDelete: (Transcript) -> Void
+    /// 離開這頁、該存該丟的都做完之後叫一次。清單靠它重讀：它自己回到畫面時讀的那次比這裡早，
+    /// 空白新文稿還沒丟、最後幾個字還沒存（2026-11-16 模擬器上看到空白那篇留在清單）。
+    let onLeave: () -> Void
 
     /// 秒數照設計檔「草稿每次停止打字 1 秒就存」。
     static let autosaveDelaySeconds: Double = 1
@@ -62,10 +65,15 @@ struct TranscriptDetailView: View {
         return "潤飾：\(title)・\(model)"
     }
 
-    init(transcript: Transcript, onDelete: @escaping (Transcript) -> Void) {
+    init(
+        transcript: Transcript,
+        onDelete: @escaping (Transcript) -> Void,
+        onLeave: @escaping () -> Void = {}
+    ) {
         _transcript = State(initialValue: transcript)
         _draftEdit = State(initialValue: transcript.draftText ?? "")
         self.onDelete = onDelete
+        self.onLeave = onLeave
     }
 
     var body: some View {
@@ -139,6 +147,7 @@ struct TranscriptDetailView: View {
                 discardIfBlank()
                 // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。
                 EditLearningRunner.start()
+                onLeave()
             }
     }
 

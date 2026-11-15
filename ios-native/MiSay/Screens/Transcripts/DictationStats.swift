@@ -9,13 +9,14 @@ struct DictationStats: Equatable {
 
     /// 口語稿的字數（講了多少），空白換行不算。
     let spokenCharacters: Int
-    /// 文字稿的字數（拿去用的那份），算「打字要打多久」用這個。
+    /// 文字稿的字數（拿去用的那份），算「打字要打多久」用這個。自己打的新文稿不算：那些字本來就是打的，沒省到。
     let writtenCharacters: Int
     let spokenSeconds: Double
 
     init(transcripts: [Transcript]) {
         spokenCharacters = transcripts.reduce(0) { $0 + Self.countCharacters($1.rawText) }
-        writtenCharacters = transcripts.reduce(0) { $0 + Self.countCharacters($1.displayText) }
+        writtenCharacters = transcripts.filter { !$0.isWritten }
+            .reduce(0) { $0 + Self.countCharacters($1.displayText) }
         spokenSeconds = transcripts.reduce(0) { $0 + max($1.durationSeconds, 0) }
     }
 
