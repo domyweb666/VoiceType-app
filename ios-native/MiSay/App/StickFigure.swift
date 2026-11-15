@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 戴玉米頭套的火柴人（2026-11-15 米選 A 整根玉米）。畫稿與動作庫在 `.uiux/04-手感/玉米火柴人動作庫.html`，
 /// 座標與關節角度跟它一樣：0° 垂直向下，正值往畫面右邊轉，手肘與膝蓋是相對上一節的角度。
-/// 動 1 待機（空清單），動 2 思考（整理中）、慶祝（好了）。開了減少動態或低耗電模式就停在一張，不重畫。
+/// 動 1 待機（空清單），動 2 思考（整理中）、慶祝（好了），引 1 揮手、往上指、鞠躬（引導說明卡）。開了減少動態或低耗電模式就停在一張，不重畫。
 /// 每個動作的數字在 `StickFigure+Poses.swift`，頭套畫在 `StickFigure+CornHead.swift`。
 struct StickFigure: View {
     enum Action {
@@ -12,6 +12,12 @@ struct StickFigure: View {
         case thinking
         /// 舉手跳兩下，之後舉著手站好。
         case cheering
+        /// 右手舉起來左右揮（引導第一步）。
+        case waving
+        /// 右手往上指、眼睛往上看（引導：洞在說明卡上面）。
+        case pointingUp
+        /// 低頭閉眼再抬起來（引導最後一步）。
+        case bowing
     }
 
     enum Mouth {

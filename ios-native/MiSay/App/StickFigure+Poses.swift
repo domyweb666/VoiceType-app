@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// 火柴人每個動作在第幾秒長什麼樣。關節角度與節奏照動作庫的 `ANIMS`（idle、think、cheer），
-/// 只有慶祝改過：動作庫是一直跳，這裡跳兩下就舉著手站好（完成面板會停很久，一直跳太吵）。
+/// 火柴人每個動作在第幾秒長什麼樣。關節角度與節奏照動作庫的 `ANIMS`（idle、think、cheer、wave、point 的 up、bow）。
+/// 改過兩個：慶祝在動作庫是一直跳，這裡跳兩下就舉著手站好（完成面板會停很久，一直跳太吵）；
+/// 鞠躬在動作庫會把上半身壓短，這裡只低頭閉眼（正面看不出彎腰，少兩個只有它用的欄位）。
 extension StickFigure.Pose {
     static let blinkPeriod: TimeInterval = 3.6
     static let blinkLength: TimeInterval = 0.14
@@ -25,12 +26,24 @@ extension StickFigure.Pose {
     private static let cheerWiggleDegrees: Double = 8
     /// 跳完之後手的抖動花多久停下來。
     private static let cheerSettleSeconds: Double = 0.4
+    private static let waveSpeed: Double = 9
+    private static let waveNodSpeed: Double = 4.5
+    private static let pointBounceSpeed: Double = 5
+    /// 鞠躬一輪 2.6 秒：0.45 秒低下去，停到 1.5 秒，2 秒抬回來。
+    private static let bowPeriod: Double = 2.6
+    private static let bowDownSeconds: Double = 0.45
+    private static let bowRiseStart: Double = 1.5
+    private static let bowRiseEnd: Double = 2
+    private static let bowLowestSeconds: Double = 1
 
     static func moving(for action: StickFigure.Action, at seconds: TimeInterval) -> Self {
         switch action {
         case .idle: idle(at: seconds)
         case .thinking: thinking(at: seconds)
         case .cheering: cheering(at: seconds)
+        case .waving: waving(at: seconds)
+        case .pointingUp: pointingUp(at: seconds)
+        case .bowing: bowing(at: seconds)
         }
     }
 
@@ -43,6 +56,12 @@ extension StickFigure.Pose {
             thinking(at: 0)
         case .cheering:
             cheering(at: cheerPeriod * Double(cheerJumps) + cheerSettleSeconds, breathes: false)
+        case .waving:
+            waving(at: 0)
+        case .pointingUp:
+            pointingUp(at: 0)
+        case .bowing:
+            bowing(at: bowLowestSeconds)
         }
     }
 
@@ -107,6 +126,62 @@ extension StickFigure.Pose {
             pose.breathe(at: seconds, strength: settled)
         }
         return pose
+    }
+
+    /// 揮手：右手舉起來，前臂左右擺，頭跟著點。
+    static func waving(at seconds: TimeInterval) -> Self {
+        var pose = Self()
+        pose.rightShoulder = 110
+        pose.rightElbow = 40 + 22 * sin(seconds * waveSpeed)
+        pose.leftShoulder = -16
+        pose.leftElbow = -6
+        pose.headTilt = 5 + 2 * sin(seconds * waveNodSpeed)
+        pose.lean = 2
+        pose.browAngle = 5
+        pose.browDrop = -1
+        pose.headDrop = CGFloat(-sin(seconds * waveNodSpeed))
+        return pose
+    }
+
+    /// 往上指：右手舉過頭，眼睛往上看，整個人輕輕一頓一頓。
+    static func pointingUp(at seconds: TimeInterval) -> Self {
+        let bounce = CGFloat(-1.5 * sin(seconds * pointBounceSpeed))
+        var pose = Self()
+        pose.rightShoulder = 105
+        pose.rightElbow = 62
+        pose.leftShoulder = -40
+        pose.leftElbow = 100
+        pose.headDrop = bounce
+        pose.shoulderDrop = bounce
+        pose.headTilt = -4
+        pose.gaze = CGSize(width: 1, height: -3)
+        pose.browAngle = 4
+        return pose
+    }
+
+    /// 鞠躬：雙手放下，頭低下去、眼睛閉起來，停一下再抬回來。
+    static func bowing(at seconds: TimeInterval) -> Self {
+        let cycle = seconds.truncatingRemainder(dividingBy: bowPeriod)
+        let depth = smooth(0, bowDownSeconds, cycle) * (1 - smooth(bowRiseStart, bowRiseEnd, cycle))
+        let eyeRange = StickFigure.openEyeHeight - StickFigure.closedEyeHeight
+        let eyeClose = eyeRange * smooth(0.4, 0.8, depth)
+        var pose = Self()
+        pose.leftShoulder = -12
+        pose.leftElbow = -4
+        pose.rightShoulder = 12
+        pose.rightElbow = 4
+        pose.headDrop = CGFloat(8 * depth)
+        pose.shoulderDrop = CGFloat(3 * depth)
+        pose.gaze = CGSize(width: 0, height: 6 * depth)
+        pose.eyeHeight = StickFigure.openEyeHeight - eyeClose
+        pose.browDrop = CGFloat(2 * depth)
+        return pose
+    }
+
+    /// 0 到 1 的平滑過渡（動作庫的 `ss`）：`value` 在 `start` 之前是 0、`end` 之後是 1。
+    private static func smooth(_ start: Double, _ end: Double, _ value: Double) -> Double {
+        let ratio = min(1, max(0, (value - start) / (end - start)))
+        return ratio * ratio * (3 - 2 * ratio)
     }
 
     private mutating func breathe(at seconds: TimeInterval, strength: Double) {

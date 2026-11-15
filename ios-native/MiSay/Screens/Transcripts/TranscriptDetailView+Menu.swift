@@ -91,6 +91,7 @@ extension TranscriptDetailView {
             }
         } label: {
             Image(systemName: "ellipsis")
+                .coachTarget(CoachTour.moreTarget)
         }
         .accessibilityLabel("更多")
     }

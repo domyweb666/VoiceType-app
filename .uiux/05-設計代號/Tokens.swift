@@ -51,6 +51,9 @@ enum Token {
         static let actionRing = Color("動作-外環")
         /// 陰影的底色；透明度在 `Elevation`
         static let shadow = DomyTokens.Neutral.shadow
+        /// 聚光燈引導的黑幕與壓在黑幕上的字；透明度在 `Coach`
+        static let scrim = Color.black
+        static let onScrim = Color.white
         /// 錄音中（domy：進行中用產品色實心，不用紅）
         static let recordingFill = Color("強調-可點")
         static let recordingGlyph = Color("強調-上字")
@@ -154,6 +157,31 @@ enum Token {
             }
             return isPressed ? pressedOpacity : 1
         }
+    }
+
+    /// 聚光燈引導（`Screens/CoachMarks`）。數值照〈聚光燈引導實作規格〉第 5 節，規格說的 `CoachStyle` 就是這裡
+    enum Coach {
+        static let scrimOpacity: Double = 0.55
+        static let scrimOpacityDark: Double = 0.65
+        static let skipFillOpacity: Double = 0.5 // 「跳過教學」膠囊的底
+        static let holePadding: CGFloat = 8 // 洞比目標四邊各多出來多少
+        static let holeRadius: CGFloat = 16 // 圓形按鈕改用洞高的一半
+        static let glowWidth: CGFloat = 3
+        static let glowRadius: CGFloat = 12
+        static let glowOpacity: Double = 0.8
+        static let cardRadius = DomyTokens.Radius.xl // 20
+        static let cardMaxHeightShare: CGFloat = 0.4 // 說明卡最高佔螢幕四成，超過內文可捲
+        static let dot: CGFloat = 5 // 進度小點
+        static let dotGap: CGFloat = 4
+        static let dotCurrent: CGFloat = 14 // 目前那一步拉長
+        static let buttonHeight: CGFloat = 36 // 「知道了」；點擊範圍另外補到 `Shape.minTap`
+        static let bodyTargetHeight: CGFloat = 160 // 照亮正文時只照上面這一段
+        static let startDelay: Duration = .milliseconds(600) // 等推入動畫做完、目標回報位置
+        static let typeInterval: Duration = .milliseconds(30) // 打字機每個字
+        static let typePause: Duration = .milliseconds(120) // 標點後多停
+        static let holeMove = Animation.spring(response: 0.45, dampingFraction: 0.82)
+        static let fade = Animation.easeOut(duration: 0.25) // 黑幕淡入淡出；減少動態時洞也用它
+        static let cardSwap = Animation.easeOut(duration: 0.18)
     }
 
     /// 觸覺（事件命名；每種事件只對應一種）

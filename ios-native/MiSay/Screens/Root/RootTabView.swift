@@ -16,6 +16,8 @@ struct RootTabView: View {
     @Environment(TranscriptionQueue.self) private var queue
     /// K7：從語音備忘錄分享進來之後要講的那句。
     @State private var importMessage: String?
+    /// 引 1：聚光燈引導的狀態。黑幕蓋在三個分頁與分頁列上面，所以放這層。
+    @State private var coach = CoachController()
 
     var body: some View {
         TabView(selection: $page) {
@@ -43,6 +45,8 @@ struct RootTabView: View {
             .tag(Page.settings)
         }
         .tint(Token.Colors.link)
+        .overlay { CoachOverlay(coach: coach) }
+        .environment(coach)
         // S4-3：點了「文字稿好了」通知。冷啟動時 id 在畫面出來前就到了，onChange 看不到，要 onAppear 補。
         .onAppear { openFromNotification(NotificationRouter.shared.openTranscriptID) }
         .onChange(of: NotificationRouter.shared.openTranscriptID) { _, id in

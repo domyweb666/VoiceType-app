@@ -65,6 +65,8 @@ struct TranscriptDetailView: View {
         page
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(Token.Colors.rowBackground)
+            // 引 1：第一次打開錄音整理好的文字稿，帶一次聚光燈引導。
+            .modifier(CoachTourStart(transcript: transcript))
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
@@ -205,6 +207,7 @@ private extension TranscriptDetailView {
                 .accessibilityLabel("分享")
                 Button(action: copy) {
                     Image(systemName: "doc.on.doc")
+                        .coachTarget(CoachTour.copyTarget)
                 }
                 .accessibilityLabel("複製全文")
                 moreMenu
