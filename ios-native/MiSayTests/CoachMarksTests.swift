@@ -96,9 +96,11 @@ final class CoachMarksTests: XCTestCase {
     func test黑幕挖掉洞的那一塊() {
         let hole = CGRect(x: 100, y: 100, width: 80, height: 40)
         let shape = SpotlightShape(hole: hole, cornerRadius: Token.Coach.holeRadius)
-        let path = shape.path(in: CGRect(x: 0, y: 0, width: 400, height: 800))
-        XCTAssertTrue(path.contains(CGPoint(x: 20, y: 20), eoFill: true))
-        XCTAssertFalse(path.contains(CGPoint(x: 140, y: 120), eoFill: true))
+        // 用 CGPath 問：SwiftUI 的 `Path.contains(_:eoFill:)` 在 CI 上把洞裡的點也算在裡面（run 43713123124）。
+        let path = shape.path(in: CGRect(x: 0, y: 0, width: 400, height: 800)).cgPath
+        XCTAssertTrue(path.contains(CGPoint(x: 20, y: 20), using: .evenOdd))
+        XCTAssertFalse(path.contains(CGPoint(x: 140, y: 120), using: .evenOdd))
+        XCTAssertTrue(path.contains(CGPoint(x: 300, y: 600), using: .evenOdd))
     }
 
     func test打字機標點後多停一下() {
