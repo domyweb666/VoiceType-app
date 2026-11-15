@@ -112,6 +112,8 @@ enum Token {
         static let recordGlyph: CGFloat = 64 // 圓盤中間的麥克風（domy 錄音畫面）
         static let mascotWidth: CGFloat = 84 // 空清單那個戴玉米頭套的火柴人（`StickFigure`）
         static let mascotHeight: CGFloat = 168
+        static let mascotCompactWidth: CGFloat = 36 // 錄音面板整理中、好了那個小的
+        static let mascotCompactHeight: CGFloat = 72
     }
 
     /// 陰影：domy 兩級。錄音大鈕與浮在清單上的狀態條用第 2 級，導覽列的白圓鈕用第 1 級
@@ -164,7 +166,7 @@ enum Token {
     }
 }
 
-/// 角色色（不進介面語意層：不當文字色、不當按鈕色）。玉米插圖只在文字稿空清單與收成那一刻
+/// 角色色（不進介面語意層：不當文字色、不當按鈕色）。玉米出現在哪裡見使用規則第 3 條（2026-11-15 改）
 enum CharacterPalette {
     static let cornKernel = Color(red: 0.95, green: 0.76, blue: 0.31) // 玉米粒
     static let cornKernelShade = Color(red: 0.85, green: 0.65, blue: 0.18) // 玉米粒的暗面

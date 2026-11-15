@@ -141,7 +141,8 @@ struct RecordingResultView: View {
 private extension RecordingResultView {
     var processingContent: some View {
         VStack(spacing: Token.Space.m) {
-            spinner
+            // 動 2（2026-11-15 米：五片全做、使用規則第 3 條改）：轉圈換成托著下巴想的玉米人。
+            StickFigure(action: .thinking, isCompact: true)
             Text("整理中…")
                 .font(Token.Fonts.rowTitle)
                 .foregroundStyle(Token.Colors.textPrimary)
@@ -235,10 +236,8 @@ private extension RecordingResultView {
     func finishedContent(_ transcript: Transcript, isCopied: Bool) -> some View {
         VStack(spacing: Token.Space.m) {
             HStack(spacing: Token.Space.s) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(Token.Fonts.icon)
-                    .foregroundStyle(Token.Colors.accent)
-                    .accessibilityHidden(true)
+                // 動 2：打勾換成舉手跳兩下的玉米人。
+                StickFigure(action: .cheering, isCompact: true)
                 Text(isCopied ? "好了，已經複製" : "好了")
                     .font(Token.Fonts.sectionTitle)
                     .foregroundStyle(Token.Colors.textPrimary)
@@ -265,14 +264,6 @@ private extension RecordingResultView {
                 Token.Colors.sunkenBackground,
                 in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
             )
-    }
-
-    /// 跟 `IconCircle` 同一個淡金圓（domy 的空狀態圖示），裡面轉圈。
-    var spinner: some View {
-        ProgressView()
-            .tint(Token.Colors.accent)
-            .frame(width: Token.Shape.iconCircle, height: Token.Shape.iconCircle)
-            .background(Token.Colors.accentSoft, in: Circle())
     }
 
     var failureIcon: some View {

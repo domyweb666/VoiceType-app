@@ -15,8 +15,18 @@ extension StickFigure {
     private static let eyeWidth: CGFloat = 4.6
     private static let eyeCenterY: CGFloat = -48
     private static let eyeOffsetX: CGFloat = 11
+    /// 笑彎的眼睛：一道往上拱的弧，半寬 5、兩端比中心低 3、拱到中心上面 6。
+    private static let happyEyeHalfWidth: CGFloat = 5
+    private static let happyEyeEnds: CGFloat = 3
+    private static let happyEyeArch: CGFloat = 6
+    private static let browOffsetX: CGFloat = 12
+    private static let browCenterY: CGFloat = -61
+    private static let browHalfLength: CGFloat = 8
+    private static let mouthCenterY: CGFloat = -30
+    /// 眉毛和嘴跟著眼神動一半，看起來整張臉在轉。
+    private static let gazeFollow: CGFloat = 0.5
 
-    static func drawCornHead(eyeHeight: CGFloat, in context: GraphicsContext) {
+    static func drawCornHead(_ pose: Pose, in context: GraphicsContext) {
         let shade = GraphicsContext.Shading.color(CharacterPalette.cornKernelShade)
         let ink = GraphicsContext.Shading.color(Token.Colors.actionInk)
         let roundLine = StrokeStyle(lineWidth: silkWidth, lineCap: .round)
@@ -26,29 +36,84 @@ extension StickFigure {
         insideCob.clip(to: cob)
         insideCob.fill(kernels, with: shade)
         context.fill(husks, with: .color(CharacterPalette.cornHusk))
-        context.fill(eyes(height: eyeHeight), with: ink)
+        context.fill(faceFills(pose), with: ink)
         context.stroke(
-            browsAndSmile,
+            faceLines(pose),
             with: ink,
             style: StrokeStyle(lineWidth: faceLineWidth, lineCap: .round)
         )
     }
 
-    private static func eyes(height: CGFloat) -> Path {
+    /// 填滿的五官：睜著的眼睛（兩顆直的膠囊）、張開的嘴。
+    private static func faceFills(_ pose: Pose) -> Path {
         var path = Path()
-        for side: CGFloat in [-1, 1] {
-            let eye = CGRect(
-                x: side * eyeOffsetX - eyeWidth / 2,
-                y: eyeCenterY - height / 2,
-                width: eyeWidth,
-                height: height
+        if !pose.hasHappyEyes {
+            for side: CGFloat in [-1, 1] {
+                let eye = CGRect(
+                    x: side * eyeOffsetX + pose.gaze.width - eyeWidth / 2,
+                    y: eyeCenterY + pose.gaze.height - pose.eyeHeight / 2,
+                    width: eyeWidth,
+                    height: pose.eyeHeight
+                )
+                let corner = CGSize(width: eyeWidth / 2, height: min(eyeWidth, pose.eyeHeight) / 2)
+                path.addRoundedRect(in: eye, cornerSize: corner)
+            }
+        }
+        if pose.mouth == .open {
+            let center = mouthCenter(pose)
+            path.move(to: CGPoint(x: center.x - 7, y: center.y - 2))
+            path.addQuadCurve(
+                to: CGPoint(x: center.x + 7, y: center.y - 2),
+                control: CGPoint(x: center.x, y: center.y + 10)
             )
-            path.addRoundedRect(
-                in: eye,
-                cornerSize: CGSize(width: eyeWidth / 2, height: min(eyeWidth, height) / 2)
-            )
+            path.closeSubpath()
         }
         return path
+    }
+
+    /// 用線畫的五官：眉毛、笑彎的眼睛、微笑或抿嘴。
+    private static func faceLines(_ pose: Pose) -> Path {
+        var path = Path()
+        let browRadians = CGFloat(pose.browAngle * .pi / 180)
+        let browRun = browHalfLength * cos(browRadians)
+        let browRise = browHalfLength * sin(browRadians)
+        for side: CGFloat in [-1, 1] {
+            let browX = side * browOffsetX + pose.gaze.width * gazeFollow
+            let browY = browCenterY + pose.browDrop + pose.gaze.height * gazeFollow
+            path.move(to: CGPoint(x: browX - side * browRun, y: browY + browRise))
+            path.addLine(to: CGPoint(x: browX + side * browRun, y: browY - browRise))
+            if pose.hasHappyEyes {
+                let eyeX = side * eyeOffsetX + pose.gaze.width
+                let eyeY = eyeCenterY + pose.gaze.height
+                path.move(to: CGPoint(x: eyeX - happyEyeHalfWidth, y: eyeY + happyEyeEnds))
+                path.addQuadCurve(
+                    to: CGPoint(x: eyeX + happyEyeHalfWidth, y: eyeY + happyEyeEnds),
+                    control: CGPoint(x: eyeX, y: eyeY - happyEyeArch)
+                )
+            }
+        }
+        let center = mouthCenter(pose)
+        switch pose.mouth {
+        case .smile:
+            path.move(to: CGPoint(x: center.x - 6, y: center.y - 1))
+            path.addQuadCurve(
+                to: CGPoint(x: center.x + 6, y: center.y - 1),
+                control: CGPoint(x: center.x, y: center.y + 5)
+            )
+        case .flat:
+            path.move(to: CGPoint(x: center.x - 5, y: center.y))
+            path.addLine(to: CGPoint(x: center.x + 5, y: center.y))
+        case .open:
+            break
+        }
+        return path
+    }
+
+    private static func mouthCenter(_ pose: Pose) -> CGPoint {
+        CGPoint(
+            x: pose.gaze.width * gazeFollow,
+            y: mouthCenterY + pose.gaze.height * gazeFollow
+        )
     }
 
     private static let silk: Path = {
@@ -139,18 +204,6 @@ extension StickFigure {
             )
             path.closeSubpath()
         }
-        return path
-    }()
-
-    /// 兩道眉毛（外側稍微往上）加一個微笑。
-    private static let browsAndSmile: Path = {
-        var path = Path()
-        path.move(to: CGPoint(x: -20, y: -61.3))
-        path.addLine(to: CGPoint(x: -4, y: -60.7))
-        path.move(to: CGPoint(x: 4, y: -60.7))
-        path.addLine(to: CGPoint(x: 20, y: -61.3))
-        path.move(to: CGPoint(x: -6, y: -31))
-        path.addQuadCurve(to: CGPoint(x: 6, y: -31), control: CGPoint(x: 0, y: -25))
         return path
     }()
 }

@@ -195,7 +195,7 @@ private extension TranscriptListView {
         }
     }
 
-    /// 玉米只在這裡出現（使用規則第 3 條），當系統空狀態的圖。讀不到時不裝可愛，只講讀取失敗。
+    /// 玉米當系統空狀態的圖（使用規則第 3 條）。讀不到時不裝可愛，只講讀取失敗。
     /// 2026-11-15 動 1：靜態那根換成戴玉米頭套的火柴人（`StickFigure`），會輕輕晃、會眨眼。
     @ViewBuilder
     var emptyState: some View {
