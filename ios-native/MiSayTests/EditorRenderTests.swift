@@ -39,6 +39,42 @@ final class EditorRenderTests: XCTestCase {
         )
     }
 
+    /// 2026-11-15：設定裡打開「新的編輯框（試用）」再走一次同樣的路。v0.2.7 那次白畫面模擬器量不出來，
+    /// 這條過了不代表真機一定好，但至少擋得住「一打開就沒字」。
+    func test新的編輯框_打開_點進去_按完成_字都在() throws {
+        let settings = AppSettings.shared
+        let previous = settings.usesPlainEditor
+        settings.usesPlainEditor = true
+        defer { settings.usesPlainEditor = previous }
+        let transcript = Transcript(durationSeconds: 60, rawText: "口語", draftText: sample)
+        let detail = NavigationStack {
+            TranscriptDetailView(transcript: transcript, onDelete: { _ in })
+        }
+        .environment(TranscriptionQueue())
+        let window = show(detail)
+        let textView = try XCTUnwrap(Self.findTextView(in: window), "詳情頁裡找不到編輯框")
+        XCTAssertEqual(textView.text, sample)
+        XCTAssertGreaterThan(
+            Self.darkPixelCount(in: window, inside: textView),
+            200,
+            "剛打開：" + Self.describe(textView)
+        )
+        textView.becomeFirstResponder()
+        settle()
+        XCTAssertGreaterThan(
+            Self.darkPixelCount(in: window, inside: textView),
+            200,
+            "點進去：" + Self.describe(textView)
+        )
+        textView.resignFirstResponder()
+        settle()
+        XCTAssertGreaterThan(
+            Self.darkPixelCount(in: window, inside: textView),
+            200,
+            "按完成：" + Self.describe(textView)
+        )
+    }
+
     /// 對照組：同樣的擺法換成系統的 TextEditor（裡面也是 UITextView），確認這套量法本身找得到、畫得出來。
     func test對照組_系統編輯框找得到也畫得出字() throws {
         let window = show(SystemEditorHarness(text: sample))

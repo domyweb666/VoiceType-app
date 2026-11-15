@@ -42,7 +42,11 @@ struct TranscriptDetailView: View {
     /// 版本紀錄那張頁；下次該留版的時間（nil 是這次打開還沒留過）。
     @State var showsVersions = false
     @State var versionDueAt: Date?
-    @FocusState var isEditing: Bool
+    /// 2026-11-15：新的編輯框（試用）。打開這頁時讀一次，開著這頁不中途換。
+    @State var usesPlainEditor = AppSettings.shared.usesPlainEditor
+    /// 鍵盤是不是升著，一種編輯框一份：系統的看焦點，新的自己回報。要讀要寫都走 `isEditing`。
+    @State var isPlainEditing = false
+    @FocusState var isSystemEditorFocused: Bool
 
     /// 刪除交給清單處理（它要顯示「已刪除・復原」）。
     let onDelete: (Transcript) -> Void
@@ -154,7 +158,15 @@ private extension TranscriptDetailView {
             // iOS 18 起鍵盤上方多一排：格式（W5）、在這裡接著錄、選一段叫 AI 改（W4），在 `DraftEditor`；
             // iOS 17 拿不到選取範圍，只能打字。
             Group {
-                if #available(iOS 18, *) {
+                if usesPlainEditor {
+                    PlainDraftEditor(
+                        text: $draftEdit,
+                        canRecordHere: !isPolishing,
+                        onRecordHere: insertRecording(at:),
+                        isEditing: $isPlainEditing,
+                        jump: $jumpTarget
+                    )
+                } else if #available(iOS 18, *) {
                     DraftEditor(
                         text: $draftEdit,
                         canRecordHere: !isPolishing,
@@ -171,7 +183,7 @@ private extension TranscriptDetailView {
             .lineSpacing(Token.Space.lineSpacing)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
-            .focused($isEditing)
+            .focused($isSystemEditorFocused)
             // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
             // 上緣留一點白（米 11/09：第一行貼著頂上那排太近）。
             .padding(.horizontal, Token.Space.m)

@@ -26,6 +26,7 @@ final class AppSettings {
         static let learnFromEdits = "learnFromEdits"
         static let learnedHabits = "learnedHabits"
         static let lastLearningReport = "lastLearningReport"
+        static let usesPlainEditor = "usesPlainEditor"
     }
 
     /// 自動加入的詞最多留幾個：轉錄提示詞整段只能 200 字，詞太多會被截掉。
@@ -50,6 +51,7 @@ final class AppSettings {
         lastAutoVocabularyAt = defaults.object(forKey: Key.lastAutoVocabularyAt) as? Date
         learnFromEdits = defaults.bool(forKey: Key.learnFromEdits)
         learnedHabits = defaults.stringArray(forKey: Key.learnedHabits) ?? []
+        usesPlainEditor = defaults.bool(forKey: Key.usesPlainEditor)
         lastLearningReport = defaults.data(forKey: Key.lastLearningReport)
             .flatMap { try? JSONDecoder().decode(LearningReport.self, from: $0) }
     }
@@ -67,6 +69,11 @@ final class AppSettings {
     /// S4-2：錄音中先整理只用 Wi-Fi。預設關（米 11/08 照建議）：走路時沒有 Wi-Fi，開了等於沒有邊錄邊轉。
     var liveTranscriptionWiFiOnly: Bool {
         didSet { defaults.set(liveTranscriptionWiFiOnly, forKey: Key.liveTranscriptionWiFiOnly) }
+    }
+
+    /// 2026-11-15：文字稿用新的純文字編輯框（`PlainDraftEditor`）。試用中，預設關。
+    var usesPlainEditor: Bool {
+        didSet { defaults.set(usesPlainEditor, forKey: Key.usesPlainEditor) }
     }
 
     /// K4：錄音一直留著（預設關，照舊文字稿存好後留 7 天）。打開時，有文字稿的錄音壓成 m4a 留著。

@@ -21,6 +21,18 @@ extension TranscriptDetailView {
         goal.map { "字數目標：\($0.formatted()) 字" } ?? "字數目標…"
     }
 
+    /// 鍵盤是不是升著。兩種編輯框各記各的，其他地方只認這一個。
+    var isEditing: Bool {
+        get { usesPlainEditor ? isPlainEditing : isSystemEditorFocused }
+        nonmutating set {
+            if usesPlainEditor {
+                isPlainEditing = newValue
+            } else {
+                isSystemEditorFocused = newValue
+            }
+        }
+    }
+
     var progressText: String {
         Self.progress(
             count: DictationStats.countCharacters(currentText),

@@ -102,6 +102,22 @@ final class LongFormWritingTests: XCTestCase {
         XCTAssertTrue(DraftOutline.matches(of: "找不到", in: article).isEmpty)
     }
 
+    // MARK: 第三批：新的編輯框的位置換算
+
+    func test位置換算_有emoji時UTF16跟第幾個字不一樣() {
+        let text = "一😀二三"
+        // 😀 在 UTF-16 佔兩格：「二」是第 2 個字，UTF-16 從 3 開始。
+        func utf16(_ location: Int, _ length: Int) -> NSRange {
+            NSRange(location: location, length: length)
+        }
+        XCTAssertEqual(TextOffsets.characters(of: utf16(3, 1), in: text), 2 ..< 3)
+        XCTAssertEqual(TextOffsets.characters(of: utf16(5, 0), in: text), 4 ..< 4)
+        XCTAssertEqual(TextOffsets.utf16Range(of: 2 ..< 4, in: text), utf16(3, 2))
+        XCTAssertEqual(TextOffsets.utf16Range(of: 9 ..< 9, in: text), utf16(5, 0))
+        XCTAssertEqual(TextOffsets.clamped(utf16(4, 9), length: 5), utf16(4, 1))
+        XCTAssertEqual(TextOffsets.characters(of: utf16(99, 3), in: text), 4 ..< 4)
+    }
+
     // MARK: 第二批：版本紀錄、全部取代、整段搬動
 
     func test留版_跟AI那份一樣不留_重複不留_最多八版() {
