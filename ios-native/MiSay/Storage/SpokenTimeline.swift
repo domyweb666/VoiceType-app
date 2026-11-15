@@ -80,11 +80,12 @@ enum SpokenTimeline {
         if isPrecise(transcript), let timeline = transcript.timeline {
             return timeline
         }
-        return [TimelineSpan(
+        let whole = TimelineSpan(
             startSeconds: 0,
             endSeconds: transcript.durationSeconds,
             characterCount: transcript.rawText.count
-        )]
+        )
+        return [whole]
     }
 
     /// 口語稿第幾個字大約在第幾秒：找到它在哪一段，在那一段裡照字數比例。

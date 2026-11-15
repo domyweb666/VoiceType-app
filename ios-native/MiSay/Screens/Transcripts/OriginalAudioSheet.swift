@@ -166,6 +166,10 @@ struct OriginalAudioSheet: View {
         return result
     }
 
+}
+
+/// 底下那排播放鈕與播放本身（拆出來：主型別超過 200 行）。
+extension OriginalAudioSheet {
     @ViewBuilder
     private var controls: some View {
         if audioURL == nil {
