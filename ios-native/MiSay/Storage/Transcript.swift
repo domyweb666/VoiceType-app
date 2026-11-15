@@ -37,6 +37,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var timeline: [TimelineSpan]?
     /// 這篇想寫到幾個字（2026-11-15，寫長文用）。沒設是 nil。
     var goalCharacters: Int?
+    /// 改之前的樣子，舊的在前，最多 `maxVersions` 版（`DraftVersion.swift`）。沒留過是 nil。
+    var versions: [DraftVersion]?
     /// 改寫成別的格式存下來的那幾份，舊的在前（W1）。沒改寫過是 nil。
     var rewrites: [TranscriptRewrite]?
     /// 使用者加的標籤（W6），清單可以照標籤篩。沒加過是 nil。

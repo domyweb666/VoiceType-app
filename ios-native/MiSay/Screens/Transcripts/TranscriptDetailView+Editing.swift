@@ -40,12 +40,20 @@ extension TranscriptDetailView {
             return
         }
         var updated = transcript
+        // 這次打開第一次存、或連著改超過十分鐘：先把存檔裡那份（改之前的樣子）留一版。
+        let keepsVersion = isVersionDue
+        if keepsVersion {
+            updated.keepVersion()
+        }
         updated.draftText = draftEdit
         updated.updatedAt = Date()
         do {
             try TranscriptStore().save(updated)
             transcript = updated
             saveFailed = false
+            if keepsVersion {
+                markVersionKept()
+            }
         } catch {
             polishFailed = false
             saveFailed = true

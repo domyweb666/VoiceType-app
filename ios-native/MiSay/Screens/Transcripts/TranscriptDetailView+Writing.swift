@@ -85,7 +85,12 @@ extension TranscriptDetailView {
     }
 
     var outlineSheet: some View {
-        OutlineSheet(text: draftEdit, onJump: jump(to:))
+        OutlineSheet(
+            text: draftEdit,
+            onJump: jump(to:),
+            onReplaceAll: replaceAll(_:with:),
+            onReorder: reorder(to:)
+        )
     }
 
     /// 先升鍵盤再放游標：編輯框還沒拿到焦點時放的游標會被蓋掉。
@@ -98,7 +103,7 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 「⋯」裡寫長文用的兩列：大綱與尋找、字數目標。只有已經有文字稿的篇有。
+    /// 「⋯」裡寫長文用的三列：大綱與尋找、字數目標、版本紀錄。只有已經有文字稿的篇有。
     @ViewBuilder
     var writingMenuItems: some View {
         if transcript.draftText != nil {
@@ -117,6 +122,14 @@ extension TranscriptDetailView {
                 }
             } label: {
                 Label(Self.goalMenuTitle(transcript.goalCharacters), systemImage: "target")
+            }
+            Button {
+                showsVersions = true
+            } label: {
+                Label(
+                    Self.versionMenuTitle(count: transcript.versions?.count ?? 0),
+                    systemImage: "clock.arrow.circlepath"
+                )
             }
         }
     }

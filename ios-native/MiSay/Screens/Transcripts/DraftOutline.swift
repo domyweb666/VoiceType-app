@@ -77,6 +77,62 @@ enum DraftOutline {
         return entries
     }
 
+    /// 全部取代（不分大小寫）：回換好的整篇與換了幾處。這裡不設上限，列出來的那 200 處只是給人看的。
+    static func replacingAll(
+        _ query: String,
+        with replacement: String,
+        in text: String
+    ) -> (text: String, count: Int) {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        var result = ""
+        var count = 0
+        var cursor = text.startIndex
+        while !needle.isEmpty, cursor < text.endIndex {
+            let rest = cursor ..< text.endIndex
+            guard let found = text.range(of: needle, options: .caseInsensitive, range: rest),
+                  !found.isEmpty
+            else {
+                break
+            }
+            result.append(contentsOf: text[cursor ..< found.lowerBound])
+            result.append(replacement)
+            cursor = found.upperBound
+            count += 1
+        }
+        result.append(contentsOf: text[cursor...])
+        return (result, count)
+    }
+
+    /// 大綱裡把第 `source` 列拖到 `destination`（系統給的位置：還沒拿掉那一列之前算的）。
+    /// 每一列是從它開始到下一列之前的字；段與段中間的空行留在原位，搬的只有字。第一列之前的字不動。
+    static func moving(
+        _ entries: [Entry],
+        from source: Int,
+        toOffset destination: Int,
+        in text: String
+    ) -> String {
+        let characters = Array(text)
+        let starts = entries.map(\.offset)
+        guard entries.indices.contains(source), starts == starts.sorted(),
+              let head = starts.first, let tail = starts.last, tail <= characters.count
+        else {
+            return text
+        }
+        var bodies: [String] = []
+        var gaps: [String] = []
+        for (index, start) in starts.enumerated() {
+            let end = index + 1 < starts.count ? starts[index + 1] : characters.count
+            let segment = Array(characters[start ..< end])
+            let trailing = segment.reversed().prefix { $0 == "\n" }.count
+            bodies.append(String(segment.dropLast(trailing)))
+            gaps.append(String(segment.suffix(trailing)))
+        }
+        let moved = bodies.remove(at: source)
+        let target = destination > source ? destination - 1 : destination
+        bodies.insert(moved, at: min(max(target, 0), bodies.count))
+        return String(characters[..<head]) + zip(bodies, gaps).map { $0 + $1 }.joined()
+    }
+
     private static func preview(around found: Range<String.Index>, in text: String) -> String {
         let first = text.startIndex
         let start = text.index(found.lowerBound, offsetBy: -leadingContext, limitedBy: first)
