@@ -134,6 +134,13 @@ final class LearnFromEditsTests: XCTestCase {
         XCTAssertFalse(EditLearner.systemPrompt(wantsHabits: true).contains("阿拉伯數字"))
     }
 
+    /// 2026-11-15：米改了字、自動詞彙沒反應。原本只收專有名詞，放寬成讀音像的一般詞也收。
+    func test自動詞彙也收讀音像的一般詞() {
+        for wantsHabits in [true, false] {
+            XCTAssertTrue(EditLearner.systemPrompt(wantsHabits: wantsHabits).contains("讀音一樣或很像"))
+        }
+    }
+
     func test上次學習那句照結果寫() {
         func report(_ hunks: Int, _ words: Int, failed: Bool = false) -> LearningReport {
             LearningReport(
