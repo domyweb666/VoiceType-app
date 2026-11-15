@@ -1,0 +1,104 @@
+@testable import MiSay
+import XCTest
+
+/// 2026-11-15 米：光用手機就要能在編輯區打出五千字以上的長文。新文稿、復原重做、大綱與尋找、字數目標。
+final class LongFormWritingTests: XCTestCase {
+    // MARK: 新文稿
+
+    func test新文稿是空的文字稿_寫了字就不算空白() {
+        var draft = Transcript.blankDraft()
+        XCTAssertEqual(draft.draftText, "")
+        XCTAssertTrue(draft.isWritten)
+        XCTAssertTrue(draft.isBlankDraft)
+        draft.draftText = "  \n"
+        XCTAssertTrue(draft.isBlankDraft, "只有空白換行還是算沒寫")
+        draft.draftText = "第一句"
+        XCTAssertFalse(draft.isBlankDraft)
+        XCTAssertTrue(draft.isWritten)
+        XCTAssertEqual(TranscriptListView.lengthNote(for: draft), "自己打的")
+    }
+
+    func test空白新文稿接著錄_前面不多空兩行() {
+        var draft = Transcript.blankDraft()
+        draft.append(Transcript(durationSeconds: 60, rawText: "口語", draftText: "草稿"))
+        XCTAssertEqual(draft.draftText, "草稿")
+        XCTAssertEqual(draft.rawText, "口語")
+        XCTAssertFalse(draft.isWritten)
+    }
+
+    func test字數目標存得進去讀得出來() throws {
+        var draft = Transcript.blankDraft()
+        draft.goalCharacters = 5000
+        let data = try JSONEncoder().encode(draft)
+        XCTAssertEqual(try JSONDecoder().decode(Transcript.self, from: data).goalCharacters, 5000)
+        XCTAssertEqual(TranscriptDetailView.progress(count: 12, goal: nil), "12 字")
+        XCTAssertEqual(TranscriptDetailView.progress(count: 12, goal: 500), "12／500 字")
+    }
+
+    // MARK: 復原、重做
+
+    func test連著打的字算一步_停一下才是下一步() {
+        let start = Date(timeIntervalSince1970: 0)
+        var history = EditHistory()
+        history.record(from: "", to: "一", now: start)
+        history.record(from: "一", to: "一二", now: start.addingTimeInterval(0.5))
+        history.record(from: "一二", to: "一二三", now: start.addingTimeInterval(5))
+        XCTAssertEqual(history.undoStack, ["", "一二"])
+        XCTAssertEqual(history.undo(current: "一二三"), "一二")
+        // 編輯框回報「字變成一二」：那是復原放上去的，不算新的修改。
+        history.record(from: "一二三", to: "一二", now: start.addingTimeInterval(6))
+        XCTAssertTrue(history.canRedo)
+        XCTAssertEqual(history.undo(current: "一二"), "")
+        history.record(from: "一二", to: "", now: start.addingTimeInterval(7))
+        XCTAssertFalse(history.canUndo)
+        XCTAssertEqual(history.redo(current: ""), "一二")
+    }
+
+    func test一次差很多字自己一步_新的修改清掉重做() {
+        let start = Date(timeIntervalSince1970: 0)
+        let pasted = String(repeating: "貼", count: 30)
+        var history = EditHistory()
+        history.record(from: "", to: "一", now: start)
+        history.record(from: "一", to: "一" + pasted, now: start.addingTimeInterval(0.2))
+        XCTAssertEqual(history.undoStack, ["", "一"])
+        XCTAssertEqual(history.undo(current: "一" + pasted), "一")
+        history.record(from: "一" + pasted, to: "一", now: start.addingTimeInterval(1))
+        history.record(from: "一", to: "一新", now: start.addingTimeInterval(9))
+        XCTAssertFalse(history.canRedo)
+    }
+
+    func test復原後游標放在變動那段的後面() {
+        XCTAssertEqual(EditHistory.changeEnd(from: "一二三四五", to: "一二改四五"), 3)
+        XCTAssertEqual(EditHistory.changeEnd(from: "一二", to: "一二三四"), 4)
+        XCTAssertEqual(EditHistory.changeEnd(from: "一二三四", to: "一四"), 1)
+    }
+
+    // MARK: 大綱與尋找
+
+    private let article = ["# 第一章", "內文一", "", "## 小節", "內文 Apple apple", "#標籤不是標題"]
+        .joined(separator: "\n")
+
+    func test大綱照標題列_記得從第幾個字開始() {
+        let headings = DraftOutline.headings(in: article)
+        XCTAssertEqual(headings.map(\.title), ["第一章", "小節"])
+        XCTAssertEqual(headings.map(\.level), [1, 2])
+        XCTAssertEqual(headings.map(\.offset), [0, 11])
+    }
+
+    func test沒有標題就列每段開頭() {
+        let paragraphs = DraftOutline.paragraphs(in: "甲\n\n乙丙")
+        XCTAssertEqual(paragraphs.map(\.title), ["甲", "乙丙"])
+        XCTAssertEqual(paragraphs.map(\.offset), [0, 3])
+        XCTAssertTrue(DraftOutline.headings(in: "甲\n\n乙丙").isEmpty)
+    }
+
+    func test尋找不分大小寫_給每一處的位置與長度() {
+        let matches = DraftOutline.matches(of: " apple ", in: article)
+        XCTAssertEqual(matches.map(\.offset), [20, 26])
+        XCTAssertEqual(matches.map(\.length), [5, 5])
+        XCTAssertEqual(matches.first?.range, 20 ..< 25)
+        XCTAssertTrue(matches.first?.title.contains("Apple") ?? false)
+        XCTAssertTrue(DraftOutline.matches(of: "  ", in: article).isEmpty)
+        XCTAssertTrue(DraftOutline.matches(of: "找不到", in: article).isEmpty)
+    }
+}

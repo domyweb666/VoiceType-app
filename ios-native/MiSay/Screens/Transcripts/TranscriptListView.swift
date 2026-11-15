@@ -37,6 +37,8 @@ struct TranscriptListView: View {
     @State var isSelecting = false
     @State var selectedIDs: Set<UUID> = []
     @State var mergeFailed = false
+    /// 2026-11-15：新文稿存不進去。
+    @State var newDraftFailed = false
 
     init(opening transcript: Transcript? = nil, onOpenHome: @escaping () -> Void = {}) {
         openingTranscript = transcript
@@ -84,6 +86,7 @@ struct TranscriptListView: View {
         }
         .navigationTitle(selectedTag.map { "#" + $0 } ?? "文字稿")
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) { newDraftButton }
             ToolbarItem(placement: .topBarTrailing) { ImportAudioButton() }
             organizeToolbar
         }
@@ -95,6 +98,9 @@ struct TranscriptListView: View {
             openInitialTranscriptOnce()
         }
         .onDisappear { commitDeletionNow() }
+        .alert("新文稿沒開成，再按一次。", isPresented: $newDraftFailed) {
+            Button("好") {}
+        }
     }
 
     /// 搜尋只看內容（口語稿與文字稿都算），不分大小寫。
