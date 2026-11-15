@@ -39,6 +39,9 @@ struct TranscriptDetailView: View {
     @State var showsOutline = false
     @State var jumpTarget: Range<Int>?
     @State var isLeavingToRecord = false
+    /// 版本紀錄那張頁；下次該留版的時間（nil 是這次打開還沒留過）。
+    @State var showsVersions = false
+    @State var versionDueAt: Date?
     @FocusState var isEditing: Bool
 
     /// 刪除交給清單處理（它要顯示「已刪除・復原」）。
@@ -75,6 +78,7 @@ struct TranscriptDetailView: View {
             .sheet(isPresented: $showsRewrites) { rewritesSheet }
             .sheet(isPresented: $showsTags) { tagsSheet }
             .sheet(isPresented: $showsOutline) { outlineSheet }
+            .sheet(isPresented: $showsVersions) { versionsSheet }
             .sheet(isPresented: $showsOriginalAudio) {
                 // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
                 OriginalAudioSheet(

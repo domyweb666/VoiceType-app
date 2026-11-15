@@ -101,4 +101,57 @@ final class LongFormWritingTests: XCTestCase {
         XCTAssertTrue(DraftOutline.matches(of: "  ", in: article).isEmpty)
         XCTAssertTrue(DraftOutline.matches(of: "找不到", in: article).isEmpty)
     }
+
+    // MARK: 第二批：版本紀錄、全部取代、整段搬動
+
+    func test留版_跟AI那份一樣不留_重複不留_最多八版() {
+        var transcript = Transcript(
+            durationSeconds: 60,
+            rawText: "口語",
+            draftText: "AI 版",
+            originalDraft: "AI 版"
+        )
+        transcript.keepVersion()
+        XCTAssertNil(transcript.versions, "AI 剛整理好的那份本來就留著")
+        transcript.draftText = "改一"
+        transcript.keepVersion()
+        transcript.keepVersion()
+        XCTAssertEqual(transcript.versions?.map(\.text), ["改一"])
+        transcript.draftText = "  \n"
+        transcript.keepVersion()
+        XCTAssertEqual(transcript.versions?.count, 1, "空的不留")
+        for index in 0 ..< 10 {
+            transcript.draftText = "第 \(index) 次"
+            transcript.keepVersion()
+        }
+        XCTAssertEqual(transcript.versions?.count, Transcript.maxVersions)
+        XCTAssertEqual(transcript.versions?.first?.text, "第 2 次")
+        XCTAssertEqual(transcript.versions?.last?.text, "第 9 次")
+    }
+
+    func test全部取代不分大小寫_回換了幾處() {
+        let replaced = DraftOutline.replacingAll("apple", with: "梨", in: article)
+        XCTAssertEqual(replaced.count, 2)
+        XCTAssertTrue(replaced.text.contains("內文 梨 梨"))
+        let deleted = DraftOutline.replacingAll("內文", with: "", in: "內文一、內文二")
+        XCTAssertEqual(deleted.text, "一、二")
+        let untouched = DraftOutline.replacingAll("  ", with: "x", in: article)
+        XCTAssertEqual(untouched.count, 0)
+        XCTAssertEqual(untouched.text, article)
+        XCTAssertEqual(OutlineSheet.replaceTitle(count: 3, isDeleting: false), "全部換掉（3 處）")
+        XCTAssertEqual(OutlineSheet.replaceTitle(count: 3, isDeleting: true), "全部刪掉（3 處）")
+    }
+
+    func test大綱搬動_整段跟著走_前言與空行留在原位() {
+        let text = ["前言", "", "# 甲", "甲文", "", "# 乙", "乙文", "", "# 丙", "丙文"]
+            .joined(separator: "\n")
+        let headings = DraftOutline.headings(in: text)
+        let lastToFirst = DraftOutline.moving(headings, from: 2, toOffset: 0, in: text)
+        XCTAssertEqual(lastToFirst, "前言\n\n# 丙\n丙文\n\n# 甲\n甲文\n\n# 乙\n乙文")
+        let firstDownOne = DraftOutline.moving(headings, from: 0, toOffset: 2, in: text)
+        XCTAssertEqual(firstDownOne, "前言\n\n# 乙\n乙文\n\n# 甲\n甲文\n\n# 丙\n丙文")
+        let firstToLast = DraftOutline.moving(headings, from: 0, toOffset: 3, in: text)
+        XCTAssertEqual(firstToLast, "前言\n\n# 乙\n乙文\n\n# 丙\n丙文\n\n# 甲\n甲文")
+        XCTAssertEqual(DraftOutline.moving(headings, from: 9, toOffset: 0, in: text), text)
+    }
 }
