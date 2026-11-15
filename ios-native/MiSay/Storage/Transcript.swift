@@ -35,6 +35,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var marks: [Double]?
     /// 口語稿每段在錄音裡的起訖秒數與字數（2026-11-15，聽原音跟讀用）。舊的篇、接著錄過的篇是 nil。
     var timeline: [TimelineSpan]?
+    /// 這篇想寫到幾個字（2026-11-15，寫長文用）。沒設是 nil。
+    var goalCharacters: Int?
     /// 改寫成別的格式存下來的那幾份，舊的在前（W1）。沒改寫過是 nil。
     var rewrites: [TranscriptRewrite]?
     /// 使用者加的標籤（W6），清單可以照標籤篩。沒加過是 nil。
@@ -211,8 +213,9 @@ struct Transcript: Codable, Identifiable, Hashable {
         updatedAt = Date()
     }
 
+    /// 前面是空的（新文稿還沒寫就接著錄）就不多空兩行。
     private static func joined(_ first: String, _ second: String) -> String {
-        first + "\n\n" + second
+        first.isEmpty ? second : first + "\n\n" + second
     }
 
     /// 有沒有還沒學過的修改：從上次學到的（沒學過就是原稿）到現在的文字稿有變。

@@ -35,6 +35,10 @@ struct TranscriptDetailView: View {
     @State var copyCount = 0
     @State var showsCopied = false
     @State var saveFailed = false
+    /// 2026-11-15 寫長文：大綱與尋找那張頁、要跳到第幾個字、是不是要去錄音（空白新文稿不刪）。
+    @State var showsOutline = false
+    @State var jumpTarget: Range<Int>?
+    @State var isLeavingToRecord = false
     @FocusState var isEditing: Bool
 
     /// 刪除交給清單處理（它要顯示「已刪除・復原」）。
@@ -49,11 +53,6 @@ struct TranscriptDetailView: View {
             return "潤飾模型：\(model)"
         }
         return "潤飾：\(title)・\(model)"
-    }
-
-    /// 「1,234 字」：空白和換行不算。
-    static func characterCount(_ text: String) -> String {
-        "\(DictationStats.countCharacters(text).formatted()) 字"
     }
 
     init(transcript: Transcript, onDelete: @escaping (Transcript) -> Void) {
@@ -75,6 +74,7 @@ struct TranscriptDetailView: View {
             }
             .sheet(isPresented: $showsRewrites) { rewritesSheet }
             .sheet(isPresented: $showsTags) { tagsSheet }
+            .sheet(isPresented: $showsOutline) { outlineSheet }
             .sheet(isPresented: $showsOriginalAudio) {
                 // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
                 OriginalAudioSheet(
@@ -118,6 +118,7 @@ struct TranscriptDetailView: View {
             .onAppear {
                 reloadFromStore()
                 queue.openForEditing.insert(transcript.id)
+                focusIfBlank()
                 if queue.insertionsMovedToEnd.remove(transcript.id) != nil {
                     showNote("剛才錄的那段找不到原本的位置（那附近改過了），接在最後面。")
                 }
@@ -127,6 +128,7 @@ struct TranscriptDetailView: View {
                 // 離開這頁就停：再打開這篇是另一份畫面，改寫完存回來會跟它互相蓋。
                 cancelRewrite()
                 flushAutosave()
+                discardIfBlank()
                 // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。
                 EditLearningRunner.start()
             }
@@ -152,7 +154,9 @@ private extension TranscriptDetailView {
                     DraftEditor(
                         text: $draftEdit,
                         canRecordHere: !isPolishing,
-                        onRecordHere: insertRecording(at:)
+                        onRecordHere: insertRecording(at:),
+                        isEditing: isEditing,
+                        jump: $jumpTarget
                     )
                 } else {
                     TextEditor(text: $draftEdit)
@@ -172,36 +176,9 @@ private extension TranscriptDetailView {
         }
     }
 
-    /// 還沒整理成文字稿：先講一句，口語稿照樣看得到、複製得到，再給「整理這篇」。
-    var unpolishedPage: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Token.Space.m) {
-                Text("這篇還沒整理成文字稿。")
-                    .font(Token.Fonts.secondary)
-                    .foregroundStyle(Token.Colors.textSecondary)
-                rawText
-                if !isPolishing {
-                    Button("整理這篇", action: polishThis)
-                        .buttonStyle(TextButtonStyle())
-                }
-            }
-            .padding(.horizontal, Token.Space.screen)
-            .padding(.top, Token.Space.s)
-        }
-    }
-
-    var rawText: some View {
-        Text(transcript.rawText)
-            .font(Token.Fonts.body)
-            .foregroundStyle(Token.Colors.textPrimary)
-            .lineSpacing(Token.Space.lineSpacing)
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// 日期放在標題位置，小小的兩行，不佔正文的地方（備忘錄也是這樣）。
+    /// 日期放在標題位置，小小的兩行，不佔正文的地方（備忘錄也是這樣）。打字時換成字數（寫長文要看進度）。
     var dateTitle: some View {
-        Text(TranscriptListView.subtitle(for: transcript))
+        Text(isEditing ? progressText : TranscriptListView.subtitle(for: transcript))
             .font(Token.Fonts.footnote)
             .foregroundStyle(Token.Colors.textSecondary)
             .lineLimit(1)
@@ -212,7 +189,10 @@ private extension TranscriptDetailView {
     var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) { dateTitle }
         if isEditing {
-            ToolbarItem(placement: .topBarTrailing) { doneButton }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                outlineButton
+                doneButton
+            }
         } else {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 ShareLink(
@@ -255,7 +235,7 @@ private extension TranscriptDetailView {
                 .padding(.horizontal, Token.Space.screen)
                 .padding(.bottom, Token.Space.s)
         } else if !isEditing, !currentText.isEmpty {
-            Text(Self.characterCount(currentText))
+            Text(progressText)
                 .font(Token.Fonts.footnote)
                 .foregroundStyle(Token.Colors.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -269,7 +249,7 @@ private extension TranscriptDetailView {
             isPolishing: isPolishing,
             polishFailed: polishFailed,
             saveFailed: saveFailed,
-            isEmpty: currentText.isEmpty,
+            isEmpty: currentText.isEmpty && !transcript.isWritten,
             showsCopied: showsCopied,
             note: note,
             possiblyMissing: transcript.possiblyMissingSegments ?? []

@@ -21,13 +21,18 @@ extension TranscriptListView {
     /// 「10 月 31 日 14:32・3 分 48 秒」（線框詳情頁的副標）。
     static func subtitle(for transcript: Transcript) -> String {
         let date = transcript.createdAt.formatted(date: .abbreviated, time: .shortened)
-        return date + "・" + RecordingSheetView.formatSpoken(transcript.durationSeconds)
+        return date + "・" + lengthNote(for: transcript)
+    }
+
+    /// 錄了多久；自己打的新文稿沒有錄音，寫「自己打的」（2026-11-15）。
+    static func lengthNote(for transcript: Transcript) -> String {
+        transcript.isWritten ? "自己打的" : RecordingSheetView.formatSpoken(transcript.durationSeconds)
     }
 
     /// 「今天」那一組只講時間：「14:32・3 分 48 秒」。
     static func timeSubtitle(for transcript: Transcript) -> String {
         let time = transcript.createdAt.formatted(date: .omitted, time: .shortened)
-        return time + "・" + RecordingSheetView.formatSpoken(transcript.durationSeconds)
+        return time + "・" + lengthNote(for: transcript)
     }
 
     func row(_ transcript: Transcript, showsDate: Bool) -> some View {

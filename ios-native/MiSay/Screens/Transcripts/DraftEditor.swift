@@ -14,13 +14,24 @@ struct DraftEditor: View {
     let canRecordHere: Bool
     /// 給游標在第幾個字（Character）；有選一段字就給那段的後面。
     let onRecordHere: (Int) -> Void
-    @State private var selection: TextSelection?
+    /// 鍵盤是不是升著：頂上的復原、重做只在打字時出現。
+    let isEditing: Bool
+    /// 大綱與尋找要跳到第幾個字；放好游標就清掉。
+    @Binding var jump: Range<Int>?
+    /// 復原、重做（`DraftEditor+History.swift` 要用，所以這兩個不加 private）。
+    @State var history = EditHistory()
+    @State var selection: TextSelection?
     @State private var request: PassagePreviewSheet.Request?
     @State private var task: Task<Void, Never>?
 
     var body: some View {
         TextEditor(text: $text, selection: $selection)
+            .onChange(of: text) { old, new in history.record(from: old, to: new) }
+            .onChange(of: jump) { _, target in jumpIfNeeded(target) }
             .toolbar {
+                if isEditing {
+                    ToolbarItemGroup(placement: .topBarTrailing) { historyButtons }
+                }
                 ToolbarItemGroup(placement: .keyboard) {
                     formatButtons
                     recordHereButton

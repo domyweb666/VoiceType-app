@@ -11,7 +11,8 @@ extension TranscriptDetailView {
                     Text(Self.polishNote(model: model, style: transcript.polishStyle))
                 }
             }
-            if transcript.draftText != nil {
+            // 自己打的新文稿沒有口語稿，這兩顆不出現。
+            if transcript.draftText != nil, !transcript.rawText.isEmpty {
                 Button {
                     rawSheetStartsWithDiff = false
                     showsRawText = true
@@ -26,6 +27,7 @@ extension TranscriptDetailView {
                     Label("看 AI 改了什麼", systemImage: "text.badge.minus")
                 }
             }
+            writingMenuItems
             // W1：改寫成別的格式，存成這篇底下的另一份。整理中不給：文字稿還沒定。
             Button {
                 showsRewrites = true
@@ -96,6 +98,7 @@ extension TranscriptDetailView {
     /// K3：先存好手上改的字、退出這頁，再請分頁列切到錄音頁開錄。退出是為了不留一份舊的在畫面上。
     func appendRecording() {
         flushAutosave()
+        isLeavingToRecord = true
         RecordingLauncher.shared.request = .append(target: transcript.id, insertion: nil)
         dismiss()
     }
@@ -108,6 +111,7 @@ extension TranscriptDetailView {
             return
         }
         isEditing = false
+        isLeavingToRecord = true
         let point = InsertionPoint(offset: offset, in: draftEdit)
         RecordingLauncher.shared.request = .append(target: transcript.id, insertion: point)
         dismiss()
