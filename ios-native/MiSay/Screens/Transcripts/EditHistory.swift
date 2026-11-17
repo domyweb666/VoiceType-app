@@ -48,11 +48,11 @@ struct EditHistory: Equatable {
                 prefix -= 1
             }
             var suffix = 0
-            let oldLast = oldUnits.count - 1
-            let newLast = newUnits.count - 1
-            while suffix < shorter - prefix,
-                  oldUnits[oldLast - suffix] == newUnits[newLast - suffix]
-            {
+            let (oldLast, newLast) = (oldUnits.count - 1, newUnits.count - 1)
+            while suffix < shorter - prefix {
+                guard oldUnits[oldLast - suffix] == newUnits[newLast - suffix] else {
+                    break
+                }
                 suffix += 1
             }
             if suffix > 0, UTF16.isTrailSurrogate(oldUnits[oldUnits.count - suffix]) {
@@ -104,9 +104,8 @@ struct EditHistory: Equatable {
         lastChangeAt = now
         redoStack = []
         // 連著打：把這幾個字併進上一步。先用上一步退回這一步開始前的字，再跟現在比一次。
-        if isBurst, !isBigChange, let last = undoStack.last,
-           let stepStart = last.applied(to: old)
-        {
+        let stepStart = isBurst && !isBigChange ? undoStack.last?.applied(to: old) : nil
+        if let stepStart {
             undoStack[undoStack.count - 1] = Change.between(new, stepStart)
             return
         }
