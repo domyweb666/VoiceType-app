@@ -32,6 +32,8 @@ struct PlainTextView: UIViewRepresentable {
         textView.tintColor = UIColor(Token.Colors.accent)
         textView.keyboardDismissMode = .interactive
         textView.alwaysBounceVertical = true
+        // 最後一行底下留白，不貼著鍵盤那一排（跟系統編輯框的 contentMargins 同一個數字）。
+        textView.textContainerInset.bottom = Token.Space.editorBottom
         textView.accessibilityLabel = "文字稿正文"
         Self.setText(text, in: textView)
         return textView

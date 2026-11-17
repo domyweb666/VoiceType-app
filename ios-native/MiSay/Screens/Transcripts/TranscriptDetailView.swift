@@ -192,6 +192,8 @@ private extension TranscriptDetailView {
             .lineSpacing(Token.Space.lineSpacing)
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
+            // 最後一行底下留白（米 11/17：打到最下面，字貼著鍵盤那一排）。試用的編輯框在 `PlainTextView` 自己留。
+            .contentMargins(.bottom, Token.Space.editorBottom, for: .scrollContent)
             .focused($isSystemEditorFocused)
             // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
             // 上緣留一點白（米 11/09：第一行貼著頂上那排太近）。
