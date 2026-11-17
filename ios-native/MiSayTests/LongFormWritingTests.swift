@@ -43,7 +43,7 @@ final class LongFormWritingTests: XCTestCase {
         history.record(from: "", to: "一", now: start)
         history.record(from: "一", to: "一二", now: start.addingTimeInterval(0.5))
         history.record(from: "一二", to: "一二三", now: start.addingTimeInterval(5))
-        XCTAssertEqual(history.undoStack, ["", "一二"])
+        XCTAssertEqual(history.undoStack.count, 2)
         XCTAssertEqual(history.undo(current: "一二三"), "一二")
         // 編輯框回報「字變成一二」：那是復原放上去的，不算新的修改。
         history.record(from: "一二三", to: "一二", now: start.addingTimeInterval(6))
@@ -60,11 +60,54 @@ final class LongFormWritingTests: XCTestCase {
         var history = EditHistory()
         history.record(from: "", to: "一", now: start)
         history.record(from: "一", to: "一" + pasted, now: start.addingTimeInterval(0.2))
-        XCTAssertEqual(history.undoStack, ["", "一"])
+        XCTAssertEqual(history.undoStack.count, 2)
         XCTAssertEqual(history.undo(current: "一" + pasted), "一")
         history.record(from: "一" + pasted, to: "一", now: start.addingTimeInterval(1))
         history.record(from: "一", to: "一新", now: start.addingTimeInterval(9))
         XCTAssertFalse(history.canRedo)
+    }
+
+    /// 2026-11-17：每一步只記改到的那幾個字。長稿中間改一個字，紀錄裡只有那一個字。
+    func test每一步只記改到的字_長稿也一樣小() {
+        let start = Date(timeIntervalSince1970: 0)
+        let long = String(repeating: "長", count: 5000)
+        var history = EditHistory()
+        history.record(from: long + "尾", to: long + "改尾", now: start)
+        XCTAssertEqual(
+            history.undoStack,
+            [EditHistory.Change(location: 5000, removed: "改", inserted: "")]
+        )
+        XCTAssertEqual(history.undo(current: long + "改尾"), long + "尾")
+        XCTAssertEqual(history.redo(current: long + "尾"), long + "改尾")
+    }
+
+    func test改到emoji不會切成半個() {
+        let change = EditHistory.Change.between("我😀們", "我😃們")
+        XCTAssertEqual(change.removed, "😀")
+        XCTAssertEqual(change.inserted, "😃")
+        XCTAssertEqual(change.applied(to: "我😀們"), "我😃們")
+        XCTAssertEqual(change.inverse.applied(to: "我😃們"), "我😀們")
+    }
+
+    func test紀錄對不上畫面就不復原_也不亂改() {
+        var history = EditHistory()
+        history.record(from: "一二", to: "一二三", now: Date(timeIntervalSince1970: 0))
+        XCTAssertNil(history.undo(current: "完全不一樣"))
+        XCTAssertFalse(history.canUndo)
+        XCTAssertFalse(history.canRedo)
+    }
+
+    func test連打很多次_退回去還是那一步開始前() {
+        let start = Date(timeIntervalSince1970: 0)
+        var history = EditHistory()
+        var text = "開頭"
+        for (index, character) in "一二三四五".enumerated() {
+            let next = text + String(character)
+            history.record(from: text, to: next, now: start.addingTimeInterval(Double(index) * 0.3))
+            text = next
+        }
+        XCTAssertEqual(history.undoStack.count, 1)
+        XCTAssertEqual(history.undo(current: text), "開頭")
     }
 
     func test復原後游標放在變動那段的後面() {

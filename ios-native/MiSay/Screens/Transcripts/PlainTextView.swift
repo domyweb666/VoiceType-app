@@ -4,8 +4,9 @@ import UIKit
 /// 純文字的 UIKit 編輯框（2026-11-15，寫長文第三批，設定 → 進階「新的編輯框（試用）」打開才用）。
 /// 為什麼要有：系統的 `TextEditor` 放了游標不保證畫面會捲過去，長稿每打一個字整篇重算，手邊沒有 iPhone 量不出來；
 /// 米說繼續往下做、之後一起驗，所以兩種都放著，驗的時候可以切。
-/// 跟 v0.2.7 白畫面那個（`MarkdownTextView`，commit 6e0a31a）不一樣的地方：不換字形、不用 TextKit 1、
-/// 不邊打邊變樣，只有一種字型一種顏色；`EditorRenderTests` 有一條開著這個開關量畫不畫得出字。
+/// 跟 v0.2.7 白畫面那個（`MarkdownTextView`，commit 6e0a31a）不一樣的地方：不換字形、不用 TextKit 1；
+/// `EditorRenderTests` 有一條開著這個開關量畫不畫得出字。
+/// 2026-11-17：標題、粗體有樣子，記號只在游標那一行露出來（`MarkdownLineStyle`）；打字只重算改到的那幾行。
 struct PlainTextView: UIViewRepresentable {
     @Binding var text: String
     /// 游標或選取，UTF-16 位置（跟 UITextView 一樣）。
@@ -35,7 +36,7 @@ struct PlainTextView: UIViewRepresentable {
         // 最後一行底下留白，不貼著鍵盤那一排（跟系統編輯框的 contentMargins 同一個數字）。
         textView.textContainerInset.bottom = Token.Space.editorBottom
         textView.accessibilityLabel = "文字稿正文"
-        Self.setText(text, in: textView)
+        context.coordinator.replaceText(text, in: textView)
         return textView
     }
 
@@ -49,7 +50,7 @@ struct PlainTextView: UIViewRepresentable {
         coordinator.isApplyingUpdate = true
         defer { coordinator.isApplyingUpdate = false }
         if textView.text != text {
-            Self.setText(text, in: textView)
+            coordinator.replaceText(text, in: textView)
         }
         let clamped = TextOffsets.clamped(selection, length: (textView.text as NSString).length)
         if textView.selectedRange != clamped {
@@ -64,16 +65,11 @@ struct PlainTextView: UIViewRepresentable {
         } else if !isEditing, textView.isFirstResponder {
             textView.resignFirstResponder()
         }
+        coordinator.showMarkersAtCaret(in: textView)
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
-    }
-
-    /// 整份字換掉（一開始、格式鈕、復原、取代、搬動、換回舊版）。打字不走這裡。
-    static func setText(_ text: String, in textView: UITextView) {
-        textView.attributedText = NSAttributedString(string: text, attributes: attributes)
-        textView.typingAttributes = attributes
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {
@@ -81,6 +77,12 @@ struct PlainTextView: UIViewRepresentable {
         /// SwiftUI 正把狀態推進編輯框：這時編輯框回報的變動是自己推的，不再寫回去。
         var isApplyingUpdate = false
         var scrollToken = 0
+        /// 正在打字（鍵盤升著）：只有這時游標那一行的記號要露出來。
+        private var isTyping = false
+        /// 記號正露出來的那幾行；游標離開就把它們藏回去。
+        private var shownLines: NSRange?
+        /// 剛才改到的地方（改完之後的位置），打完只重算這附近的幾行。
+        private var lastEdit: NSRange?
 
         init(parent: PlainTextView) {
             self.parent = parent
@@ -88,11 +90,76 @@ struct PlainTextView: UIViewRepresentable {
             super.init()
         }
 
+        /// 整份字換掉（一開始、格式鈕、復原、取代、搬動、換回舊版）：整篇重算一次。打字不走這裡。
+        func replaceText(_ text: String, in textView: UITextView) {
+            textView.attributedText = NSAttributedString(
+                string: text,
+                attributes: PlainTextView.attributes
+            )
+            shownLines = nil
+            // 這時游標還沒放回去（在最後面），先全部藏起來；放好游標後 `showMarkersAtCaret` 再露出那一行。
+            restyle(
+                textView,
+                around: NSRange(location: 0, length: (text as NSString).length),
+                selection: nil
+            )
+        }
+
+        /// 游標那一行的記號露出來、上一行的藏回去。同一行就不動（打字時每個字都會叫到這裡）。
+        func showMarkersAtCaret(in textView: UITextView) {
+            guard textView.markedTextRange == nil else {
+                return
+            }
+            let text = textView.textStorage.string as NSString
+            let caret = TextOffsets.clamped(textView.selectedRange, length: text.length)
+            let lines: NSRange? = isTyping ? text.paragraphRange(for: caret) : nil
+            guard lines != shownLines else {
+                return
+            }
+            let selection = isTyping ? caret : nil
+            if let old = shownLines {
+                restyle(textView, around: old, selection: selection)
+            }
+            shownLines = lines
+            if let lines {
+                restyle(textView, around: lines, selection: selection)
+            }
+        }
+
+        private func restyle(_ textView: UITextView, around range: NSRange, selection: NSRange?) {
+            MarkdownLineStyle.apply(
+                to: textView.textStorage,
+                around: range,
+                selection: selection,
+                base: PlainTextView.attributes
+            )
+            // 游標旁邊可能是藏起來的記號（透明、極小），接下來打的字要回到正文的樣子。
+            textView.typingAttributes = PlainTextView.attributes
+        }
+
+        func textView(
+            _: UITextView,
+            shouldChangeTextIn range: NSRange,
+            replacementText text: String
+        ) -> Bool {
+            lastEdit = NSRange(location: range.location, length: (text as NSString).length)
+            return true
+        }
+
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingUpdate else {
                 return
             }
             parent.text = textView.text
+            // 注音選字中不重算；選好字那一次會再進來。
+            guard textView.markedTextRange == nil else {
+                return
+            }
+            let caret = textView.selectedRange
+            let edit = lastEdit.map { NSUnionRange($0, caret) } ?? caret
+            lastEdit = nil
+            restyle(textView, around: edit, selection: isTyping ? caret : nil)
+            showMarkersAtCaret(in: textView)
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
@@ -100,20 +167,25 @@ struct PlainTextView: UIViewRepresentable {
                 return
             }
             parent.selection = textView.selectedRange
-            // 游標一動，系統會把「接下來打的字的樣子」換成游標旁邊那個字的；空白頁旁邊沒有字，補回正文的樣子。
-            if textView.markedTextRange == nil {
-                textView.typingAttributes = PlainTextView.attributes
+            // 字正在改（改到一半時系統也會回報游標動了）：等 `textViewDidChange` 一起重算。
+            guard lastEdit == nil else {
+                return
             }
+            showMarkersAtCaret(in: textView)
         }
 
-        func textViewDidBeginEditing(_: UITextView) {
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            isTyping = true
+            showMarkersAtCaret(in: textView)
             guard !isApplyingUpdate else {
                 return
             }
             parent.isEditing = true
         }
 
-        func textViewDidEndEditing(_: UITextView) {
+        func textViewDidEndEditing(_ textView: UITextView) {
+            isTyping = false
+            showMarkersAtCaret(in: textView)
             guard !isApplyingUpdate else {
                 return
             }
