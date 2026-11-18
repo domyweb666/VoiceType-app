@@ -48,7 +48,7 @@ final class AppSettings {
         let fallback: PolishStyle = hasRecordedBefore ? .existingUserStyle : .defaultStyle
         polishStyle = chosenStyle ?? fallback
         if chosenStyle == nil, hasRecordedBefore {
-            defaults.set(polishStyle.rawValue, forKey: Key.polishStyle)
+            defaults.set(fallback.rawValue, forKey: Key.polishStyle)
         }
         let storedModel = defaults.string(forKey: Key.polishModel) ?? Polisher.defaultModel
         polishModel = Self.polishModels.contains(storedModel) ? storedModel : Polisher.defaultModel
