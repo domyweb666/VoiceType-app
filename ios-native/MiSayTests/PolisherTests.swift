@@ -38,10 +38,11 @@ final class PolisherTests: XCTestCase {
         let messages = try XCTUnwrap(json["messages"] as? [[String: String]])
         XCTAssertEqual(messages.count, 2)
         XCTAssertEqual(messages[0]["role"], "system")
-        XCTAssertTrue(try XCTUnwrap(messages[0]["content"]).hasPrefix("角色設定："))
+        XCTAssertTrue(try XCTUnwrap(messages[0]["content"]).hasPrefix("你是幫人把口述稿改得好讀的編輯。"))
         XCTAssertTrue(try XCTUnwrap(messages[0]["content"]).contains("專有名詞（這些字要寫對）：DOMYWEB"))
+        XCTAssertFalse(try XCTUnwrap(messages[0]["content"]).contains("呃就是我想說"), "口語稿不進 system")
         XCTAssertEqual(messages[1]["role"], "user")
-        XCTAssertEqual(messages[1]["content"], "呃就是我想說")
+        XCTAssertEqual(messages[1]["content"], "<transcript>\n呃就是我想說\n</transcript>")
     }
 
     func test潤飾沒有正常結束當失敗不存半篇() async throws {
@@ -61,11 +62,22 @@ final class PolisherTests: XCTestCase {
         }
     }
 
-    func test潤飾大幅潤飾那版有米的草稿規矩() {
+    func test潤飾改得好讀那版照寫作術的編輯準則而且不准補內容() {
         let prompt = PolishStyle.heavy.prompt
-        for rule in ["幫忙分段", "只留講得最完整的一次", "不准把兩句合成一句新的話", "只改錯字", "禁止標題", "停在草稿"] {
+        let rules = [
+            "一、刪字", "二、像對著一個人講話", "三、邏輯接得上", "四、版面",
+            "刪弱化詞", "名詞化的動詞改回動詞", "補上連接詞", "把講主題的那句移到段首",
+            "補逐字稿沒講的事實", "加標題、小標、條列", "只輸出改好的正文",
+        ]
+        for rule in rules {
             XCTAssertTrue(prompt.contains(rule), rule)
         }
+        XCTAssertEqual(PolishStyle.heavy.title, "改得好讀")
+        XCTAssertEqual(PolishStyle.heavy.rawValue, "heavy", "舊篇存的是 heavy，不能改")
+        XCTAssertEqual(
+            PolishStyle.heavy.userContent(rawText: "口語"),
+            "<transcript>\n口語\n</transcript>"
+        )
         XCTAssertEqual(Polisher.systemContent(prompt: "P", vocabulary: []), "P")
     }
 
@@ -75,7 +87,8 @@ final class PolisherTests: XCTestCase {
         for rule in rules {
             XCTAssertTrue(prompt.contains(rule), rule)
         }
-        XCTAssertEqual(PolishStyle.defaultStyle, .keepVoice)
+        XCTAssertEqual(PolishStyle.defaultStyle, .heavy)
+        XCTAssertEqual(PolishStyle.existingUserStyle, .keepVoice)
 
         let reply = #"{"choices":[{"message":{"role":"assistant","content":"草稿"}}]}"#
         FakeOpenAIServer.reply = .http(status: 200, body: reply)

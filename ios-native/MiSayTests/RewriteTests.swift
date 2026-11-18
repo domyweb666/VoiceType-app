@@ -62,6 +62,11 @@ final class RewriteTests: XCTestCase {
             }
         }
         XCTAssertTrue(RewriteKind.outline.prompt.contains("一字不改"))
+        // 2026-11-18：寫作術的結構準則只進知識文章、電子報。
+        for kind in RewriteKind.allCases {
+            let hasRules = kind.prompt.contains("每段第一句就點出這段在講什麼")
+            XCTAssertEqual(hasRules, kind == .article || kind == .newsletter, kind.title)
+        }
         XCTAssertEqual(RewriteKind.title(forStored: "threads"), "Threads 串文")
         XCTAssertEqual(RewriteKind.title(forStored: "以後拿掉的"), "以後拿掉的")
     }

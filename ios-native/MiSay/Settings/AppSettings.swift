@@ -40,8 +40,16 @@ final class AppSettings {
         liveTranscriptionWiFiOnly = defaults.bool(forKey: Key.liveTranscriptionWiFiOnly)
         keepsRecordingsForever = defaults.bool(forKey: Key.keepsRecordingsForever)
         vocabulary = defaults.stringArray(forKey: Key.vocabulary) ?? []
+        // 2026-11-18 預設換成「改得好讀」：已經錄過音（看過費用說明）卻沒選過的人，照舊用保留原聲，
+        // 而且寫進去，之後不會因為預設再換而跟著變。
         let storedStyle = defaults.string(forKey: Key.polishStyle) ?? ""
-        polishStyle = PolishStyle(rawValue: storedStyle) ?? PolishStyle.defaultStyle
+        let hasRecordedBefore = defaults.bool(forKey: Key.hasSeenCostNotice)
+        let chosenStyle = PolishStyle(rawValue: storedStyle)
+        let fallback: PolishStyle = hasRecordedBefore ? .existingUserStyle : .defaultStyle
+        polishStyle = chosenStyle ?? fallback
+        if chosenStyle == nil, hasRecordedBefore {
+            defaults.set(polishStyle.rawValue, forKey: Key.polishStyle)
+        }
         let storedModel = defaults.string(forKey: Key.polishModel) ?? Polisher.defaultModel
         polishModel = Self.polishModels.contains(storedModel) ? storedModel : Polisher.defaultModel
         hasSeenCostNotice = defaults.bool(forKey: Key.hasSeenCostNotice)
@@ -86,7 +94,7 @@ final class AppSettings {
         didSet { defaults.set(vocabulary, forKey: Key.vocabulary) }
     }
 
-    /// 潤飾二選一（2026-11-08 取代 F3 的可改提示詞）。預設保留原聲。
+    /// 潤飾二選一（2026-11-08 取代 F3 的可改提示詞）。新裝的預設改得好讀，舊使用者沒選過的是保留原聲。
     var polishStyle: PolishStyle {
         didSet { defaults.set(polishStyle.rawValue, forKey: Key.polishStyle) }
     }

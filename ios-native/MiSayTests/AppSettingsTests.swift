@@ -22,8 +22,22 @@ final class AppSettingsTests: XCTestCase {
         let settings = AppSettings(defaults: defaults)
         XCTAssertTrue(settings.autoCopy)
         XCTAssertEqual(settings.polishModel, Polisher.defaultModel)
-        XCTAssertEqual(settings.polishStyle, .keepVoice)
+        XCTAssertEqual(settings.polishStyle, .heavy)
         XCTAssertEqual(settings.vocabulary, [])
+    }
+
+    func test設定已經錄過音又沒選過潤飾方式的人固定在保留原聲() throws {
+        let defaults = try makeDefaults()
+        defaults.set(true, forKey: "hasSeenCostNotice")
+        XCTAssertEqual(AppSettings(defaults: defaults).polishStyle, .keepVoice)
+        XCTAssertEqual(defaults.string(forKey: "polishStyle"), "keepVoice", "要寫進去，之後預設再換也不跟著變")
+    }
+
+    func test設定已經錄過音而且選過改得好讀的人照舊() throws {
+        let defaults = try makeDefaults()
+        defaults.set(true, forKey: "hasSeenCostNotice")
+        defaults.set("heavy", forKey: "polishStyle")
+        XCTAssertEqual(AppSettings(defaults: defaults).polishStyle, .heavy)
     }
 
     func test設定改了之後重開還在() throws {
@@ -45,6 +59,7 @@ final class AppSettingsTests: XCTestCase {
         let defaults = try makeDefaults()
         defaults.set("只改錯字", forKey: "polishPrompt")
         defaults.set("retired-style", forKey: "polishStyle")
+        defaults.set(true, forKey: "hasSeenCostNotice")
         XCTAssertEqual(AppSettings(defaults: defaults).polishStyle, .keepVoice)
     }
 
