@@ -14,6 +14,7 @@ struct PendingListView: View {
     @State private var processFailed = false
     @State private var recordingToDelete: PendingRecordings.Recording?
     @State private var isConfirmingDelete = false
+    @State private var deleteCount = 0
 
     var body: some View {
         List {
@@ -63,6 +64,7 @@ struct PendingListView: View {
                     .padding(.bottom, Token.Space.s)
             }
         }
+        .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
         .navigationTitle("待轉錄")
         .confirmationDialog(
             "這段還沒轉成文字，刪了就沒有了。",
@@ -161,6 +163,7 @@ struct PendingListView: View {
             try PendingRecordings().delete(recording)
             recordings.removeAll { $0.id == recording.id }
             deleteFailed = false
+            deleteCount += 1
             onChange()
         } catch {
             deleteFailed = true

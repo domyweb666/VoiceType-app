@@ -33,7 +33,7 @@ struct StatusStrip: View {
         .padding(.vertical, Token.Space.m)
         .background(
             Token.Colors.rowBackground,
-            in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+            in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow, style: .continuous)
         )
         .shadow(
             color: Token.Colors.shadow.opacity(shadowOpacity),

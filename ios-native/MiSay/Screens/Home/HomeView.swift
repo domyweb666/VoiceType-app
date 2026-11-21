@@ -209,7 +209,7 @@ private extension HomeView {
             .padding(Token.Space.l)
             .background(
                 Token.Colors.rowBackground,
-                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow, style: .continuous)
             )
         }
         .buttonStyle(.plain)
@@ -227,7 +227,7 @@ private extension HomeView {
             .padding(.horizontal, Token.Space.l)
             .background(
                 Token.Colors.sunkenBackground,
-                in: RoundedRectangle(cornerRadius: Token.Shape.radiusField)
+                in: RoundedRectangle(cornerRadius: Token.Shape.radiusField, style: .continuous)
             )
             .padding(.horizontal, Token.Space.screen)
             .padding(.top, Token.Space.s)
@@ -278,7 +278,7 @@ private extension HomeView {
             .padding(Token.Space.l)
             .background(
                 Token.Colors.rowBackground,
-                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow, style: .continuous)
             )
         }
         // iOS 26 會替 NavigationLink 套一層灰色的系統按鈕底，比白卡片大一圈、看起來像被蓋住；

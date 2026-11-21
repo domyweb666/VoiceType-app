@@ -130,18 +130,18 @@ enum Token {
         static func recordPress(_ reduce: Bool) -> Animation {
             reduce
                 ? .easeOut(duration: DomyTokens.Motion.pressDuration)
-                : .spring(duration: DomyTokens.Motion.transition, bounce: 0.1)
+                : .snappy // 2026-11-22 照手感指南：按壓、小變化用系統的 snappy
         }
 
         static let recordPressScale = DomyTokens.Motion.pressScale // 減少動態時不縮放，改變淡
         static func sheetRise(_ reduce: Bool) -> Animation {
-            reduce ? .easeInOut(duration: 0.2) : .spring(duration: 0.35, bounce: 0)
+            reduce ? .easeInOut(duration: 0.2) : .smooth // 轉場用系統的 smooth
         }
 
         static let waveformHz: Double = 20 // 減少動態時改成固定位置的音量條
         static let recordingPulse: Double = 1.4 // 秒；減少動態時不脈動
         static func harvestDrop(_ reduce: Bool) -> Animation {
-            reduce ? .easeIn(duration: 0.15) : .spring(duration: 0.6, bounce: 0.25)
+            reduce ? .easeIn(duration: 0.15) : .bouncy // 收成那一刻用系統的 bouncy
         }
 
         static let pressedOpacity = DomyTokens.Motion.pressedOpacity // 膠囊與文字鈕按下去變淡
@@ -162,6 +162,8 @@ enum Token {
         static let transcriptReady: SensoryFeedback = .success
         static let failed: SensoryFeedback = .warning
         static let copied: SensoryFeedback = .impact(weight: .light)
+        static let deleted: SensoryFeedback = .impact(weight: .light) // 刪掉一筆（11/22）
+        static let reordered: SensoryFeedback = .selection // 大綱搬好一段
     }
 }
 

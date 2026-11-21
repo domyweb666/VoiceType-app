@@ -9,7 +9,7 @@ struct RecordingWaveform: View {
     var body: some View {
         if reduceMotion {
             GeometryReader { geometry in
-                RoundedRectangle(cornerRadius: Token.Space.xs)
+                RoundedRectangle(cornerRadius: Token.Space.xs, style: .continuous)
                     .fill(Token.Colors.waveform)
                     .frame(width: geometry.size.width * recorder.level)
             }
@@ -18,7 +18,7 @@ struct RecordingWaveform: View {
         } else {
             HStack(alignment: .center, spacing: Token.Space.xs) {
                 ForEach(Array(recorder.levels.enumerated()), id: \.offset) { _, level in
-                    RoundedRectangle(cornerRadius: Token.Space.xs)
+                    RoundedRectangle(cornerRadius: Token.Space.xs, style: .continuous)
                         .fill(Token.Colors.waveform)
                         .frame(
                             width: Token.Space.xs,

@@ -31,6 +31,7 @@ struct TranscriptListView: View {
     @State private var query = ""
     @State private var pendingDeletion: Transcript?
     @State private var deletionTask: Task<Void, Never>?
+    @State private var deleteCount = 0
     /// W6：只看這個標籤的篇；nil 是全部。
     @State var selectedTag: String?
     /// W6：選取模式，點列是勾起來，不是打開。
@@ -88,6 +89,7 @@ struct TranscriptListView: View {
                 undoBanner
             }
         }
+        .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
         .navigationTitle(selectedTag.map { "#" + $0 } ?? "文字稿")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { newDraftButton }
@@ -256,6 +258,7 @@ private extension TranscriptListView {
         commitDeletionNow()
         deleteFailed = false
         pendingDeletion = transcript
+        deleteCount += 1
         deletionTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(Self.undoWindowSeconds))
             guard !Task.isCancelled else {

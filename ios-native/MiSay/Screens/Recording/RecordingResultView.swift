@@ -263,7 +263,7 @@ private extension RecordingResultView {
             .padding(Token.Space.l)
             .background(
                 Token.Colors.sunkenBackground,
-                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow, style: .continuous)
             )
     }
 

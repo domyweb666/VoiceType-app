@@ -13,6 +13,7 @@ struct RewritesSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var path: [TranscriptRewrite] = []
+    @State private var deleteCount = 0
     /// 這張頁上按的那次改寫好了，直接推進去看；從別處來的變動（刪一份）不推。
     @State private var isWaitingForResult = false
     /// 改寫完不清掉：同一句要求常常想再換一種格式用。
@@ -48,6 +49,7 @@ struct RewritesSheet: View {
                         .onDelete { offsets in
                             let newestFirst = Array(rewrites.reversed())
                             offsets.map { newestFirst[$0] }.forEach(onDelete)
+                            deleteCount += 1
                         }
                     }
                     .listRowBackground(Token.Colors.rowBackground)
@@ -56,6 +58,7 @@ struct RewritesSheet: View {
             .font(Token.Fonts.body)
             .scrollContentBackground(.hidden)
             .background(Token.Colors.groupedBackground)
+            .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
             .navigationTitle("改寫成其他格式")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: TranscriptRewrite.self) { RewriteTextView(rewrite: $0) }

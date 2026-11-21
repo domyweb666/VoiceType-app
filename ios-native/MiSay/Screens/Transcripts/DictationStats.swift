@@ -108,10 +108,10 @@ struct DictationStatsCard: View {
         .padding(Token.Space.screen)
         .background(
             Token.Colors.accentTint,
-            in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+            in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow, style: .continuous)
         )
         .overlay {
-            RoundedRectangle(cornerRadius: Token.Shape.radiusRow)
+            RoundedRectangle(cornerRadius: Token.Shape.radiusRow, style: .continuous)
                 .strokeBorder(Token.Colors.accentSoft, lineWidth: Token.Shape.hairline)
         }
     }

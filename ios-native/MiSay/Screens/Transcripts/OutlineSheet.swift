@@ -16,6 +16,7 @@ struct OutlineSheet: View {
     @State private var query = ""
     @State private var replacement = ""
     @State private var isReordering = false
+    @State private var moveCount = 0
 
     static let noHeadingNote = "這篇還沒有標題，先列出每一段的開頭。"
         + "在一行的開頭按鍵盤上方的「#」，那一行就是標題，會排在這裡。"
@@ -39,6 +40,7 @@ struct OutlineSheet: View {
                 prompt: "在這篇裡找"
             )
             .overlay { emptyNote }
+            .sensoryFeedback(Token.Haptics.reordered, trigger: moveCount)
             .navigationTitle("大綱與尋找")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -128,6 +130,7 @@ struct OutlineSheet: View {
             return
         }
         onReorder(DraftOutline.moving(outline, from: first, toOffset: destination, in: text))
+        moveCount += 1
     }
 
     @ViewBuilder

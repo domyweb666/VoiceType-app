@@ -21,6 +21,7 @@ struct VocabularyView: View {
     @State private var newWord = ""
     /// 新增時撞到已經有的詞，底下說一聲；下次新增就清掉。
     @State private var duplicateWord: String?
+    @State private var deleteCount = 0
 
     var body: some View {
         let shown = Self.shownWords(
@@ -55,6 +56,7 @@ struct VocabularyView: View {
                     .onDelete { offsets in
                         // 刪掉自動加的詞會記住，之後不再自動加回來（2026-11-08）。
                         offsets.map { shown[$0] }.forEach(settings.removeVocabulary)
+                        deleteCount += 1
                     }
                     .listRowBackground(Token.Colors.rowBackground)
                 }
@@ -74,6 +76,7 @@ struct VocabularyView: View {
         } message: {
             Text("常講的人名、品牌、專有名詞。整理時會照這裡的寫法。")
         }
+        .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
         .navigationTitle("自訂詞彙")
     }
 

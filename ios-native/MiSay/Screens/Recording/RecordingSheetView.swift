@@ -222,7 +222,7 @@ private extension RecordingSheetView {
         Button {
             stopRecording()
         } label: {
-            RoundedRectangle(cornerRadius: Token.Shape.radiusStopGlyph)
+            RoundedRectangle(cornerRadius: Token.Shape.radiusStopGlyph, style: .continuous)
                 .fill(Token.Colors.recordingGlyph)
                 .frame(width: Token.Shape.stopGlyph, height: Token.Shape.stopGlyph)
                 .frame(width: Token.Shape.stopTap, height: Token.Shape.stopTap)
