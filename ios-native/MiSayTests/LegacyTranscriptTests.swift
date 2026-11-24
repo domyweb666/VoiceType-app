@@ -209,10 +209,10 @@ final class LegacyTranscriptTests: XCTestCase {
 }
 
 private extension LegacyTranscriptTests {
-    func assertFails<Value>(
+    func assertFails(
         _ expected: TranscriptStore.Failure,
         line: UInt = #line,
-        _ work: () throws -> Value
+        _ work: () throws -> some Any
     ) {
         XCTAssertThrowsError(try work(), line: line) { error in
             XCTAssertEqual(error as? TranscriptStore.Failure, expected, line: line)
