@@ -86,6 +86,26 @@ jobs:
         run: |
           "$RUNNER_TEMP/swiftlint/swiftlint" lint --strict
 
+      # 2026-11-25 三次紅在這：機器剛起來時模擬器服務還沒好，一台都列不出來（exit 70），重跑也碰運氣。
+      # 先等它列得出 iPhone 17；等不到就自己建一台，還是不行就講清楚。
+      - name: 等模擬器備好
+        if: ${{ !cancelled() }}
+        run: |
+          has_phone() { xcrun simctl list devices available 2>/dev/null | grep -q "iPhone 17 ("; }
+          for i in $(seq 1 30); do
+            if has_phone; then
+              exit 0
+            fi
+            echo "第 $i 次：還沒有 iPhone 17"
+            sleep 10
+            if [ "$i" = 12 ] || [ "$i" = 24 ]; then
+              xcrun simctl create "iPhone 17" "com.apple.CoreSimulator.SimDeviceType.iPhone-17" || true
+            fi
+          done
+          xcrun simctl list runtimes || true
+          echo "::error::等了 5 分鐘還是沒有 iPhone 17 模擬器，是機器的問題"
+          exit 1
+
       # 模擬器版用本機自簽（ad-hoc，不需要任何憑證或 secret）。
       # 2026-10-31 B1 踩到：完全不簽章的 App 沒有身分，模擬器上 Keychain 回 -34018，測試全紅。
       - name: 編譯模擬器版
