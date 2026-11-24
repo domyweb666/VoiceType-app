@@ -20,7 +20,9 @@ extension RecordingResultView {
         switch failure {
         case .timedOut, .transport:
             .transcriptionFailed(reason: "現在沒有網路，連上後會自動整理。", needsNewKey: false)
-        case .invalidAPIKey, .missingAPIKey:
+        case .missingAPIKey:
+            .transcriptionFailed(reason: "還沒設定 OpenAI 金鑰，到設定貼上。", needsNewKey: true)
+        case .invalidAPIKey:
             .transcriptionFailed(reason: "金鑰沒有用，到設定換一把。", needsNewKey: true)
         case .quotaExhausted:
             .transcriptionFailed(reason: "OpenAI 說額度用完了，到 OpenAI 後台處理。", needsNewKey: false)
