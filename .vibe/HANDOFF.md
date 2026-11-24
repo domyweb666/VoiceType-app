@@ -1,4 +1,4 @@
-# Handoff: 分支 fix-1125：金鑰跟 iCloud 鑰匙圈走（已提交）＋四個小 bug（子代理改在 worktree，沒提交）；都沒測過
+# Handoff: 分支 fix-1125（4620e1b）：金鑰跟 iCloud 鑰匙圈走＋四個小 bug 都已提交推上，CI 在跑、審查在跑、沒合 main
 
 > 產出時間：2026-11-25。worktree E:\VoiceType-words，分支 fix-1125（從 main d94913e 開）。context 過 400K 交接。
 > 米今天的話：「聚光燈引導和玉米火柴人動畫。這明確不要」「加密金鑰要不要跟 iCloud 鑰匙圈走：好」「這些幫我修復bug」（下面四個）。
@@ -8,8 +8,8 @@
 - fix-1125 已提交並推：金鑰。`TranscriptEncryptionKeyStore`（本機主金鑰 data-key 照舊；其他把與鑰匙圈用 data-key.<指紋>）、`TranscriptStore+Keys.swift`（打不開試別把、Unreadable 放回）、`ICloudKeyTests`、安全標準、備份頁那句話。設計重點寫在檔頭。
 
 ## 🚧 還沒
-1. 四個 bug：交接時子代理還在同一個 worktree 改，**改動沒提交**。四個是：清單與版本紀錄預覽露出 `##` `**`；沒設過金鑰時 AI 兩頁寫「金鑰沒有用」；匯出頁「複製標題」圖示變「格式」二字；格式列底色左右縮 12pt。先 `git status` 看它改到哪、逐個讀 diff 再提交。
-2. 金鑰那個 commit：CI 結果沒看（推 fix-1125 時自動跑；「runner not acquired」是 GitHub 沒機器，rerun 就好）。**沒有獨立審查**。審查重點：任何情況都不能讓現有文字稿解不開；兩台手機各有一把；刪除全部資料；鑰匙圈讀取失敗時不能誤產新金鑰；模擬器的 Keychain 測得到 synchronizable 嗎；`restoreSetAside` 會不會蓋檔。
+1. 四個 bug 已提交（4620e1b），差異讀過。CI run 45444732707（含金鑰）結果沒看；獨立審查（金鑰＋四個 bug）子代理在舊對話跑，結果若沒帶到就重派。圖示（t.square、number、number.square）與格式列滿版只能看模擬器。
+2. 金鑰那個 commit：CI 結果沒看（「runner not acquired」是 GitHub 沒機器，rerun 就好）。**沒有獨立審查**。審查重點：任何情況都不能讓現有文字稿解不開；兩台手機各有一把；刪除全部資料；鑰匙圈讀取失敗時不能誤產新金鑰；模擬器的 Keychain 測得到 synchronizable 嗎；`restoreSetAside` 會不會蓋檔。
 3. 帳本、待驗清單還沒寫：片 Z2 金鑰、Z3 四個 bug；組塊 M（mascot-m1，引導與玉米動畫）標「米 2026-11-25 明確不要」，分支沒刪（要刪先問）。組塊 Y「等米決定」的金鑰那條改成已定。
 
 ## ❓ 等米決定
@@ -24,4 +24,4 @@
 - `RecordingLauncher.append` 沒人用了。單顆 * 夾中文不當記號。串文「1/」編號留在字裡。
 
 ## ⏭️ 下一步
-看子代理的改動 → 提交 → 推 → CI 綠 → 派沒參與的子代理審金鑰與四個 bug → 修 → 帳本與待驗清單 → 問米要不要合 main。
+看 CI 與審查結果 → 修 → 再綠 → 帳本與待驗清單 → 問米要不要合 main。
