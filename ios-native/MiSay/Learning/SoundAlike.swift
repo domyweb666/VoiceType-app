@@ -16,7 +16,10 @@ enum SoundAlike {
         }
         let heardLetters = letters(of: heard)
         let writtenLetters = letters(of: written)
-        guard !heardLetters.isEmpty, !writtenLetters.isEmpty else {
+        // 數字不一樣是改內容（Q1 改成 Q2），不是聽錯。
+        guard !heardLetters.isEmpty, !writtenLetters.isEmpty,
+              heard.filter(\.isNumber) == written.filter(\.isNumber)
+        else {
             return false
         }
         if similarity(heardLetters, writtenLetters) >= minLetterSimilarity {

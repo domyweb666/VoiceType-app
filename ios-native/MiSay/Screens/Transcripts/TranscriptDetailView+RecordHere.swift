@@ -68,6 +68,8 @@ extension TranscriptDetailView {
     /// 系統的編輯框要等它真的收完鍵盤，最後選的字才會交出來；米說自己的在 `takeIn` 裡就收得完。
     private func typingEnded() {
         guard !usesPlainEditor else {
+            // 注音選到一半的先定下來，才不會把半截注音當成改過的字。
+            endTyping()
             mergeThenLearn()
             return
         }
@@ -84,7 +86,7 @@ extension TranscriptDetailView {
             return
         }
         flushAutosave()
-        CorrectedWordsRunner.start()
+        CorrectedWordsRunner.start(only: transcript.id)
     }
 
     private func noteLearned(_ words: [String]) {

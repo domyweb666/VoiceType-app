@@ -99,6 +99,23 @@ final class CorrectedWordsTests: XCTestCase {
         XCTAssertEqual(words("我很高興", "我很開心"), [])
     }
 
+    func test改數字_改英文文法_整串虛字都不收() {
+        XCTAssertEqual(words("Q1的業績", "Q2的業績"), [])
+        XCTAssertEqual(words("I make it", "I made it"), [])
+        XCTAssertEqual(words("跑的在快", "跑得再快"), [])
+    }
+
+    func test加一段刪一段之後別段改的字照樣收() {
+        XCTAssertEqual(words("第一段\n我買了平果手機", "我買了蘋果手機"), ["蘋果"])
+        XCTAssertEqual(words("我買了平果手機\n尾巴", "新的一段\n我買了蘋果手機\n尾巴"), ["蘋果"])
+    }
+
+    func test整篇重寫不比也不會當掉() {
+        let old = (0 ..< 15000).map { String(UnicodeScalar(0x4E00 + $0 % 5000) ?? "一") }.joined()
+        let new = (0 ..< 15000).map { String(UnicodeScalar(0x6E00 + $0 % 5000) ?? "一") }.joined()
+        XCTAssertEqual(EditDiff.hunks(from: old, to: new), [])
+    }
+
     func test同一個詞改好幾處只收一次() {
         XCTAssertEqual(words("平果好吃，平果便宜", "蘋果好吃，蘋果便宜"), ["蘋果"])
     }

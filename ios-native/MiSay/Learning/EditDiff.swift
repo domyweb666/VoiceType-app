@@ -14,10 +14,70 @@ struct EditHunk: Equatable {
 enum EditDiff {
     /// 前後文各帶幾格。
     static let contextLength = 12
+    /// 一段裡加掉的字超過這麼多就當整段重寫，不比：比對用的記憶體照改動量的平方長，
+    /// 整篇一萬多字換掉會吃到 1 GB 以上，App 會被系統關掉。
+    static let maxChangedUnits = 400
+    static let maxComparedUnits = 8000
 
+    /// 先一段一段比，只有改過的段才逐字比。
     static func hunks(from old: String, to new: String) -> [EditHunk] {
-        let oldUnits = units(of: old)
-        let newUnits = units(of: new)
+        changedParagraphs(from: old, to: new).flatMap { pair in
+            paragraphHunks(from: units(of: pair.old), to: units(of: pair.new))
+        }
+    }
+
+    /// 改過的那幾段，改前改後成對。連著改好幾段而且段數一樣就一段對一段，不一樣（拆段、併段）就整塊對整塊。
+    private static func changedParagraphs(
+        from old: String,
+        to new: String
+    ) -> [(old: String, new: String)] {
+        let oldLines = old.components(separatedBy: "\n")
+        let newLines = new.components(separatedBy: "\n")
+        let (removed, inserted) = changedOffsets(from: oldLines, to: newLines)
+        var pairs: [(old: String, new: String)] = []
+        var oldIndex = 0
+        var newIndex = 0
+        while oldIndex < oldLines.count || newIndex < newLines.count {
+            let oldStart = oldIndex
+            let newStart = newIndex
+            while removed.contains(oldIndex) || inserted.contains(newIndex) {
+                oldIndex += removed.contains(oldIndex) ? 1 : 0
+                newIndex += inserted.contains(newIndex) ? 1 : 0
+            }
+            let oldBlock = Array(oldLines[oldStart ..< oldIndex])
+            let newBlock = Array(newLines[newStart ..< newIndex])
+            if oldBlock.count == newBlock.count {
+                pairs += zip(oldBlock, newBlock).map { (old: $0.0, new: $0.1) }
+            } else if !oldBlock.isEmpty, !newBlock.isEmpty {
+                let whole = (
+                    old: oldBlock.joined(separator: "\n"),
+                    new: newBlock.joined(separator: "\n")
+                )
+                pairs.append(whole)
+            }
+            oldIndex += 1
+            newIndex += 1
+        }
+        return pairs
+    }
+
+    private static func isRewritten(_ old: [String], _ new: [String]) -> Bool {
+        guard old.count + new.count <= maxComparedUnits else {
+            return true
+        }
+        var counts: [String: Int] = [:]
+        old.forEach { counts[$0, default: 0] -= 1 }
+        new.forEach { counts[$0, default: 0] += 1 }
+        return counts.values.reduce(0) { $0 + abs($1) } > maxChangedUnits
+    }
+
+    private static func paragraphHunks(
+        from oldUnits: [String],
+        to newUnits: [String]
+    ) -> [EditHunk] {
+        guard !isRewritten(oldUnits, newUnits) else {
+            return []
+        }
         let (removed, inserted) = changedOffsets(from: oldUnits, to: newUnits)
         var hunks: [EditHunk] = []
         var oldIndex = 0

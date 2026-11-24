@@ -9,10 +9,10 @@ enum CorrectedWords {
     static let hanLengths = 2 ... 6
     static let mixedLengths = 2 ... 12
 
-    /// 改成這些字不收：順手改的虛字與代名詞，收了只會佔掉詞彙的位置。
+    /// 改成這些字不收，也不拿來跟旁邊的字併成詞：虛字、代名詞、常接在名字前面的動詞。
     private static let functionCharacters = Set<Character>(
         "的得地底了啦著在再是有又和跟與就也都很要會去來到把被讓給不沒這那哪個一"
-            + "嗎嘛吧呢啊喔我你妳您他她它牠祂們做作對從用說想還"
+            + "嗎嘛吧呢啊喔我你妳您他她它牠祂們做作對從用說想還找叫問看買吃喝賣帶請約等見寫聽"
     )
 
     static func find(from old: String, to new: String) -> [String] {
@@ -36,9 +36,9 @@ enum CorrectedWords {
             return nil
         }
         guard SoundAlike.isAllHan(written) else {
-            return mixedWord(written)
+            return mixedWord(written, heard: heard)
         }
-        if written.count == 1, written.allSatisfy(functionCharacters.contains) {
+        if written.allSatisfy(functionCharacters.contains) {
             return nil
         }
         let text = Array(hunk.leading + hunk.after + hunk.trailing)
@@ -48,7 +48,12 @@ enum CorrectedWords {
     }
 
     /// 英文或中英夾雜：要有字母，中間不能隔著標點或換行。
-    private static func mixedWord(_ written: String) -> String? {
+    /// 英文改英文要有大寫才收：make 改成 made 是改文法，專有名詞才會有大寫。
+    private static func mixedWord(_ written: String, heard: String) -> String? {
+        let isEnglishEdit = (heard + written).allSatisfy(\.isASCII)
+        guard !isEnglishEdit || written.contains(where: \.isUppercase) else {
+            return nil
+        }
         let isOneWord = written.allSatisfy { $0.isLetter || $0.isNumber || " -.&+'".contains($0) }
         let hasLetter = written.contains { $0.isLetter }
         return isOneWord && hasLetter && mixedLengths.contains(written.count) ? written : nil
