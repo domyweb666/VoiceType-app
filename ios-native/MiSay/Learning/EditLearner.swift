@@ -43,6 +43,7 @@ struct EditLearner {
                     currentHabits: wantsHabits ? currentHabits : []
                 )),
             ],
+            reasoningEffort: Polisher.reasoningEffort,
             responseFormat: ResponseFormat(type: "json_object")
         )
         let body: Data
@@ -134,6 +135,7 @@ struct EditLearner {
     private struct Request: Encodable {
         let model: String
         let messages: [Message]
+        let reasoningEffort: String
         let responseFormat: ResponseFormat
     }
 
