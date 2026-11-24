@@ -113,8 +113,7 @@ extension TranscriptionQueue {
                 rawText: chunk,
                 model: model,
                 style: style,
-                vocabulary: settings.vocabulary,
-                habits: settings.activeHabits
+                vocabulary: settings.vocabulary
             )
             let waited = Int(Date().timeIntervalSince(startedAt))
             DiagnosticLog.shared.record(

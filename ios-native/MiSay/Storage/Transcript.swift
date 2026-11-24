@@ -17,10 +17,10 @@ struct Transcript: Codable, Identifiable, Hashable {
     /// 潤飾方式的 `PolishStyle.rawValue`（2026-11-08 加）。存字串不存列舉：哪天認不得的值，
     /// 這篇照樣讀得出來，不會被當成壞檔搬走。舊的篇沒有這欄，是 nil。
     var polishStyle: String?
-    /// 潤飾剛出來、還沒被人改過的那份文字稿（2026-11-08 加）。之後自動詞彙、從修改學習要拿它跟
+    /// 潤飾剛出來、還沒被人改過的那份文字稿（2026-11-08 加）。自動詞彙要拿它跟
     /// `draftText` 比，看人改了哪裡。改字只動 `draftText`，這欄不動；舊的篇沒有這欄，是 nil。
     var originalDraft: String?
-    /// 上次學到哪（2026-11-08 加）：學過的那份文字稿。下次只比它跟現在的，同一處修改不會學兩次。
+    /// 上次認字看到哪（2026-11-08 加）：看過的那份文字稿。下次只比它跟現在的，同一處修改不會看兩次。
     var learnedDraft: String?
     /// 轉錄回來字數少得不像那段講的話量、重送一次還是少的段（從 1 數，S2-2）。沒有就是 nil。
     var possiblyMissingSegments: [Int]?
@@ -227,8 +227,8 @@ struct Transcript: Codable, Identifiable, Hashable {
         first.isEmpty ? second : first + "\n\n" + second
     }
 
-    /// 有沒有還沒學過的修改：從上次學到的（沒學過就是原稿）到現在的文字稿有變。
-    /// 舊的篇沒有原稿，比不出改了哪裡，不算。改寫來的篇也不算：改的是改寫的字，學了會帶歪潤飾的習慣。
+    /// 有沒有還沒看過的修改：從上次看到的（沒看過就是原稿）到現在的文字稿有變。
+    /// 舊的篇沒有原稿，比不出改了哪裡，不算。改寫來的篇也不算：改的是改寫的字，不是聽錯的字。
     var unlearnedEdit: (from: String, to: String)? {
         guard sourceID == nil, let draftText, let baseline = learnedDraft ?? originalDraft,
               baseline != draftText

@@ -67,7 +67,7 @@ struct HomeView: View {
             recoverThenReloadPending()
             reloadKey()
             queue.startPendingRun()
-            EditLearningRunner.start()
+            CorrectedWordsRunner.start()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
@@ -78,8 +78,6 @@ struct HomeView: View {
             }
             reloadKey()
             queue.returnedToForeground()
-            // 上次沒網路沒學成的修改，回前景再試。
-            EditLearningRunner.start()
         }
         .onChange(of: isCurrentPage) { _, isShown in
             if isShown {

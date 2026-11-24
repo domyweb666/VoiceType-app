@@ -2,7 +2,7 @@ import Foundation
 
 /// W3「AI 改了什麼」（2026-11-09，原第三批）：口語稿跟 AI 剛整理出來的文字稿逐字比，
 /// 整篇切成一段一段：沒動、刪掉、加上。給人確認 AI 沒改掉原意，只在手機上算，不送任何地方。
-/// 跟 `EditDiff` 分開：那支只抓幾處送去學習，這支要把整篇照順序排出來給人看。
+/// 跟 `EditDiff` 分開：那支只抓改過的幾處來認字，這支要把整篇照順序排出來給人看。
 struct PolishDiff: Equatable, Sendable {
     enum Kind: Equatable, Sendable {
         case same

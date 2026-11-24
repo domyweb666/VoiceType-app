@@ -32,7 +32,7 @@ struct VocabularyView: View {
         )
         List {
             Section {
-                learningRow
+                autoToggle
             }
             .listRowBackground(Token.Colors.rowBackground)
 
@@ -125,36 +125,27 @@ struct VocabularyView: View {
 
 /// 詞彙頁的幾塊：自動加入的狀態、一個詞一列、空狀態、底下說明、右下角＋。
 private extension VocabularyView {
-    /// 整列可點，進「從修改學習」開關那頁。開關的字跟顏色一起講，不只靠顏色（使用規則第 4 條）。
-    var learningRow: some View {
-        NavigationLink {
-            LearningSettingsView()
-        } label: {
-            HStack(spacing: Token.Space.m) {
-                Image(systemName: "circle.fill")
-                    .font(Token.Fonts.footnote)
-                    .foregroundStyle(
-                        settings.autoVocabulary ? Token.Colors.link : Token.Colors.textSecondary
-                    )
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: Token.Space.xs) {
-                    Text(settings.autoVocabulary ? "自動加入詞彙：開" : "自動加入詞彙：關")
-                        .font(Token.Fonts.body)
-                        .foregroundStyle(Token.Colors.textPrimary)
-                    Text(learningDetail)
-                        .font(Token.Fonts.secondary)
-                        .foregroundStyle(Token.Colors.textSecondary)
-                }
+    /// 2026-11-25：「從修改學習」那頁拿掉，開關直接放這裡。
+    var autoToggle: some View {
+        Toggle(isOn: $settings.autoVocabulary) {
+            VStack(alignment: .leading, spacing: Token.Space.xs) {
+                Text("自動加入詞彙")
+                    .font(Token.Fonts.body)
+                    .foregroundStyle(Token.Colors.textPrimary)
+                Text(autoDetail)
+                    .font(Token.Fonts.secondary)
+                    .foregroundStyle(Token.Colors.textSecondary)
             }
         }
+        .tint(Token.Colors.link)
     }
 
-    var learningDetail: String {
+    var autoDetail: String {
         guard settings.autoVocabulary else {
             return "關著時不會自己加詞，你加的照樣有用。"
         }
         guard let date = settings.lastAutoVocabularyAt else {
-            return "還沒學到新詞。你把聽錯的人名、品牌改對，就會記下來。"
+            return "你在文字稿把聽錯的詞改對，就會記下來。只在手機上認，不會送出去。"
         }
         return "上次加了新詞：" + date.formatted(.relative(presentation: .named))
     }
@@ -181,7 +172,7 @@ private extension VocabularyView {
             ContentUnavailableView(
                 "還沒有自動加的詞",
                 systemImage: "sparkles",
-                description: Text("你把聽錯的人名、品牌改對，米說會自己記下來。")
+                description: Text("你在文字稿把聽錯的詞改對，米說會自己記下來。")
             )
         } else {
             ContentUnavailableView(
@@ -198,7 +189,7 @@ private extension VocabularyView {
                 Text("「\(duplicateWord)」已經在裡面了。")
             }
             if !isEmpty {
-                Text("左滑可以刪掉一個。標「自動」的是從你改過的文字稿學來的，刪掉就不會再加回來。")
+                Text("左滑可以刪掉一個。標「自動」的是你在文字稿改對的詞，刪掉就不會再加回來。")
             }
         }
         .font(Token.Fonts.footnote)

@@ -134,8 +134,8 @@ struct TranscriptDetailView: View {
                 cancelReview()
                 leaveEditor()
                 discardIfBlank()
-                // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。
-                EditLearningRunner.start()
+                // 這次改對的詞加進自訂詞彙（開關關著就不跑）。
+                CorrectedWordsRunner.start()
                 onLeave()
             }
     }

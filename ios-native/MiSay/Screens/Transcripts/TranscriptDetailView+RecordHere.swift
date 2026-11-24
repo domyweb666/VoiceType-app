@@ -27,8 +27,12 @@ extension TranscriptDetailView {
             }
             .onChange(of: isEditing) { _, editing in
                 if !editing {
-                    mergeAfterTyping()
+                    typingEnded()
                 }
+            }
+            // 剛改對的詞記下來了，底下講一聲。
+            .onChange(of: AppSettings.shared.autoAddedVocabulary) { old, new in
+                noteLearned(new.filter { !old.contains($0) })
             }
             // 重新轉錄可能是上一次打開時按的，這頁等它做完換成新的。
             .onChange(of: isRetranscribing) { _, isRunning in
@@ -62,15 +66,32 @@ extension TranscriptDetailView {
     }
 
     /// 系統的編輯框要等它真的收完鍵盤，最後選的字才會交出來；米說自己的在 `takeIn` 裡就收得完。
-    private func mergeAfterTyping() {
+    private func typingEnded() {
         guard !usesPlainEditor else {
-            queue.mergeWaiting(into: transcript.id)
+            mergeThenLearn()
             return
         }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(Self.focusDelayMilliseconds))
-            queue.mergeWaiting(into: transcript.id)
+            mergeThenLearn()
         }
+    }
+
+    /// 整理中不存：會拿舊的那份蓋掉流水剛存的（跟自動存同一條規矩）。
+    private func mergeThenLearn() {
+        queue.mergeWaiting(into: transcript.id)
+        guard !isLocked else {
+            return
+        }
+        flushAutosave()
+        CorrectedWordsRunner.start()
+    }
+
+    private func noteLearned(_ words: [String]) {
+        guard !words.isEmpty else {
+            return
+        }
+        showNote("記住了「" + words.joined(separator: "、") + "」。")
     }
 
     var isRetranscribing: Bool {

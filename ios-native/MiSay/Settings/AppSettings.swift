@@ -19,9 +19,7 @@ final class AppSettings {
         static let autoAddedVocabulary = "autoAddedVocabulary"
         static let rejectedVocabulary = "rejectedVocabulary"
         static let lastAutoVocabularyAt = "lastAutoVocabularyAt"
-        static let learnFromEdits = "learnFromEdits"
-        static let learnedHabits = "learnedHabits"
-        static let lastLearningReport = "lastLearningReport"
+        // 2026-11-25 起不讀舊的 "learnFromEdits"、"learnedHabits"、"lastLearningReport"（不再照修改改提示詞）。
         static let usesPlainEditor = "usesPlainEditor"
     }
 
@@ -51,11 +49,7 @@ final class AppSettings {
         autoAddedVocabulary = defaults.stringArray(forKey: Key.autoAddedVocabulary) ?? []
         rejectedVocabulary = defaults.stringArray(forKey: Key.rejectedVocabulary) ?? []
         lastAutoVocabularyAt = defaults.object(forKey: Key.lastAutoVocabularyAt) as? Date
-        learnFromEdits = defaults.bool(forKey: Key.learnFromEdits)
-        learnedHabits = defaults.stringArray(forKey: Key.learnedHabits) ?? []
         usesPlainEditor = defaults.object(forKey: Key.usesPlainEditor) as? Bool ?? true
-        lastLearningReport = defaults.data(forKey: Key.lastLearningReport)
-            .flatMap { try? JSONDecoder().decode(LearningReport.self, from: $0) }
     }
 
     /// 錄音面板「整理中」那句費用說明只出現第一次（06-首次體驗 錄音面板「第一次」）。
@@ -97,7 +91,7 @@ final class AppSettings {
     /// 2026-11-24 起畫面上不給選，存過的值也不讀：存著別的模型的人沒地方換回來。
     let polishModel = Polisher.defaultModel
 
-    // MARK: - 2026-11-08 自動詞彙、從修改學習（米選：詞彙直接加入、習慣要做）
+    // MARK: - 2026-11-08 自動詞彙（米選：詞彙直接加入）
 
     /// 抓到聽錯又被改對的詞，直接加進自訂詞彙。預設開。
     var autoVocabulary: Bool {
@@ -117,36 +111,6 @@ final class AppSettings {
     /// 上次真的自動加進一個新詞的時間；詞彙頁狀態列寫「3 天前」。從沒加過是 nil（2026-11-09）。
     private(set) var lastAutoVocabularyAt: Date? {
         didSet { defaults.set(lastAutoVocabularyAt, forKey: Key.lastAutoVocabularyAt) }
-    }
-
-    /// 學到的修改習慣接在潤飾提示詞後面。預設關。
-    var learnFromEdits: Bool {
-        didSet { defaults.set(learnFromEdits, forKey: Key.learnFromEdits) }
-    }
-
-    /// 學到的習慣，最多 10 條。只能刪，不給打字改（11/08「提示詞不給改」）。
-    var learnedHabits: [String] {
-        didSet { defaults.set(learnedHabits, forKey: Key.learnedHabits) }
-    }
-
-    /// 上次學習的結果（2026-11-15）；從沒學過是 nil。
-    var lastLearningReport: LearningReport? {
-        didSet {
-            defaults.set(
-                lastLearningReport.flatMap { try? JSONEncoder().encode($0) },
-                forKey: Key.lastLearningReport
-            )
-        }
-    }
-
-    /// 潤飾真的要用的習慣：開關關著就是空的；學到的留著，再打開馬上能用。
-    var activeHabits: [String] {
-        learnFromEdits ? learnedHabits : []
-    }
-
-    /// 兩個都關著就什麼都不學、不送。
-    var isLearningFromEdits: Bool {
-        autoVocabulary || learnFromEdits
     }
 
     func isAutoAdded(_ word: String) -> Bool {
