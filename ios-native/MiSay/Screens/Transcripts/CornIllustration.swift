@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 空清單那根玉米（使用規則第 3 條：可愛只在這裡與收成）。
+/// 空清單那根玉米（使用規則第 3 條：可愛只在這裡）。
 /// 座標是畫稿本身的 88×112 格，跟著 `Token.Shape.cornWidth／cornHeight` 等比縮放。
 struct CornIllustration: View {
     private static let boxWidth: CGFloat = 88

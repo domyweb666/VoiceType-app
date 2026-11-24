@@ -1,3 +1,4 @@
+import CryptoKit
 @testable import MiSay
 import XCTest
 
@@ -30,5 +31,19 @@ final class EraseAllDataTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: pendingFile.path))
         XCTAssertFalse(RetainedRecordings().exists(for: transcript.id))
         XCTAssertEqual(try keyStore.read(), fakeKey, "金鑰另有鈕，不准一起刪")
+    }
+
+    func test沒有舊金鑰也刪得乾淨_有舊金鑰會一起刪() throws {
+        let legacyKeyStore = TranscriptEncryptionKeyStore()
+        try legacyKeyStore.deleteForTesting()
+        try TranscriptStore().save(Transcript(durationSeconds: 60, rawText: "要被刪掉的"))
+        try EraseAllDataSection.eraseAll()
+        XCTAssertEqual(try TranscriptStore().loadAll().transcripts, [])
+
+        try legacyKeyStore.saveForTesting(SymmetricKey(size: .bits256))
+        try EraseAllDataSection.eraseAll()
+        // 金鑰還在的話，再放一把會撞到。
+        XCTAssertNoThrow(try legacyKeyStore.saveForTesting(SymmetricKey(size: .bits256)))
+        try legacyKeyStore.deleteForTesting()
     }
 }

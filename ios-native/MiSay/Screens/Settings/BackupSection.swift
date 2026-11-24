@@ -5,6 +5,8 @@ import SwiftUI
 /// 匯入合併不覆蓋：同一篇（同 id）已經在手機上就跳過；先講清楚會加幾篇，按了才寫（安全標準六）。
 struct BackupSection: View {
     @State private var transcriptCount = 0
+    @State private var unreadableCount = 0
+    @State private var loadFailed = false
     @State private var isImporting = false
     @State private var pendingImport: [Transcript] = []
     @State private var skippedCount = 0
@@ -25,7 +27,7 @@ struct BackupSection: View {
                 Text("匯出備份")
             }
             .tint(Token.Colors.link)
-            .disabled(transcriptCount == 0)
+            .disabled(transcriptCount == 0 || loadFailed)
             // 讀篇數、選檔、確認框掛在這顆鈕上：掛在 Section 上，SwiftUI 可能每一列各套一次。
             Button("匯入備份") {
                 resultMessage = nil
@@ -65,17 +67,29 @@ struct BackupSection: View {
         .listRowBackground(Token.Colors.rowBackground)
     }
 
-    /// 沒東西時按鈕變灰，這裡說為什麼。
     private var footerText: String {
-        let lead = transcriptCount == 0
-            ? "還沒有文字稿可以備份。"
-            : "備份是一個檔，裡面是全部 \(transcriptCount) 篇文字稿，不含金鑰、錄音和垃圾桶；新手機要重貼金鑰。"
+        let lead = loadFailed
+            ? "文字稿一時讀不到，檔案都還在，等一下再打開這頁。"
+            : Self.lead(count: transcriptCount, unreadable: unreadableCount)
         return lead + "備份檔沒有加密，存在只有自己拿得到的地方。"
             + Self.newPhoneNote + AutoBackupRows.note
     }
 
-    /// 加密文字稿的鑰匙只在這支手機，iCloud 還原帶不過去。
-    static let newPhoneNote = "換新手機時，iCloud 還原過去的文字稿解不開，要靠備份檔匯入。"
+    /// 沒東西時按鈕變灰，這裡說為什麼。
+    static func lead(count: Int, unreadable: Int) -> String {
+        guard count > 0 else {
+            return unreadable > 0
+                ? "有 \(unreadable) 篇文字稿讀不到，原檔已保留，現在沒有可以備份的。"
+                : "還沒有文字稿可以備份。"
+        }
+        let scope = unreadable > 0 ? "讀得到的" : "全部"
+        return "備份是一個檔，裡面是\(scope) \(count) 篇文字稿，不含金鑰、錄音和垃圾桶；新手機要重貼金鑰。"
+    }
+
+    /// 文字稿不另外加密（米 2026-11-25），iCloud 還原就帶得過去。
+    /// 更新前做的 iCloud 備份裡還是加密檔，還原到新手機解不開。
+    static let newPhoneNote = "換新手機用 iCloud 還原，文字稿會一起過去。"
+        + "更新後先開一次米說，等 iCloud 備份做完再換。沒開 iCloud 備份的，用備份檔匯入。"
 
     private var lastBackupText: String {
         let latest = BackupHistory.latest(
@@ -113,8 +127,14 @@ struct BackupSection: View {
     }
 
     private func reloadCount() {
-        // 讀不到歷史時當 0 篇，匯出鈕變灰；文字稿清單那頁會講讀不到。
-        transcriptCount = (try? TranscriptStore().loadAll().transcripts.count) ?? 0
+        do {
+            let loaded = try TranscriptStore().loadAll()
+            transcriptCount = loaded.transcripts.count
+            unreadableCount = loaded.unreadableCount
+            loadFailed = false
+        } catch {
+            loadFailed = true
+        }
     }
 
     /// 讀檔、驗格式、算要加幾篇；這一步不寫任何東西。
@@ -136,8 +156,10 @@ struct BackupSection: View {
         let listedIDs: Set<UUID>
         let trashedIDs: Set<UUID>
         do {
-            listedIDs = try Set(TranscriptStore().loadAll().transcripts.map(\.id))
-            trashedIDs = try TranscriptStore().trashedIDs()
+            let store = TranscriptStore()
+            // 一時讀不到的那幾篇只看得到檔名，也算手機上已經有的。
+            listedIDs = try Set(store.loadAll().transcripts.map(\.id)).union(store.listedIDs())
+            trashedIDs = try store.trashedIDs()
         } catch {
             // 不知道手機上有哪些，就不知道會不會重複，寧可不匯。
             resultMessage = "沒有匯入：手機上的文字稿讀不到，不知道會不會重複。"

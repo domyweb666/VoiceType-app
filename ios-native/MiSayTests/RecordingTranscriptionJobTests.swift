@@ -80,7 +80,7 @@ final class RecordingTranscriptionJobTests: XCTestCase {
         let job = RecordingTranscriptionJob(transcriber: makeTranscriber())
         _ = try await job.transcribe(recordingAt: url)
         XCTAssertEqual(FakeOpenAIServer.requestCount, 2, "少得不對勁要重送一次")
-        XCTAssertEqual(job.possiblyMissingSegments(forRecordingAt: url), [1])
+        XCTAssertEqual(try job.possiblyMissingSegments(forRecordingAt: url), [1])
     }
 
     func test漏字整段靜音回空字不算漏() async throws {
@@ -89,7 +89,7 @@ final class RecordingTranscriptionJobTests: XCTestCase {
         let job = RecordingTranscriptionJob(transcriber: makeTranscriber())
         _ = try await job.transcribe(recordingAt: recording)
         XCTAssertEqual(FakeOpenAIServer.requestCount, 1)
-        XCTAssertNil(job.possiblyMissingSegments(forRecordingAt: recording))
+        XCTAssertNil(try job.possiblyMissingSegments(forRecordingAt: recording))
     }
 
     func test邊錄邊轉錄音中先轉定下來的段停止後只補剩下的() async throws {
@@ -158,7 +158,7 @@ final class RecordingTranscriptionJobTests: XCTestCase {
         let text = try await job.transcribe(recordingAt: recording)
         XCTAssertEqual(text, "新。新。新。")
         XCTAssertEqual(FakeOpenAIServer.requestCount, 3)
-        XCTAssertEqual(job.transcriptID(forRecordingAt: recording), legacyID)
+        XCTAssertEqual(try job.transcriptID(forRecordingAt: recording), legacyID)
     }
 
     func test續轉第二段失敗後再來只送剩下的段() async throws {
@@ -177,7 +177,7 @@ final class RecordingTranscriptionJobTests: XCTestCase {
         XCTAssertEqual(FakeOpenAIServer.requestCount, 2)
         let progressURL = RecordingTranscriptionJob.progressURL(for: recording)
         let progressBytes = try Data(contentsOf: progressURL)
-        XCTAssertNil(progressBytes.range(of: Data("第一段".utf8)), "進度檔不是明文（S2-4）")
+        XCTAssertNotNil(progressBytes.range(of: Data("第一段".utf8)), "進度檔存 JSON")
 
         FakeOpenAIServer.reset()
         FakeOpenAIServer.queuedReplies = [

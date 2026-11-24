@@ -1,6 +1,6 @@
 import Foundation
 
-/// 進度檔的內容（拆檔：主檔型別超過 200 行）。存取與加密在主檔的 load／saveProgress。
+/// 進度檔的內容（拆檔：主檔型別超過 200 行）。存取在主檔的 load／saveProgress。
 extension RecordingTranscriptionJob {
     /// 進度檔：哪幾段已經有口語稿，以及這段錄音存進歷史時用哪個 id。放在錄音檔旁邊，錄音刪掉時一起刪。
     /// id 先定好：口語稿存好但錄音刪不掉時，下一輪存回同一篇，不會多一篇重複的。

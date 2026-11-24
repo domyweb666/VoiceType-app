@@ -177,13 +177,15 @@ extension TranscriptDetailView {
         let movedToEnd: Bool
         do {
             let store = TranscriptStore()
-            let stored = try store.loadAll().transcripts.first { $0.id == transcript.id }
-            guard var updated = stored, updated.trashedAt == nil else {
+            guard var updated = try store.load(id: transcript.id), updated.trashedAt == nil else {
                 return .refused
             }
             movedToEnd = TranscriptionQueue.append(added, to: &updated, at: insertion)
             try store.save(updated)
             merged = updated
+        } catch TranscriptStore.Failure.cannotRead, TranscriptStore.Failure.keychainUnavailable {
+            // 存檔一時讀不到：先等，不留成獨立一篇。
+            return .busy
         } catch {
             DiagnosticLog.shared.record("接著錄：接不回正在編輯的那篇 \(type(of: error))")
             return .refused

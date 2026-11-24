@@ -6,8 +6,9 @@ extension RecordingTranscriptionJob {
     /// 送出去失敗不拋：記一筆就回來，下一輪再試，停止後整理流水也會補。錄音不受影響。
     /// 字數太少、或 OpenAI 拒收（再送也一樣）的段記進 `liveSkippedSegments`，錄音中不再送，免得每 15 秒重送一次。
     func transcribeFinishedSegments(ofLive liveURL: URL, progressAt finalURL: URL) async {
-        var progress = loadProgress(for: finalURL)
-        guard Self.mayHaveNewWork(progress, liveURL: liveURL),
+        // 進度檔一時讀不到，這一輪不轉，下一輪再看。
+        guard var progress = try? loadProgress(for: finalURL),
+              Self.mayHaveNewWork(progress, liveURL: liveURL),
               let segments = try? WAVSegmenter.finishedSegments(ofLive: liveURL),
               !segments.isEmpty
         else {

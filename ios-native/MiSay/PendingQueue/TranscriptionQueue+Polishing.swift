@@ -11,7 +11,14 @@ extension TranscriptionQueue {
             return nil
         }
         // 手上那份可能是舊的：別處整理好了、接過錄音，就不用再送。
-        let current = latest(of: transcript)
+        // 存檔一時讀不到就不送：拿舊的去潤飾會白花錢，也可能蓋掉新的。
+        let current: Transcript
+        do {
+            current = try latest(of: transcript)
+        } catch {
+            DiagnosticLog.shared.record("潤飾先不送，存檔一時讀不到：\(type(of: error))")
+            return .polishFailed(transcript, .malformedResponse)
+        }
         guard current.draftText == nil else {
             return .finished(current)
         }
@@ -65,25 +72,34 @@ extension TranscriptionQueue {
         return .finished(finished)
     }
 
-    /// 存檔裡最新的那份；讀不到、已經不在清單就用手上的。
-    func latest(of transcript: Transcript) -> Transcript {
-        let stored = try? store.load(id: transcript.id)
+    /// 存檔裡最新的那份；已經不在清單、存檔壞了就用手上的。一時讀不到丟錯：手上的可能是舊的。
+    func latest(of transcript: Transcript) throws -> Transcript {
+        let stored = try ignoringBroken { try store.load(id: transcript.id) }
         return stored ?? transcript
     }
 
     /// 潤飾要好幾分鐘，這段時間人可能改了標題、標籤（還沒有文字稿的篇也能取標題）；流水手上的是開始時那份，
-    /// 存之前把人改的換成存檔裡最新的，不然會蓋回去。讀不到存檔就照手上的存，字不能不存。
+    /// 存之前把人改的換成存檔裡最新的，不然會蓋回去。存檔壞了就照手上的存（壞的會先另存）；
+    /// 一時讀不到就丟錯不存，口語稿還在，之後再整理一次。
     /// 這段時間被丟進垃圾桶的，存在垃圾桶那份，不放回清單。
     func saveKeepingUserFields(_ transcript: inout Transcript) throws {
         let id = transcript.id
-        if let stored = (try? store.loadAll())?.transcripts.first(where: { $0.id == id }) {
+        if let stored = try ignoringBroken({ try store.load(id: id) }) {
             transcript.keepUserFields(from: stored)
-        } else if let trashed = try? store.loadFromTrash(id: id) {
+        } else if let trashed = try ignoringBroken({ try store.loadFromTrash(id: id) }) {
             transcript.keepUserFields(from: trashed)
             try store.saveInTrash(transcript)
             return
         }
         try store.save(transcript)
+    }
+
+    private func ignoringBroken(_ read: () throws -> Transcript?) throws -> Transcript? {
+        do {
+            return try read()
+        } catch TranscriptStore.Failure.unreadable {
+            return nil
+        }
     }
 
     /// 還在等著接回去的那段，通知點下去要打開的是原本那篇：獨立那一篇等一下就併掉了。

@@ -1,7 +1,7 @@
 @testable import MiSay
 import XCTest
 
-/// 2026-11-24 垃圾桶。只准在模擬器跑：setUp 會把加密金鑰與文字稿資料夾清掉。
+/// 2026-11-24 垃圾桶。只准在模擬器跑：setUp 會把舊金鑰與文字稿資料夾清掉。
 final class TrashTests: XCTestCase {
     private let store = TranscriptStore()
     private let keyStore = TranscriptEncryptionKeyStore()
@@ -48,9 +48,8 @@ final class TrashTests: XCTestCase {
         XCTAssertEqual(try store.trashedIDs().count, 1)
     }
 
-    func test垃圾桶的檔也加密() throws {
-        let secret = "丟掉的想法"
-        let transcript = Transcript(durationSeconds: 10, rawText: secret)
+    func test垃圾桶的檔也是JSON() throws {
+        let transcript = Transcript(durationSeconds: 10, rawText: "丟掉的想法")
         try store.save(transcript)
         try store.moveToTrash(id: transcript.id, now: now)
         let files = try FileManager.default.contentsOfDirectory(
@@ -58,7 +57,7 @@ final class TrashTests: XCTestCase {
             includingPropertiesForKeys: nil
         )
         let bytes = try Data(contentsOf: XCTUnwrap(files.first))
-        XCTAssertNil(bytes.range(of: Data(secret.utf8)))
+        XCTAssertNotNil(bytes.range(of: Data("丟掉的想法".utf8)))
     }
 
     func test放滿三十天才真的刪_沒記時間的不刪() throws {
@@ -96,7 +95,7 @@ final class TrashTests: XCTestCase {
         let id = UUID()
         let broken = try store.trashDirectoryURL().appending(path: id.uuidString)
             .appendingPathExtension(TranscriptStore.fileExtension)
-        try Data("這不是加密檔".utf8).write(to: broken)
+        try Data("這不是文字稿檔".utf8).write(to: broken)
         XCTAssertEqual(try store.trashedIDs(), [id], "還沒搬走前錄音也要保住")
 
         XCTAssertEqual(try store.deleteExpiredTrash(now: now), [])
