@@ -43,6 +43,15 @@ struct Transcript: Codable, Identifiable, Hashable {
     var rewrites: [TranscriptRewrite]?
     /// 使用者加的標籤（W6），清單可以照標籤篩。沒加過是 nil。
     var tags: [String]?
+    /// 文章標題（2026-11-24 主力編輯器）。沒取是 nil。畫面與匯出都看它，不看正文第一行。
+    var title: String?
+    /// 標成已發布的時間（2026-11-24）。nil 是草稿。（用時間不用可選的布林：規矩不准。）
+    var publishedAt: Date?
+    /// 這篇是從哪一篇改寫來的、改成哪一種（`RewriteKind.rawValue`）（2026-11-24）。不是改寫來的是 nil。
+    var sourceID: UUID?
+    var sourceKind: String?
+    /// 丟進垃圾桶的時間（2026-11-24）。不在垃圾桶是 nil。
+    var trashedAt: Date?
     var updatedAt: Date
 
     init(
@@ -221,9 +230,9 @@ struct Transcript: Codable, Identifiable, Hashable {
     }
 
     /// 有沒有還沒學過的修改：從上次學到的（沒學過就是原稿）到現在的文字稿有變。
-    /// 舊的篇沒有原稿，比不出改了哪裡，不算。
+    /// 舊的篇沒有原稿，比不出改了哪裡，不算。改寫來的篇也不算：改的是改寫的字，學了會帶歪潤飾的習慣。
     var unlearnedEdit: (from: String, to: String)? {
-        guard let draftText, let baseline = learnedDraft ?? originalDraft,
+        guard sourceID == nil, let draftText, let baseline = learnedDraft ?? originalDraft,
               baseline != draftText
         else {
             return nil
