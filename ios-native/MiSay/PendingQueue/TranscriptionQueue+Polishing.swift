@@ -11,7 +11,14 @@ extension TranscriptionQueue {
             return nil
         }
         // 手上那份可能是舊的：別處整理好了、接過錄音，就不用再送。
-        let current = latest(of: transcript)
+        // 存檔一時讀不到就不送：拿舊的去潤飾會白花錢，也可能蓋掉新的。
+        let current: Transcript
+        do {
+            current = try latest(of: transcript)
+        } catch {
+            DiagnosticLog.shared.record("潤飾先不送，存檔一時讀不到：\(type(of: error))")
+            return .polishFailed(transcript, .malformedResponse)
+        }
         guard current.draftText == nil else {
             return .finished(current)
         }
@@ -65,9 +72,9 @@ extension TranscriptionQueue {
         return .finished(finished)
     }
 
-    /// 存檔裡最新的那份；讀不到、已經不在清單就用手上的。
-    func latest(of transcript: Transcript) -> Transcript {
-        let stored = try? store.load(id: transcript.id)
+    /// 存檔裡最新的那份；已經不在清單、存檔壞了就用手上的。一時讀不到丟錯：手上的可能是舊的。
+    func latest(of transcript: Transcript) throws -> Transcript {
+        let stored = try ignoringBroken { try store.load(id: transcript.id) }
         return stored ?? transcript
     }
 

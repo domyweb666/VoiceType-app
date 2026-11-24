@@ -131,9 +131,8 @@ extension TranscriptDetailView {
 
     private func openSource() {
         do {
-            let stored = try TranscriptStore().loadAll().transcripts
-            let source = stored.first { $0.id == transcript.sourceID && $0.trashedAt == nil }
-            if let source, !derived.isDeleted(source.id) {
+            let source = try transcript.sourceID.flatMap { try TranscriptStore().load(id: $0) }
+            if let source, source.trashedAt == nil, !derived.isDeleted(source.id) {
                 openRelated(source)
             } else {
                 showNote("原篇已經刪掉了。")

@@ -7,8 +7,8 @@ extension RecordingResultView {
         switch status {
         case .finished:
             Token.Haptics.transcriptReady
-        case .noAPIKey, .transcriptionFailed, .storageFailed, .polishFailed, .draftNotSaved,
-             .recordingNotDeleted:
+        case .noAPIKey, .transcriptionFailed, .storageFailed, .progressUnreadable, .polishFailed,
+             .draftNotSaved, .recordingNotDeleted:
             Token.Haptics.failed
         case .processing:
             nil

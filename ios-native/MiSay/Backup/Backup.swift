@@ -113,15 +113,18 @@ struct BackupHistory {
 /// 給 ShareLink 用：按下分享才讀歷史、組檔，不是一進設定頁就把全部文字稿抱在記憶體。
 struct BackupFile: Transferable {
     static let fileName = "米說備份.json"
+    /// 有篇一時讀不到時用這個檔名：存到同一個資料夾，不會蓋掉以前完整的那份。
+    static let incompleteFileName = "米說備份（不完整）.json"
 
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(exportedContentType: .json) { _ in
             // 讀文字稿回主執行緒：讀全部會順便換舊檔，不能跟存檔、刪除交錯。
-            let transcripts = try await MainActor.run {
-                try TranscriptStore().loadAll().transcripts
+            let loaded = try await MainActor.run {
+                try TranscriptStore().loadAll()
             }
-            let url = FileManager.default.temporaryDirectory.appending(path: fileName)
-            let data = try Backup(transcripts: transcripts).encoded()
+            let name = loaded.blockedCount == 0 ? fileName : incompleteFileName
+            let url = FileManager.default.temporaryDirectory.appending(path: name)
+            let data = try Backup(transcripts: loaded.transcripts).encoded()
             try data.write(to: url, options: [.atomic, .completeFileProtection])
             BackupHistory().recordExport()
             return SentTransferredFile(url)

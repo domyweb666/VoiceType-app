@@ -55,8 +55,6 @@ enum Token {
         static let recordingFill = Color("強調-可點")
         static let recordingGlyph = Color("強調-上字")
         static let waveform = Color("強調-可點")
-        /// 穀倉方塊（第二批才做）：3A2800，底是 F6CF63→E3A922 漸層
-        static let harvestTileInk = Color("方塊-收成字")
         /// 0E2206，底是 9CC46A→6E9C3E 漸層（白字只有 2.00:1）
         static let pendingTileInk = Color("方塊-待轉字")
     }
@@ -97,7 +95,6 @@ enum Token {
     enum Shape {
         static let radiusRow = DomyTokens.Radius.xl // 20：卡片、狀態條、統計卡
         static let radiusField = DomyTokens.Radius.md // 12：首頁統計那行、輸入框
-        static let radiusTile = DomyTokens.Radius.xl // 穀倉方塊
         static let radiusSheet = DomyTokens.Radius.xxl // 24：錄音面板上緣
         static let radiusStopGlyph = DomyTokens.Radius.sm // 停止鈕中間那個方形的角
         static let hairline = DomyTokens.Size.hairline // 統計卡的細框
@@ -140,10 +137,6 @@ enum Token {
 
         static let waveformHz: Double = 20 // 減少動態時改成固定位置的音量條
         static let recordingPulse: Double = 1.4 // 秒；減少動態時不脈動
-        static func harvestDrop(_ reduce: Bool) -> Animation {
-            reduce ? .easeIn(duration: 0.15) : .bouncy // 收成那一刻用系統的 bouncy
-        }
-
         static let pressedOpacity = DomyTokens.Motion.pressedOpacity // 膠囊與文字鈕按下去變淡
         static let disabledOpacity: Double = 0.4 // 停用的鈕
         /// 按鈕樣式共用：停用最淡，按下次之，平常不透明
@@ -167,7 +160,7 @@ enum Token {
     }
 }
 
-/// 角色色（不進介面語意層：不當文字色、不當按鈕色）。玉米插圖只在文字稿空清單與收成那一刻
+/// 角色色（不進介面語意層：不當文字色、不當按鈕色）。玉米插圖只在文字稿空清單
 enum CharacterPalette {
     static let cornKernel = Color(red: 0.95, green: 0.76, blue: 0.31) // 玉米粒
     static let cornKernelShade = Color(red: 0.85, green: 0.65, blue: 0.18) // 玉米粒的暗面

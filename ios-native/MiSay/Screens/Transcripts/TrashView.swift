@@ -117,7 +117,11 @@ struct TrashView: View {
     @ViewBuilder
     private var emptyNote: some View {
         if loadFailed {
-            ContentUnavailableView("垃圾桶讀取失敗", systemImage: "exclamationmark.triangle")
+            ContentUnavailableView {
+                Label("垃圾桶一時讀不到", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text("檔案都還在，等一下再打開這頁。")
+            }
         } else if transcripts.isEmpty {
             ContentUnavailableView {
                 Label("垃圾桶是空的", systemImage: "trash")

@@ -50,15 +50,16 @@ extension TranscriptionQueue {
         return await polishAndSave(updated)
     }
 
-    /// 轉的時候人可能改了標題、標籤，甚至打了字：從存檔裡最新的那份換，改過的文字稿會留一版。存不進去回 nil。
+    /// 轉的時候人可能改了標題、標籤，甚至打了字：從存檔裡最新的那份換，改過的文字稿會留一版。
+    /// 存檔一時讀不到、存不進去回 nil；轉好的段在進度檔裡，再來不用重送。
     private func saveRetranscribed(
         _ rawText: String,
         of transcript: Transcript,
         job: RecordingTranscriptionJob,
         url: URL
     ) -> Transcript? {
-        var updated = latest(of: transcript)
         do {
+            var updated = try latest(of: transcript)
             try updated.replaceRawText(
                 rawText,
                 possiblyMissing: job.possiblyMissingSegments(forRecordingAt: url),

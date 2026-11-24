@@ -4,7 +4,7 @@ import Foundation
 /// v0.2.15 以前的檔用 AES-GCM 加密：讀的時候拿舊金鑰解開，讀全部、讀垃圾桶時順便換成 JSON。
 /// 寫檔是原子的（先寫暫存再換名）；讀到壞檔「另存不刪」搬到 Unreadable/，畫面拿得到「有幾篇讀不到」。
 /// 復原（E3）、改字自動存（E2）是畫面層用 save 做的事，這裡沒有狀態。
-/// 垃圾桶在 `TranscriptStore+Trash.swift`，共用這裡的讀檔、寫檔、壞檔另存，所以那幾個函式不加 private。
+/// 垃圾桶在 `+Trash`、另存的搬回來在 `+Unreadable`，共用這裡的讀檔、寫檔、壞檔另存，所以那幾個函式不加 private。
 struct TranscriptStore {
     enum Failure: Error, Equatable {
         case cannotCreateDirectory
@@ -21,14 +21,17 @@ struct TranscriptStore {
         case unreadable
     }
 
-    /// 讀全部的結果：讀得到的照時間新到舊；讀不到的檔數（原檔已搬到 Unreadable/）。
+    /// 讀全部的結果：讀得到的照時間新到舊。
     struct LoadResult: Equatable {
         let transcripts: [Transcript]
+        /// 讀不到的共幾篇：搬去 Unreadable/ 的，加上 `blockedCount`。
         let unreadableCount: Int
+        /// 一時讀不到、沒有搬走的檔數。
+        let blockedCount: Int
     }
 
     static let fileExtension = "transcript"
-    private static let unreadableDirectoryName = "Transcripts/Unreadable"
+    static let unreadableDirectoryName = "Transcripts/Unreadable"
     /// 「第一次解鎖後可用」：背景自動整理（D5）在鎖屏時也要存得進去。
     static let fileProtection = FileProtectionType.completeUntilFirstUserAuthentication
     /// 原子寫入（先寫暫存再換名）＋同一級檔案保護。
@@ -88,46 +91,55 @@ struct TranscriptStore {
         }
     }
 
-    /// 讀全部，舊版加密的檔順便換成 JSON。壞掉的檔搬去 Unreadable/（不刪），數量回報給畫面。
-    /// 有檔一時讀不到就整個丟錯：少幾篇的清單會讓人以為那幾篇沒了，留存錄音也會被當孤兒。
+    /// 讀全部，舊版加密的檔順便換成 JSON。壞掉的檔搬去 Unreadable/（不刪），現在解得開的順便搬回來。
+    /// 某一篇一時讀不到就留在原位、算進讀不到的篇數，其他照讀；留存錄音看到有讀不到的就不清孤兒。
+    /// 一篇都沒讀到（開機後還沒解鎖過）才丟錯：空的清單會讓人以為全沒了。
     func loadAll() throws -> LoadResult {
-        let directory = try directoryURL()
-        let files: [URL]
-        do {
-            files = try fileManager.contentsOfDirectory(
-                at: directory,
-                includingPropertiesForKeys: nil
-            )
-        } catch {
-            throw Failure.cannotList
-        }
+        restoreSetAside()
         var transcripts: [Transcript] = []
-        var unreadableCount = 0
-        for file in files where file.pathExtension == Self.fileExtension {
-            if let transcript = try readReplacingSealed(file) {
-                transcripts.append(transcript)
-            } else {
-                unreadableCount += 1
-                try? setAside(file)
+        var setAsideCount = 0
+        var blockedCount = 0
+        for file in try transcriptFiles(in: directoryURL()) {
+            do {
+                if let transcript = try readReplacingSealed(file) {
+                    transcripts.append(transcript)
+                } else {
+                    setAsideCount += 1
+                    try? setAside(file)
+                }
+            } catch Failure.cannotRead {
+                blockedCount += 1
             }
+        }
+        guard blockedCount == 0 || !transcripts.isEmpty else {
+            throw Failure.cannotRead
         }
         transcripts.sort { $0.createdAt > $1.createdAt }
         // 以前搬走的也要算：不然從詳情頁返回、再讀一次，數字就變 0、橫幅不見了。
-        let totalUnreadable = max(unreadableCount, setAsideFileCount())
-        return LoadResult(transcripts: transcripts, unreadableCount: totalUnreadable)
+        return LoadResult(
+            transcripts: transcripts,
+            unreadableCount: blockedCount + max(setAsideCount, setAsideFileCount()),
+            blockedCount: blockedCount
+        )
     }
 
-    /// Unreadable/ 裡現有幾個檔。數不到就當 0：只影響橫幅的數字，不影響任何資料。
-    private func setAsideFileCount() -> Int {
+    /// 清單裡有哪些篇，只看檔名：一時讀不到的那幾篇也算在內。
+    func listedIDs() throws -> Set<UUID> {
+        try Self.ids(of: transcriptFiles(in: directoryURL()))
+    }
+
+    static func ids(of files: [URL]) -> Set<UUID> {
+        Set(files.compactMap { UUID(uuidString: $0.deletingPathExtension().lastPathComponent) })
+    }
+
+    func transcriptFiles(in directory: URL) throws -> [URL] {
         do {
-            let unreadable = try ensuredDirectory(named: Self.unreadableDirectoryName)
-            let files = try fileManager.contentsOfDirectory(
-                at: unreadable,
+            return try fileManager.contentsOfDirectory(
+                at: directory,
                 includingPropertiesForKeys: nil
-            )
-            return files.filter { $0.pathExtension == Self.fileExtension }.count
+            ).filter { $0.pathExtension == Self.fileExtension }
         } catch {
-            return 0
+            throw Failure.cannotList
         }
     }
 

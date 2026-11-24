@@ -60,7 +60,7 @@ extension TranscriptStore {
         return try !isInList(id)
     }
 
-    /// 垃圾桶裡看得到的篇，剛丟的在前。清單裡也有的不算；解不開的另存到 Unreadable/，不刪。
+    /// 垃圾桶裡看得到的篇，剛丟的在前。清單裡也有的不算；解不開的另存到 Unreadable/，不刪；一時讀不到的跳過。
     func loadTrash() throws -> [Transcript] {
         let visible = try readTrash().filter { try !isInList($0.id) }
         return visible.sorted {
@@ -76,10 +76,7 @@ extension TranscriptStore {
 
     /// 只看檔名，不讀內容：讀不到的那幾篇也要算在內，它們的錄音才不會被當孤兒刪掉。
     func trashedIDs() throws -> Set<UUID> {
-        let ids = try trashFiles().compactMap {
-            UUID(uuidString: $0.deletingPathExtension().lastPathComponent)
-        }
-        return Set(ids)
+        try Self.ids(of: trashFiles())
     }
 
     static func isExpired(trashedAt: Date?, now: Date) -> Bool {
@@ -96,37 +93,37 @@ extension TranscriptStore {
         return min(max(left, 0), trashKeepDays)
     }
 
-    /// 舊版加密的順便換成 JSON；有檔一時讀不到就丟錯，跟 `loadAll` 一樣。
+    /// 舊版加密的順便換成 JSON；一時讀不到的留在原位跳過，一篇都沒讀到才丟錯，跟 `loadAll` 一樣。
     private func readTrash() throws -> [Transcript] {
         var transcripts: [Transcript] = []
+        var isBlocked = false
         for file in try trashFiles() {
-            if let transcript = try readReplacingSealed(file) {
-                transcripts.append(transcript)
-            } else {
-                // 搬不動就留在原地：檔還在，下次再搬。
-                try? setAside(file)
+            do {
+                if let transcript = try readReplacingSealed(file) {
+                    transcripts.append(transcript)
+                } else {
+                    // 搬不動就留在原地：檔還在，下次再搬。
+                    try? setAside(file)
+                }
+            } catch Failure.cannotRead {
+                isBlocked = true
             }
+        }
+        guard !isBlocked || !transcripts.isEmpty else {
+            throw Failure.cannotRead
         }
         return transcripts
     }
 
     private func trashFiles() throws -> [URL] {
-        let directory = try trashDirectoryURL()
-        do {
-            return try fileManager.contentsOfDirectory(
-                at: directory,
-                includingPropertiesForKeys: nil
-            ).filter { $0.pathExtension == Self.fileExtension }
-        } catch {
-            throw Failure.cannotList
-        }
+        try transcriptFiles(in: trashDirectoryURL())
     }
 
-    private func isInList(_ id: UUID) throws -> Bool {
+    func isInList(_ id: UUID) throws -> Bool {
         try fileManager.fileExists(atPath: fileURL(for: id).path)
     }
 
-    private func trashURL(for id: UUID) throws -> URL {
+    func trashURL(for id: UUID) throws -> URL {
         try trashDirectoryURL().appending(path: id.uuidString)
             .appendingPathExtension(Self.fileExtension)
     }
