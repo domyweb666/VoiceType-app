@@ -14,6 +14,7 @@ struct RootTabView: View {
     /// 錄音面板「打開這篇」要推的那一篇。換一篇就重建清單頁（`.id`），讓它照 `opening` 推進去。
     @State private var openingTranscript: Transcript?
     @Environment(TranscriptionQueue.self) private var queue
+    @Environment(\.scenePhase) private var scenePhase
     /// K7：從語音備忘錄分享進來之後要講的那句。
     @State private var importMessage: String?
 
@@ -45,6 +46,13 @@ struct RootTabView: View {
         .tint(Token.Colors.link)
         // S4-3：點了「文字稿好了」通知。冷啟動時 id 在畫面出來前就到了，onChange 看不到，要 onAppear 補。
         .onAppear { openFromNotification(NotificationRouter.shared.openTranscriptID) }
+        // 2026-11-24：打開、回到前景時清一次過期的垃圾桶，再看要不要自動備份。
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            if phase == .active {
+                deleteExpiredTrash()
+                Task { await AutoBackup.shared.runIfDue() }
+            }
+        }
         .onChange(of: NotificationRouter.shared.openTranscriptID) { _, id in
             openFromNotification(id)
         }
@@ -71,6 +79,20 @@ struct RootTabView: View {
             if request != nil {
                 page = .home
             }
+        }
+    }
+
+    /// 讀不到、刪不掉就留著，下次回到前景再清；診斷紀錄只記篇數。
+    private func deleteExpiredTrash() {
+        do {
+            let deletedIDs = try TranscriptStore().deleteExpiredTrash()
+            guard !deletedIDs.isEmpty else {
+                return
+            }
+            RetainedRecordings().remove(for: deletedIDs, excluding: queue.inFlight)
+            DiagnosticLog.shared.record("垃圾桶清掉 \(deletedIDs.count) 篇")
+        } catch {
+            DiagnosticLog.shared.record("垃圾桶沒清成：\(type(of: error))")
         }
     }
 

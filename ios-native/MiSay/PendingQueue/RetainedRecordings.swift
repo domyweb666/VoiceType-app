@@ -108,6 +108,7 @@ struct RetainedRecordings {
 
     /// 照規則清掉可以刪的。刪不掉的留著下次再試：只佔空間，不影響任何一篇。
     /// 有讀不到的文字稿時，找不到對應那篇的錄音一律不刪：那可能是讀不到的那篇，錄音是它僅剩的一份。
+    /// 垃圾桶裡的篇不算孤兒（2026-11-24）：放回來時錄音要還在。看不到垃圾桶有什麼時，孤兒一個都不刪。
     /// `excluding` 是正在用的那幾篇的 id（例如正在從錄音重新轉錄）：用到一半不刪。
     func purge(
         loaded: TranscriptStore.LoadResult,
@@ -126,34 +127,50 @@ struct RetainedRecordings {
         let retainedIDs = files.compactMap {
             UUID(uuidString: $0.deletingPathExtension().lastPathComponent)
         }.filter { !busy.contains($0.uuidString) }
+        let trashedIDs = try? TranscriptStore().trashedIDs()
         let doomed = Self.idsToDelete(
             retainedIDs: retainedIDs,
             transcripts: loaded.transcripts,
-            deletesOrphans: loaded.unreadableCount == 0,
+            trashedIDs: trashedIDs ?? [],
+            deletesOrphans: loaded.unreadableCount == 0 && trashedIDs != nil,
             keepsForever: keepsForever,
             now: now,
             availableBytes: RecordingSpace.availableBytes()
         )
         var failed = 0
-        for id in doomed {
-            guard let url = existingURL(for: id),
-                  (try? fileManager.removeItem(at: url)) != nil
-            else {
-                failed += 1
-                continue
-            }
-            // 重新轉錄做到一半留下的進度檔，跟錄音一起清；沒有就算了。
-            try? fileManager.removeItem(at: RecordingTranscriptionJob.progressURL(for: url))
+        for id in doomed where !removeFile(for: id) {
+            failed += 1
         }
         if failed > 0 {
             Self.logger.error("留存錄音有 \(failed, privacy: .public) 個刪不掉，下次再試")
         }
     }
 
+    /// 垃圾桶裡的篇真的刪掉之後叫：錄音跟著刪。正在用的跳過，刪不掉的也沒關係，下次 `purge` 當孤兒清。
+    func remove(for transcriptIDs: [UUID], excluding busy: Set<String>) {
+        for id in transcriptIDs where !busy.contains(id.uuidString) {
+            removeFile(for: id)
+        }
+    }
+
+    /// 沒有這個檔、刪不掉都回 false。
+    @discardableResult
+    private func removeFile(for transcriptID: UUID) -> Bool {
+        guard let url = existingURL(for: transcriptID),
+              (try? fileManager.removeItem(at: url)) != nil
+        else {
+            return false
+        }
+        // 重新轉錄做到一半留下的進度檔，跟錄音一起清；沒有就算了。
+        try? fileManager.removeItem(at: RecordingTranscriptionJob.progressURL(for: url))
+        return true
+    }
+
     /// 純判斷（CI 測得到）：哪些留存錄音可以刪。
     static func idsToDelete(
         retainedIDs: [UUID],
         transcripts: [Transcript],
+        trashedIDs: Set<UUID> = [],
         deletesOrphans: Bool,
         keepsForever: Bool = false,
         now: Date,
@@ -166,7 +183,7 @@ struct RetainedRecordings {
         let isLowOnSpace = availableBytes.map { $0 < lowSpaceBytes } ?? false
         return retainedIDs.filter { id in
             guard let transcript = byID[id] else {
-                return deletesOrphans
+                return deletesOrphans && !trashedIDs.contains(id)
             }
             // 潤飾一直沒成功的不刪；設了一直留著的也不刪（只有那篇刪了才刪）。
             guard transcript.draftText != nil, !keepsForever else {

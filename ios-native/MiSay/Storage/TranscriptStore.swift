@@ -4,6 +4,7 @@ import Foundation
 /// 方塊 M5：歷史的存、讀全部、改、刪。一篇一個檔，AES-GCM 加密後落地，金鑰在 Keychain。
 /// 寫檔是原子的（先寫暫存再換名）；讀到壞檔「另存不刪」搬到 Unreadable/，畫面拿得到「有幾篇讀不到」。
 /// 復原（E3）、改字自動存（E2）是畫面層用 save 做的事，這裡沒有狀態。
+/// 垃圾桶在 `TranscriptStore+Trash.swift`，共用這裡的加密、寫檔、壞檔另存，所以那幾個函式不加 private。
 struct TranscriptStore {
     enum Failure: Error, Equatable {
         case cannotCreateDirectory
@@ -11,6 +12,10 @@ struct TranscriptStore {
         case cannotDelete
         case cannotList
         case keychainUnavailable
+        /// 要改、要搬的那一篇已經不在了。
+        case notFound
+        /// 檔在，但解不開：不准拿別的內容蓋掉它。
+        case unreadable
     }
 
     /// 讀全部的結果：讀得到的照時間新到舊；讀不到的檔數（原檔已搬到 Unreadable/）。
@@ -29,7 +34,7 @@ struct TranscriptStore {
         .completeFileProtectionUntilFirstUserAuthentication,
     ]
 
-    private let fileManager = FileManager.default
+    let fileManager = FileManager.default
     private let keyStore = TranscriptEncryptionKeyStore()
 
     func directoryURL() throws -> URL {
@@ -38,6 +43,34 @@ struct TranscriptStore {
 
     /// 存一篇（新的或改過的都是整篇蓋寫）。先加密、再原子寫入。
     func save(_ transcript: Transcript) throws {
+        try write(transcript, to: fileURL(for: transcript.id))
+    }
+
+    /// 讀存檔裡最新的一篇；沒有這個檔回 nil，有檔但解不開就丟錯。
+    func load(id: UUID) throws -> Transcript? {
+        try read(fileURL(for: id))
+    }
+
+    /// 讀最新的那份、改、存回去：清單手上的可能是舊的，拿舊的存會蓋掉別處剛寫的。
+    func update(id: UUID, _ change: (inout Transcript) -> Void) throws {
+        guard var transcript = try load(id: id) else {
+            throw Failure.notFound
+        }
+        change(&transcript)
+        try save(transcript)
+    }
+
+    func read(_ url: URL) throws -> Transcript? {
+        guard fileManager.fileExists(atPath: url.path) else {
+            return nil
+        }
+        guard let transcript = try Self.decrypt(url, using: loadKey()) else {
+            throw Failure.unreadable
+        }
+        return transcript
+    }
+
+    func write(_ transcript: Transcript, to url: URL) throws {
         let key = try loadKey()
         let plaintext: Data
         do {
@@ -48,7 +81,6 @@ struct TranscriptStore {
         guard let sealed = try? AES.GCM.seal(plaintext, using: key).combined else {
             throw Failure.cannotWrite
         }
-        let url = try fileURL(for: transcript.id)
         do {
             try sealed.write(to: url, options: Self.writeOptions)
         } catch {
@@ -99,7 +131,8 @@ struct TranscriptStore {
         }
     }
 
-    /// 真的把那一篇的檔刪掉。畫面要先給 5 秒復原的機會（E3）才呼叫。
+    /// 真的把那一篇的檔刪掉，不進垃圾桶。使用者自己刪的走 `moveToTrash`；
+    /// 這裡給程式自己收拾的（接著錄併掉的暫時篇、空白新文稿）。
     func delete(id: UUID) throws {
         let url = try fileURL(for: id)
         guard fileManager.fileExists(atPath: url.path) else {
@@ -112,7 +145,7 @@ struct TranscriptStore {
         }
     }
 
-    private func loadKey() throws -> SymmetricKey {
+    func loadKey() throws -> SymmetricKey {
         do {
             return try keyStore.loadOrCreateKey()
         } catch {
@@ -120,17 +153,17 @@ struct TranscriptStore {
         }
     }
 
-    private func fileURL(for id: UUID) throws -> URL {
+    func fileURL(for id: UUID) throws -> URL {
         try directoryURL().appending(path: id.uuidString).appendingPathExtension(Self.fileExtension)
     }
 
     /// 壞檔另存不刪（PRD「歷史檔讀不到的時候 App 不會自己清空」）。
-    private func setAside(_ file: URL) throws {
+    func setAside(_ file: URL) throws {
         let unreadable = try ensuredDirectory(named: Self.unreadableDirectoryName)
         try fileManager.moveItem(at: file, to: unreadable.appending(path: file.lastPathComponent))
     }
 
-    private func ensuredDirectory(named name: String) throws -> URL {
+    func ensuredDirectory(named name: String) throws -> URL {
         let base = try fileManager.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
@@ -150,7 +183,7 @@ struct TranscriptStore {
         return directory
     }
 
-    private static func decrypt(_ file: URL, using key: SymmetricKey) -> Transcript? {
+    static func decrypt(_ file: URL, using key: SymmetricKey) -> Transcript? {
         guard let combined = try? Data(contentsOf: file),
               let box = try? AES.GCM.SealedBox(combined: combined),
               let plaintext = try? AES.GCM.open(

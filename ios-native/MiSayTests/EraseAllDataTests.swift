@@ -15,6 +15,9 @@ final class EraseAllDataTests: XCTestCase {
         try keyStore.save(fakeKey)
         let transcript = Transcript(durationSeconds: 60, rawText: "要被刪掉的口語稿")
         try TranscriptStore().save(transcript)
+        let trashed = Transcript(durationSeconds: 60, rawText: "垃圾桶裡的")
+        try TranscriptStore().save(trashed)
+        try TranscriptStore().moveToTrash(id: trashed.id)
         let pendingFile = try PendingRecordings().directoryURL().appending(path: "erase-test.wav")
         try Data(repeating: 0, count: 44).write(to: pendingFile)
         let retainedFile = try RetainedRecordings().url(for: transcript.id)
@@ -23,6 +26,7 @@ final class EraseAllDataTests: XCTestCase {
         try EraseAllDataSection.eraseAll()
 
         XCTAssertEqual(try TranscriptStore().loadAll().transcripts, [])
+        XCTAssertEqual(try TranscriptStore().trashedIDs(), [], "垃圾桶也要清掉")
         XCTAssertFalse(FileManager.default.fileExists(atPath: pendingFile.path))
         XCTAssertFalse(RetainedRecordings().exists(for: transcript.id))
         XCTAssertEqual(try keyStore.read(), fakeKey, "金鑰另有鈕，不准一起刪")

@@ -6,13 +6,8 @@ import SwiftUI
 /// 2026-11-07 統一風格：分「今天／本週／更早」、列是日期在上兩行預覽、空清單有玉米、狀態條統一。
 /// 2026-11-14 照 domy-design：列本來就是 domy 的 ListRow（日期在上、內容兩行），顏色與圓角跟著代號換。
 /// W6：照標籤篩、選幾篇合併成一篇，在 `TranscriptListView+Organize.swift`。
+/// 2026-11-24：照最後改的時間排、分草稿與已發布（`+Filter`）；刪掉的進垃圾桶（`+Deletion`）。
 struct TranscriptListView: View {
-    /// 一組：標題與照時間排好的那幾篇。
-    private struct TranscriptGroup {
-        let title: String
-        var transcripts: [Transcript]
-    }
-
     static let todayTitle = "今天"
     static let weekTitle = "本週"
     static let olderTitle = "更早"
@@ -22,16 +17,23 @@ struct TranscriptListView: View {
 
     private let openingTranscript: Transcript?
     private let onOpenHome: () -> Void
+    @Environment(TranscriptionQueue.self) var queue
     @State var openedTranscript: Transcript?
     @State private var hasOpenedInitialTranscript = false
     @State var transcripts: [Transcript] = []
-    @State private var unreadableCount = 0
+    @State var unreadableCount = 0
     @State private var loadFailed = false
-    @State private var deleteFailed = false
-    @State private var query = ""
-    @State private var pendingDeletion: Transcript?
-    @State private var deletionTask: Task<Void, Never>?
-    @State private var deleteCount = 0
+    @State var deleteFailed = false
+    @State var query = ""
+    @State var pendingDeletion: Transcript?
+    @State var deletionTask: Task<Void, Never>?
+    @State var deleteCount = 0
+    /// 2026-11-24：只看草稿或已發布；nil 是全部。
+    @State var publishFilter: PublishFilter?
+    @State var publishFailed = false
+    /// 2026-11-24：垃圾桶裡有幾篇、垃圾桶那頁開著沒。
+    @State var trashCount = 0
+    @State var showsTrash = false
     /// W6：只看這個標籤的篇；nil 是全部。
     @State var selectedTag: String?
     /// W6：選取模式，點列是勾起來，不是打開。
@@ -59,13 +61,12 @@ struct TranscriptListView: View {
                             selectableRow(transcript, showsDate: showsDate)
                         } else {
                             NavigationLink {
-                                TranscriptDetailView(
-                                    transcript: transcript,
-                                    onDelete: softDelete,
-                                    onLeave: reload
-                                )
+                                detail(of: transcript)
                             } label: {
                                 row(transcript, showsDate: showsDate)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                publishButton(transcript)
                             }
                         }
                     }
@@ -77,6 +78,7 @@ struct TranscriptListView: View {
                         .textCase(nil)
                 }
             }
+            trashRow
         }
         .scrollContentBackground(.hidden)
         .background(Token.Colors.groupedBackground)
@@ -90,15 +92,14 @@ struct TranscriptListView: View {
             }
         }
         .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
-        .navigationTitle(selectedTag.map { "#" + $0 } ?? "文字稿")
+        .navigationTitle(pageTitle)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { newDraftButton }
             ToolbarItem(placement: .topBarTrailing) { ImportAudioButton() }
             organizeToolbar
         }
-        .navigationDestination(item: $openedTranscript) { transcript in
-            TranscriptDetailView(transcript: transcript, onDelete: softDelete, onLeave: reload)
-        }
+        .navigationDestination(item: $openedTranscript) { detail(of: $0) }
+        .navigationDestination(isPresented: $showsTrash) { TrashView(onChange: reload) }
         .task {
             reload()
             openInitialTranscriptOnce()
@@ -107,36 +108,13 @@ struct TranscriptListView: View {
         .alert("新文稿沒開成，再按一次。", isPresented: $newDraftFailed) {
             Button("好") {}
         }
-    }
-
-    /// 搜尋只看內容（口語稿與文字稿都算），不分大小寫。
-    private var visibleTranscripts: [Transcript] {
-        let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let notDeleted = transcripts.filter { $0.id != pendingDeletion?.id }
-        let tagged = notDeleted.filter { transcript in
-            selectedTag.map { (transcript.tags ?? []).contains($0) } ?? true
-        }
-        guard !keyword.isEmpty else {
-            return tagged
-        }
-        return tagged.filter {
-            $0.rawText.localizedCaseInsensitiveContains(keyword)
-                || ($0.draftText ?? "").localizedCaseInsensitiveContains(keyword)
+        .alert("沒改成，這篇還是原來的樣子。", isPresented: $publishFailed) {
+            Button("好") {}
         }
     }
 
-    /// 照清單順序把每篇塞進它的組，組的順序跟著第一篇出現的順序（最新在上）。
-    private var groups: [TranscriptGroup] {
-        var groups: [TranscriptGroup] = []
-        for transcript in visibleTranscripts {
-            let title = Self.groupTitle(for: transcript.createdAt)
-            if let index = groups.firstIndex { $0.title == title } {
-                groups[index].transcripts.append(transcript)
-            } else {
-                groups.append(TranscriptGroup(title: title, transcripts: [transcript]))
-            }
-        }
-        return groups
+    private func detail(of transcript: Transcript) -> some View {
+        TranscriptDetailView(transcript: transcript, onDelete: softDelete, onLeave: reload)
     }
 
     /// `.task` 每次回到這頁都會跑，所以要記住已經推過，不然從詳情返回又被推回去。
@@ -151,16 +129,17 @@ struct TranscriptListView: View {
     func reload() {
         do {
             let result = try TranscriptStore().loadAll()
-            transcripts = result.transcripts
+            transcripts = Self.listOrder(result.transcripts)
             unreadableCount = result.unreadableCount
             loadFailed = false
+            reloadTrashCount()
         } catch {
             loadFailed = true
         }
     }
 }
 
-/// 空狀態、狀態條、刪除。列在 `TranscriptListView+Organize.swift`。
+/// 讀不到的橫幅與空狀態。列在 `TranscriptListView+Organize.swift`。
 private extension TranscriptListView {
     var unreadableBanner: some View {
         HStack(alignment: .firstTextBaseline, spacing: Token.Space.s) {
@@ -197,14 +176,27 @@ private extension TranscriptListView {
             } description: {
                 Text("「\(selectedTag)」這個標籤現在沒有掛在任何一篇上。")
             } actions: {
-                Button("看全部") {
-                    self.selectedTag = nil
-                }
-                .buttonStyle(PrimaryButtonStyle(isCompact: true))
+                showAllButton
+            }
+        } else if visibleTranscripts.isEmpty, let publishFilter {
+            ContentUnavailableView {
+                Label(publishFilter.emptyTitle, systemImage: publishFilter.emptyImage)
+            } description: {
+                Text(publishFilter.emptyNote)
+            } actions: {
+                showAllButton
             }
         } else if visibleTranscripts.isEmpty, unreadableCount == 0 {
             emptyState
         }
+    }
+
+    var showAllButton: some View {
+        Button("看全部") {
+            selectedTag = nil
+            publishFilter = nil
+        }
+        .buttonStyle(PrimaryButtonStyle(isCompact: true))
     }
 
     /// 玉米只在這裡出現（使用規則第 3 條），當系統空狀態的圖。讀不到時不裝可愛，只講讀取失敗。
@@ -226,67 +218,11 @@ private extension TranscriptListView {
                     onOpenHome()
                 }
                 .buttonStyle(PrimaryButtonStyle(isCompact: true))
+                if trashCount > 0 {
+                    Button(Self.trashTitle(count: trashCount), action: openTrash)
+                        .buttonStyle(TextButtonStyle())
+                }
             }
-        }
-    }
-
-    /// 底部「已刪除・復原」（詞彙表）。5 秒內按復原，那篇回到清單原位（照時間排，位置自然回來）。
-    @ViewBuilder
-    var undoBanner: some View {
-        if pendingDeletion != nil {
-            StatusStrip(
-                glyph: .done,
-                message: "已刪除",
-                actionTitle: "復原",
-                action: undoDeletion,
-                isFloating: true
-            )
-            .padding(.horizontal, Token.Space.screen)
-            .padding(.bottom, Token.Space.s)
-        } else if deleteFailed {
-            // 清單有東西時空狀態那句不會出現，刪不掉要在這裡講，不然那篇像是自己跑回來。
-            StatusStrip(glyph: .failed, message: "沒刪掉，這篇還在。再刪一次看看。")
-                .padding(.horizontal, Token.Space.screen)
-                .padding(.bottom, Token.Space.s)
-        }
-    }
-
-    // MARK: - E3 刪除與復原
-
-    /// 先從畫面拿掉、5 秒後才真的刪檔；期間按「復原」就放回去。
-    func softDelete(_ transcript: Transcript) {
-        commitDeletionNow()
-        deleteFailed = false
-        pendingDeletion = transcript
-        deleteCount += 1
-        deletionTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(Self.undoWindowSeconds))
-            guard !Task.isCancelled else {
-                return
-            }
-            commitDeletionNow()
-        }
-    }
-
-    func undoDeletion() {
-        deletionTask?.cancel()
-        deletionTask = nil
-        pendingDeletion = nil
-    }
-
-    func commitDeletionNow() {
-        deletionTask?.cancel()
-        deletionTask = nil
-        guard let doomed = pendingDeletion else {
-            return
-        }
-        pendingDeletion = nil
-        do {
-            try TranscriptStore().delete(id: doomed.id)
-            transcripts.removeAll { $0.id == doomed.id }
-        } catch {
-            // 刪不掉就留著：它還在清單裡，並且說出來，比默默消失誠實。
-            deleteFailed = true
         }
     }
 }

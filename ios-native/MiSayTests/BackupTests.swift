@@ -25,6 +25,12 @@ final class BackupTests: XCTestCase {
         XCTAssertEqual(duplicated.newTranscripts(existingIDs: []), [first, second])
     }
 
+    func test匯入的篇不帶垃圾桶記號() {
+        var trashed = first
+        trashed.trashedAt = Date()
+        XCTAssertEqual(Backup.importable(trashed), first)
+    }
+
     func test備份不是米說的檔不收() {
         let other = Data(#"{"app":"Other","version":1}"#.utf8)
         XCTAssertThrowsError(try Backup.decode(other)) { error in

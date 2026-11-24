@@ -24,29 +24,49 @@ extension TranscriptListView {
         return date + "・" + lengthNote(for: transcript)
     }
 
-    /// 錄了多久；自己打的新文稿沒有錄音，寫「自己打的」（2026-11-15）。
+    /// 錄了多久；自己打的新文稿沒有錄音，寫「自己打的」（2026-11-15）；改寫來的寫改成哪一種。
     static func lengthNote(for transcript: Transcript) -> String {
-        transcript.isWritten ? "自己打的" : RecordingSheetView.formatSpoken(transcript.durationSeconds)
+        if let kind = transcript.sourceKind {
+            return "改寫：" + RewriteKind.title(forStored: kind)
+        }
+        return transcript.isWritten
+            ? "自己打的"
+            : RecordingSheetView.formatSpoken(transcript.durationSeconds)
     }
 
-    /// 「今天」那一組只講時間：「14:32・3 分 48 秒」。
-    static func timeSubtitle(for transcript: Transcript) -> String {
-        let time = transcript.createdAt.formatted(date: .omitted, time: .shortened)
-        return time + "・" + lengthNote(for: transcript)
+    /// 列上面那行：最後改的時間（清單照它排），「今天」那一組只講時間。「14:32・3 分 48 秒・已發布」。
+    static func rowSubtitle(for transcript: Transcript, showsDate: Bool) -> String {
+        let time = transcript.updatedAt.formatted(
+            date: showsDate ? .abbreviated : .omitted,
+            time: .shortened
+        )
+        let parts = [time, lengthNote(for: transcript)]
+        let status = transcript.publishedAt == nil ? [] : [PublishFilter.published.title]
+        return (parts + status).joined(separator: "・")
+    }
+
+    /// 有取標題才有；只有空白不算。
+    static func rowTitle(of transcript: Transcript) -> String? {
+        let title = (transcript.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? nil : title
     }
 
     func row(_ transcript: Transcript, showsDate: Bool) -> some View {
-        let subtitle = showsDate
-            ? Self.subtitle(for: transcript)
-            : Self.timeSubtitle(for: transcript)
+        let title = Self.rowTitle(of: transcript)
         return VStack(alignment: .leading, spacing: Token.Space.xs) {
-            Text(subtitle)
+            Text(Self.rowSubtitle(for: transcript, showsDate: showsDate))
                 .font(Token.Fonts.footnote)
                 .foregroundStyle(Token.Colors.textSecondary)
+            if let title {
+                Text(title)
+                    .font(Token.Fonts.rowTitle)
+                    .foregroundStyle(Token.Colors.textPrimary)
+                    .lineLimit(1)
+            }
             Text(transcript.displayText)
                 .font(Token.Fonts.body)
                 .foregroundStyle(Token.Colors.textPrimary)
-                .lineLimit(2)
+                .lineLimit(title == nil ? 2 : 1)
             if let tags = transcript.tags, !tags.isEmpty {
                 Text(Self.tagLine(tags))
                     .font(Token.Fonts.footnote)
@@ -82,7 +102,7 @@ extension TranscriptListView {
         .accessibilityValue(isSelected ? "已選" : "沒選")
     }
 
-    /// 左上「選取／取消」，右上照標籤看（有標籤才出現）。
+    /// 左上「選取／取消」，右上照標籤、照草稿或已發布看（有東西可以篩才出現）。
     @ToolbarContentBuilder
     var organizeToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
@@ -97,16 +117,19 @@ extension TranscriptListView {
         }
         ToolbarItem(placement: .topBarTrailing) {
             let tags = Transcript.tagsInUse(transcripts)
-            if !tags.isEmpty || selectedTag != nil {
+            if hasFilters {
                 Menu {
-                    Picker("照標籤看", selection: $selectedTag) {
-                        Text("全部文字稿").tag(String?.none)
-                        ForEach(tags, id: \.self) { Text("#" + $0).tag(String?.some($0)) }
+                    if !tags.isEmpty || selectedTag != nil {
+                        Picker("照標籤看", selection: $selectedTag) {
+                            Text("全部標籤").tag(String?.none)
+                            ForEach(tags, id: \.self) { Text("#" + $0).tag(String?.some($0)) }
+                        }
                     }
+                    publishPicker
                 } label: {
-                    Image(systemName: selectedTag == nil ? "tag" : "tag.fill")
+                    Image(systemName: isFiltering ? "tag.fill" : "tag")
                 }
-                .accessibilityLabel("照標籤看")
+                .accessibilityLabel("照標籤或發布狀態看")
                 .tint(Token.Colors.link)
             }
         }
