@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 文字稿的編輯框（iOS 18 起），多了選取範圍，鍵盤上方一排：
-/// - W5 標題、粗體、清單：只插 Markdown 記號（`MarkdownFormatting`），文字稿還是純文字。
+/// 用系統 TextEditor 的編輯框（iOS 18 起）。2026-11-24 起是退路，設定 → 進階「用舊的編輯框」打開才用。鍵盤上方一排：
+/// - 格式：共用的 `FormatBar`，只插 Markdown 記號，文字稿還是純文字。
 /// - 2026-11-09 在這裡接著錄：記下游標位置，錄好、整理好就插回這裡（米：中間要補內容，不是只能接在最後）。
 /// - W4「改這段」：選一段叫 AI 縮短、講清楚一點、改口語、改書面；改好升起 `PassagePreviewSheet`，按「換上」才換。
 ///   在 `DraftEditor+Passage.swift`。
@@ -25,20 +25,27 @@ struct DraftEditor: View {
     /// `DraftEditor+Passage.swift` 要用，所以這兩個不加 private。
     @State var request: PassagePreviewSheet.Request?
     @State var task: Task<Void, Never>?
+    @State private var linkRequest: LinkSheet.Request?
 
     var body: some View {
         TextEditor(text: $text, selection: $selection)
+            .accessibilityLabel("文字稿正文")
+            .safeAreaInset(edge: .bottom) {
+                if isEditing {
+                    FormatBar(
+                        canRecordHere: canRecordHere,
+                        onFormat: format,
+                        onLink: startLink,
+                        onRecordHere: { onRecordHere(selectionOffsets.upperBound) },
+                        passageMenu: { passageMenu }
+                    )
+                }
+            }
             .onChange(of: text) { old, new in history.record(from: old, to: new) }
             .onChange(of: jump) { _, target in jumpIfNeeded(target) }
             .toolbar {
                 if isEditing {
                     ToolbarItemGroup(placement: .topBarTrailing) { historyButtons }
-                }
-                ToolbarItemGroup(placement: .keyboard) {
-                    formatButtons
-                    recordHereButton
-                    Spacer()
-                    passageMenu
                 }
             }
             .sheet(item: $request, onDismiss: cancel) { request in
@@ -46,47 +53,21 @@ struct DraftEditor: View {
                     self.request = nil
                 }
             }
+            .sheet(item: $linkRequest) { request in
+                LinkSheet { url in addLink(url, for: request) }
+            }
     }
 
-    /// W5：三顆都是切換，再按一次拿掉。圖示配無障礙標籤，不只靠圖。
-    @ViewBuilder
-    private var formatButtons: some View {
-        Button {
-            format { MarkdownFormatting.toggleLinePrefix(
-                MarkdownFormatting.headingPrefix,
-                in: $0,
-                selection: $1
-            ) }
-        } label: {
-            Image(systemName: "number")
-        }
-        .accessibilityLabel("標題")
-        Button {
-            format(MarkdownFormatting.toggleBold(in:selection:))
-        } label: {
-            Image(systemName: "bold")
-        }
-        .accessibilityLabel("粗體")
-        Button {
-            format { MarkdownFormatting.toggleLinePrefix(
-                MarkdownFormatting.listPrefix,
-                in: $0,
-                selection: $1
-            ) }
-        } label: {
-            Image(systemName: "list.bullet")
-        }
-        .accessibilityLabel("清單")
+    private func startLink() {
+        linkRequest = LinkSheet.Request(selection: selectionOffsets, text: text)
     }
 
-    private var recordHereButton: some View {
-        Button {
-            onRecordHere(selectionOffsets.upperBound)
-        } label: {
-            Image(systemName: "mic.badge.plus")
+    private func addLink(_ url: String, for request: LinkSheet.Request) {
+        guard let edit = request.adding(url, to: text) else {
+            return
         }
-        .accessibilityLabel("在這裡接著錄")
-        .disabled(!canRecordHere)
+        text = edit.text
+        select(edit.selection)
     }
 
     /// 游標或選取在第幾個字；還沒點進來沒有游標，就當在最後面。
@@ -104,14 +85,6 @@ struct DraftEditor: View {
     private func format(_ change: (String, Range<Int>) -> MarkdownFormatting.Edit) {
         let edit = change(text, selectionOffsets)
         text = edit.text
-        let end = text.endIndex
-        let lower = text.index(
-            text.startIndex,
-            offsetBy: edit.selection.lowerBound,
-            limitedBy: end
-        ) ?? end
-        let upper = text.index(lower, offsetBy: edit.selection.count, limitedBy: end) ?? end
-        selection = lower == upper ? TextSelection(insertionPoint: lower) :
-            TextSelection(range: lower ..< upper)
+        select(edit.selection)
     }
 }

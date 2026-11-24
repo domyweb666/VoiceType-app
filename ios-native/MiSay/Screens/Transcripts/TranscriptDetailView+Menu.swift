@@ -15,7 +15,7 @@ extension TranscriptDetailView {
                 }
             }
             writingMenuItems
-            // K3：接著錄，錄好的那段接在這篇後面。
+            // K3：接著錄，錄好的那段接在這篇後面，不離開這頁（`+RecordHere`）。
             Button {
                 appendRecording()
             } label: {
@@ -76,41 +76,5 @@ extension TranscriptDetailView {
             recordingURL: RetainedRecordings().existingURL(for: transcript.id),
             onRetranscribe: retranscribe
         )
-    }
-
-    /// K3：先存好手上改的字、退出這頁，再請分頁列切到錄音頁開錄。退出是為了不留一份舊的在畫面上。
-    func appendRecording() {
-        flushAutosave()
-        isLeavingToRecord = true
-        RecordingLauncher.shared.request = .append(target: transcript.id, insertion: nil)
-        dismiss()
-    }
-
-    /// 2026-11-09 米：打字時按麥克風，錄好的那段插在游標的位置（中間補內容）。
-    /// 位置照存好的那份字記，所以先存；存不進去就不走（狀態條已經講了），不然位置會對不上。
-    func insertRecording(at offset: Int) {
-        flushAutosave()
-        guard draftEdit == transcript.draftText else {
-            return
-        }
-        isEditing = false
-        isLeavingToRecord = true
-        let point = InsertionPoint(offset: offset, in: draftEdit)
-        RecordingLauncher.shared.request = .append(target: transcript.id, insertion: point)
-        dismiss()
-    }
-
-    /// 這篇在存檔裡比畫面上的新（接著錄、重轉、別處整理完）：換成存檔裡的。正在打字或整理時不換。
-    func reloadFromStore() {
-        let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
-        derived.refresh(sourceID: transcript.id, from: transcripts)
-        guard !isPolishing, !isEditing,
-              let stored = transcripts.first(where: { $0.id == transcript.id }),
-              stored.updatedAt > transcript.updatedAt
-        else {
-            return
-        }
-        transcript = stored
-        draftEdit = stored.draftText ?? ""
     }
 }

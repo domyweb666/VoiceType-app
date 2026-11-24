@@ -39,26 +39,41 @@ extension TranscriptDetailView {
         guard transcript.draftText != nil, draftEdit != transcript.draftText else {
             return
         }
-        var updated = transcript
-        // 這次打開第一次存、或連著改超過十分鐘：先把存檔裡那份（改之前的樣子）留一版。
+        do {
+            try saveDraftEdit()
+            saveFailed = false
+        } catch {
+            polishFailed = false
+            saveFailed = true
+        }
+    }
+
+    /// 照存檔裡最新的那份改：標題、補錄、學到哪都可能是別人剛寫的，手上的不蓋過去。
+    /// 已經在垃圾桶的不存，免得又回到清單；存檔裡找不到（壞檔被搬走）就存手上的，不掉字。
+    private func saveDraftEdit() throws {
+        undoDiscard()
+        let store = TranscriptStore()
+        let stored = try store.load(id: transcript.id)
+        let isInTrash = try stored == nil && store.trashedIDs().contains(transcript.id)
+        guard !isInTrash else {
+            throw RewriteFailure.transcriptGone
+        }
+        var updated = stored ?? transcript
+        // 離開這頁之後才送來的字：存檔可能已經被流水接過錄音，那份先留一版，不會少字。
+        let wasReplaced = updated.draftText != transcript.draftText
         // 新文稿寫過又全刪也留一版：離開時整篇進垃圾桶，撿得回剛寫的字。
         let isClearing = openedBlank && Transcript.isBlank(draftEdit)
-        let keepsVersion = isVersionDue || isClearing
+        // 這次打開第一次存、或連著改超過十分鐘：先把存檔裡那份（改之前的樣子）留一版。
+        let keepsVersion = isVersionDue || wasReplaced || isClearing
         if keepsVersion {
             updated.keepVersion()
         }
         updated.draftText = draftEdit
         updated.updatedAt = Date()
-        do {
-            try TranscriptStore().save(updated)
-            transcript = updated
-            saveFailed = false
-            if keepsVersion {
-                markVersionKept()
-            }
-        } catch {
-            polishFailed = false
-            saveFailed = true
+        try store.save(updated)
+        transcript = updated
+        if keepsVersion {
+            markVersionKept()
         }
     }
 
@@ -91,6 +106,7 @@ extension TranscriptDetailView {
                 return
             }
             apply(outcome)
+            queue.mergeWaiting(into: transcript.id)
         }
     }
 

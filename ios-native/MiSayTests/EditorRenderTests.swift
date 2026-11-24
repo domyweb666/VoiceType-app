@@ -11,12 +11,7 @@ final class EditorRenderTests: XCTestCase {
 
     /// 照米的操作走真的詳情頁：打開、點進正文、按完成。只數編輯框那塊的深色點（頂上的金色圖示也算深色）。
     func test詳情頁打開_點進去_按完成_字都在() throws {
-        let transcript = Transcript(durationSeconds: 60, rawText: "口語", draftText: sample)
-        let detail = NavigationStack {
-            TranscriptDetailView(transcript: transcript, onDelete: { _ in })
-        }
-        .environment(TranscriptionQueue())
-        let window = show(detail)
+        let window = showDetail(usesPlainEditor: false)
         let textView = try XCTUnwrap(Self.findTextView(in: window), "詳情頁裡找不到編輯框")
         XCTAssertGreaterThan(
             Self.darkPixelCount(in: window, inside: textView),
@@ -39,19 +34,10 @@ final class EditorRenderTests: XCTestCase {
         )
     }
 
-    /// 2026-11-15：設定裡打開「新的編輯框（試用）」再走一次同樣的路。v0.2.7 那次白畫面模擬器量不出來，
+    /// 2026-11-24 起預設的編輯框，走一次同樣的路。v0.2.7 那次白畫面模擬器量不出來，
     /// 這條過了不代表真機一定好，但至少擋得住「一打開就沒字」。
     func test新的編輯框_打開_點進去_按完成_字都在() throws {
-        let settings = AppSettings.shared
-        let previous = settings.usesPlainEditor
-        settings.usesPlainEditor = true
-        defer { settings.usesPlainEditor = previous }
-        let transcript = Transcript(durationSeconds: 60, rawText: "口語", draftText: sample)
-        let detail = NavigationStack {
-            TranscriptDetailView(transcript: transcript, onDelete: { _ in })
-        }
-        .environment(TranscriptionQueue())
-        let window = show(detail)
+        let window = showDetail(usesPlainEditor: true)
         let textView = try XCTUnwrap(Self.findTextView(in: window), "詳情頁裡找不到編輯框")
         XCTAssertEqual(textView.text, sample)
         XCTAssertGreaterThan(
@@ -84,6 +70,21 @@ final class EditorRenderTests: XCTestCase {
 
     // MARK: 幫手
 
+    /// 詳情頁打開時讀一次設定，畫好就還原。
+    private func showDetail(usesPlainEditor: Bool) -> UIWindow {
+        let settings = AppSettings.shared
+        let previous = settings.usesPlainEditor
+        settings.usesPlainEditor = usesPlainEditor
+        defer { settings.usesPlainEditor = previous }
+        let transcript = Transcript(durationSeconds: 60, rawText: "口語", draftText: sample)
+        let detail = NavigationStack {
+            TranscriptDetailView(transcript: transcript, onDelete: { _ in })
+        }
+        .environment(TranscriptionQueue())
+        .environment(Recorder())
+        return show(detail)
+    }
+
     private func show(_ view: some View) -> UIWindow {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow()
@@ -101,11 +102,16 @@ final class EditorRenderTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.5))
     }
 
+    /// 標題欄也可能是 UITextView（可以多行的輸入框），編輯框是最高的那個。
     private static func findTextView(in view: UIView) -> UITextView? {
+        textViews(in: view).max { $0.frame.height < $1.frame.height }
+    }
+
+    private static func textViews(in view: UIView) -> [UITextView] {
         if let textView = view as? UITextView {
-            return textView
+            return [textView]
         }
-        return view.subviews.lazy.compactMap { findTextView(in: $0) }.first
+        return view.subviews.flatMap { textViews(in: $0) }
     }
 
     /// 失敗時印出來的現況：位置、內容大小、排好的字佔多大、第一個字的顏色與字型。

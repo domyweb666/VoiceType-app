@@ -31,6 +31,7 @@ extension TranscriptDetailView {
 
     /// 改寫稿在別頁可能改過、刪過，打開前重讀。上次沒成的原因照舊留著（收起來才失敗的要看得到）。
     func openRewrites() {
+        flushTitle()
         loadDerived()
         showsRewrites = true
     }
@@ -208,16 +209,20 @@ extension TranscriptDetailView {
     }
 
     /// 先把手上改的字存掉，再拿存檔裡最新的那份改了存：這頁開著時，接著錄、別處整理完都可能讓存檔比手上的新，
-    /// 拿手上的存會把那些蓋掉。存檔裡沒有這篇就是被刪了，不存。
+    /// 拿手上的存會把那些蓋掉。存檔裡沒有這篇就是被刪了（在垃圾桶），不存。
     func updateStored(_ change: (inout Transcript) -> Void) throws {
         flushAutosave()
+        let keepsHand = hasUnsavedDraft
         let stored = try TranscriptStore().loadAll().transcripts.first { $0.id == transcript.id }
-        guard var updated = stored else {
+        guard var updated = stored, updated.trashedAt == nil else {
             throw RewriteFailure.transcriptGone
         }
         change(&updated)
         try TranscriptStore().save(updated)
         transcript = updated
-        draftEdit = updated.draftText ?? ""
+        // 手上的字剛才沒存進去：留在編輯框裡，不拿存檔的蓋掉。
+        if !keepsHand {
+            draftEdit = updated.draftText ?? ""
+        }
     }
 }

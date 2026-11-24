@@ -21,6 +21,21 @@ final class RecordingResultViewTests: XCTestCase {
         )
     }
 
+    func test在編輯頁錄的_講清楚字在哪() {
+        XCTAssertEqual(
+            RecordingResultView.returnedMessage(isMerged: true, isWaiting: false),
+            "剛才錄的已經放回文稿裡。"
+        )
+        XCTAssertEqual(
+            RecordingResultView.returnedMessage(isMerged: false, isWaiting: true),
+            "整理好了，等一下會放回文稿裡。"
+        )
+        XCTAssertEqual(
+            RecordingResultView.returnedMessage(isMerged: false, isWaiting: false),
+            "放不回原本那篇，另外存成一篇，在文字稿清單裡。"
+        )
+    }
+
     func test整理中只有這一筆切成兩段以上才說第幾段() {
         let name = "20261101-120000.wav"
         let second = TranscriptionQueue.Activity.transcribing(

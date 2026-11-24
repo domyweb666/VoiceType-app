@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 2026-11-15 米：光用手機就要能在編輯區打出五千字以上的長文。這個檔放寫長文用的那幾樣：
-/// 新文稿打開就能打、沒寫就不留；大綱與尋找；字數目標。還沒整理的那一頁也搬來這裡（主檔快到 300 行）。
+/// 新文稿打開就能打；大綱與尋找；字數目標。還沒整理的那一頁也搬來這裡（主檔快到 300 行）。
 extension TranscriptDetailView {
     static let goalOptions = [1000, 2000, 3000, 5000, 8000, 10000]
     /// 推頁的動畫跑完再升鍵盤，太早叫會沒反應。
@@ -18,7 +18,7 @@ extension TranscriptDetailView {
     }
 
     static func goalMenuTitle(_ goal: Int?) -> String {
-        goal.map { "字數目標：\($0.formatted()) 字" } ?? "字數目標…"
+        goal.map { "字數目標：\($0.formatted()) 字" } ?? "設字數目標"
     }
 
     /// 鍵盤是不是升著。兩種編輯框各記各的，其他地方只認這一個。
@@ -38,6 +38,44 @@ extension TranscriptDetailView {
             count: DictationStats.countCharacters(currentText),
             goal: transcript.goalCharacters
         )
+    }
+
+    /// 鍵盤上方多一排：格式（`FormatBar`）、在這裡接著錄、選一段叫 AI 改（W4）。
+    /// 用舊的編輯框而且是 iOS 17 的，拿不到選取範圍，只能打字。
+    var editor: some View {
+        Group {
+            if usesPlainEditor {
+                PlainDraftEditor(
+                    text: $draftEdit,
+                    canRecordHere: !isPolishing,
+                    onRecordHere: insertRecording(at:),
+                    isEditing: $isPlainEditing,
+                    jump: $jumpTarget,
+                    handle: editorHandle
+                )
+            } else if #available(iOS 18, *) {
+                DraftEditor(
+                    text: $draftEdit,
+                    canRecordHere: !isPolishing,
+                    onRecordHere: insertRecording(at:),
+                    isEditing: isEditing,
+                    jump: $jumpTarget
+                )
+            } else {
+                TextEditor(text: $draftEdit)
+                    .accessibilityLabel("文字稿正文")
+            }
+        }
+        .font(Token.Fonts.body)
+        .foregroundStyle(Token.Colors.textPrimary)
+        .lineSpacing(Token.Space.lineSpacing)
+        .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        // 最後一行底下留白（米 11/17：打到最下面，字貼著鍵盤那一排）。`PlainTextView` 自己留。
+        .contentMargins(.bottom, Token.Space.editorBottom, for: .scrollContent)
+        .focused($isSystemEditorFocused)
+        // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
+        .padding(.horizontal, Token.Space.m)
     }
 
     /// 還沒整理成文字稿：先講一句，口語稿照樣看得到、複製得到，再給「整理這篇」。
@@ -74,26 +112,6 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 新文稿一個字都沒寫就離開：不留一篇空白的在清單。按了「在這裡接著錄」是去錄音，不算。
-    /// 這次寫過又全刪的進垃圾桶，不直接刪（Y6）。
-    /// 有改寫稿的原篇也不丟：跟以前改寫稿掛在底下時一樣。
-    func discardIfBlank() {
-        guard derived.transcripts.isEmpty, !isLeavingToRecord, draftEdit == transcript.draftText,
-              openedBlank, transcript.hasNothingLeft
-        else {
-            return
-        }
-        do {
-            if transcript.isBlankDraft {
-                try TranscriptStore().delete(id: transcript.id)
-            } else {
-                try TranscriptStore().moveToTrash(id: transcript.id)
-            }
-        } catch {
-            DiagnosticLog.shared.record("空白新文稿沒刪掉：\(type(of: error))")
-        }
-    }
-
     /// 打字時頂上那顆、「⋯」裡那一列都開同一張頁。
     var outlineButton: some View {
         Button {
@@ -123,7 +141,38 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 「⋯」裡寫長文用的三列：大綱與尋找、字數目標、版本紀錄。只有已經有文字稿的篇有。
+    /// 鍵盤升著：在打正文或標題。
+    var isTyping: Bool {
+        isEditing || isTitleFocused
+    }
+
+    /// 字數，點了設目標（2026-11-24 從「⋯」搬來）。還沒有文字稿的篇只看字數。
+    @ViewBuilder
+    var progressMenu: some View {
+        let label = Text(progressText)
+            .font(Token.Fonts.footnote)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+        if transcript.draftText == nil {
+            label.foregroundStyle(Token.Colors.textSecondary)
+        } else {
+            Menu {
+                Picker("字數目標", selection: goalBinding) {
+                    Text("不設").tag(Int?.none)
+                    ForEach(Self.goalOptions, id: \.self) { goal in
+                        Text("\(goal.formatted()) 字").tag(Int?.some(goal))
+                    }
+                }
+            } label: {
+                label.foregroundStyle(Token.Colors.link)
+                    .frame(minHeight: Token.Shape.minTap)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(progressText + "，" + Self.goalMenuTitle(transcript.goalCharacters))
+        }
+    }
+
+    /// 「⋯」裡寫長文用的兩列：大綱與尋找、版本紀錄。只有已經有文字稿的篇有。
     @ViewBuilder
     var writingMenuItems: some View {
         if transcript.draftText != nil {
@@ -133,16 +182,6 @@ extension TranscriptDetailView {
                 Label("大綱與尋找", systemImage: "list.bullet.indent")
             }
             .disabled(currentText.isEmpty)
-            Menu {
-                Picker("字數目標", selection: goalBinding) {
-                    Text("不設").tag(Int?.none)
-                    ForEach(Self.goalOptions, id: \.self) { goal in
-                        Text("\(goal.formatted()) 字").tag(Int?.some(goal))
-                    }
-                }
-            } label: {
-                Label(Self.goalMenuTitle(transcript.goalCharacters), systemImage: "target")
-            }
             Button {
                 showsVersions = true
             } label: {

@@ -5,6 +5,7 @@ extension TranscriptDetailView {
     var exportButton: some View {
         Button {
             flushAutosave()
+            flushTitle()
             showsExport = true
         } label: {
             Image(systemName: "square.and.arrow.up")

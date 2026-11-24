@@ -1,6 +1,6 @@
 import UIKit
 
-/// 新編輯框（試用）的 Markdown 樣子（2026-11-17，參考 MarkText 的做法）：
+/// 編輯框（`PlainTextView`）的 Markdown 樣子（2026-11-17，參考 MarkText 的做法）：
 /// 標題變大變粗、`**粗體**` 變粗；游標不在那一行時，`#`、`**` 這些記號藏起來，游標進去才露出來。
 /// 只改樣子不改字：存下來、複製出去的還是同一份純文字 Markdown（W5 的約定不變）。
 /// 一次只算一行，打字時只重算改到的那幾行，不是整篇（長稿才不會越打越慢）。
@@ -13,6 +13,8 @@ enum MarkdownLineStyle {
         case bold
         case boldMarker
         case listMarker
+        case quoteMarker
+        case quote
     }
 
     /// 一行裡的一段，位置是這一行裡的第幾格（UTF-16，跟 UITextView 一樣）。
@@ -27,20 +29,7 @@ enum MarkdownLineStyle {
     /// 一行（不含換行）裡哪幾段要換樣子。標題的規則跟大綱一樣：`#` 到 `######` 後面接空白。
     static func spans(inLine line: String) -> [Span] {
         let length = (line as NSString).length
-        var spans: [Span] = []
-        let level = line.prefix { $0 == "#" }.count
-        if (1 ... maxHeadingLevel).contains(level), line.dropFirst(level).first == " " {
-            let marker = NSRange(location: 0, length: level + 1)
-            spans.append(Span(kind: .headingMarker, range: marker))
-            spans.append(Span(
-                kind: .heading(level: level),
-                range: NSRange(location: level + 1, length: length - level - 1)
-            ))
-        } else if line.hasPrefix(MarkdownFormatting.listPrefix) {
-            let prefix = MarkdownFormatting.listPrefix as NSString
-            let marker = NSRange(location: 0, length: prefix.length)
-            spans.append(Span(kind: .listMarker, range: marker))
-        }
+        var spans = lineMarkSpans(inLine: line, length: length)
         let matches = boldPattern?.matches(
             in: line,
             range: NSRange(location: 0, length: length)
@@ -58,6 +47,34 @@ enum MarkdownLineStyle {
                 kind: .boldMarker,
                 range: NSRange(location: closing, length: NSMaxRange(whole) - closing)
             ))
+        }
+        return spans
+    }
+
+    /// 這一行開頭的記號：標題、清單、編號、引言。
+    private static func lineMarkSpans(inLine line: String, length: Int) -> [Span] {
+        var spans: [Span] = []
+        let level = line.prefix { $0 == "#" }.count
+        if (1 ... maxHeadingLevel).contains(level), line.dropFirst(level).first == " " {
+            let marker = NSRange(location: 0, length: level + 1)
+            spans.append(Span(kind: .headingMarker, range: marker))
+            spans.append(Span(
+                kind: .heading(level: level),
+                range: NSRange(location: level + 1, length: length - level - 1)
+            ))
+        } else if line.hasPrefix(MarkdownFormatting.listPrefix) {
+            let prefix = MarkdownFormatting.listPrefix as NSString
+            let marker = NSRange(location: 0, length: prefix.length)
+            spans.append(Span(kind: .listMarker, range: marker))
+        } else if let numbered = MarkdownFormatting.numberedLength(of: line) {
+            let marker = NSRange(location: 0, length: numbered)
+            spans.append(Span(kind: .listMarker, range: marker))
+        } else if line.hasPrefix(MarkdownFormatting.quotePrefix) {
+            let prefix = (MarkdownFormatting.quotePrefix as NSString).length
+            let marker = NSRange(location: 0, length: prefix)
+            spans.append(Span(kind: .quoteMarker, range: marker))
+            let rest = NSRange(location: prefix, length: length - prefix)
+            spans.append(Span(kind: .quote, range: rest))
         }
         return spans
     }
@@ -129,7 +146,12 @@ extension MarkdownLineStyle {
         case .headingMarker, .boldMarker:
             return isActive ? [.foregroundColor: marker] : hiddenMarker
         case .listMarker:
-            // 清單的「- 」不藏：藏了就看不出是清單，只淡一點。
+            // 清單的「- 」「1. 」不藏：藏了就看不出是清單，只淡一點。
+            return [.foregroundColor: UIColor(Token.Colors.textSecondary)]
+        case .quoteMarker:
+            // 引言的「> 」也不藏，整行淡一級，跟自己寫的分得出來。
+            return [.foregroundColor: marker]
+        case .quote:
             return [.foregroundColor: UIColor(Token.Colors.textSecondary)]
         }
     }

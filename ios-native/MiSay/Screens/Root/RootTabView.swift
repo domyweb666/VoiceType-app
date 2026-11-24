@@ -15,6 +15,7 @@ struct RootTabView: View {
     @State private var openingTranscript: Transcript?
     @Environment(TranscriptionQueue.self) private var queue
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(Recorder.self) private var recorder
     /// K7：從語音備忘錄分享進來之後要講的那句。
     @State private var importMessage: String?
 
@@ -74,9 +75,9 @@ struct RootTabView: View {
         ) {
             Button("好") {}
         }
-        // K1、K3：有人要開錄，先切到錄音頁；面板由首頁打開。
+        // K1、K3：有人要開錄，先切到錄音頁；面板由首頁打開。正在錄（可能在編輯頁上）就不動。
         .onChange(of: RecordingLauncher.shared.request) { _, request in
-            if request != nil {
+            if request != nil, !recorder.isRecording {
                 page = .home
             }
         }
@@ -101,6 +102,10 @@ struct RootTabView: View {
             return
         }
         NotificationRouter.shared.openTranscriptID = nil
+        // 編輯頁上也能錄（Y4）：換篇會把那頁連錄音面板一起拆掉，錄音中就不換，錄完自己點開。
+        guard !recorder.isRecording else {
+            return
+        }
         // 那篇讀不到（剛好被刪了）就停在原本的分頁，什麼都不做。
         let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
         guard let transcript = transcripts.first(where: { $0.id == id }) else {

@@ -26,6 +26,13 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(settings.vocabulary, [])
     }
 
+    func test編輯框預設用米說自己的_存過選擇的人照舊() throws {
+        let defaults = try makeDefaults()
+        XCTAssertTrue(AppSettings(defaults: defaults).usesPlainEditor)
+        AppSettings(defaults: defaults).usesPlainEditor = false
+        XCTAssertFalse(AppSettings(defaults: defaults).usesPlainEditor)
+    }
+
     func test設定已經錄過音又沒選過潤飾方式的人固定在保留原聲() throws {
         let defaults = try makeDefaults()
         defaults.set(true, forKey: "hasSeenCostNotice")

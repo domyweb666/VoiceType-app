@@ -24,17 +24,19 @@ struct RecordingSheetView: View {
     var appendingTo: UUID?
     /// 接著錄要插在那篇的哪裡（打字時按麥克風記下的游標）；nil 是接在最後面。
     var insertingAt: InsertionPoint?
+    /// Y4：在編輯頁上開的。整理好就收起來，字回到那一頁。
+    var isInEditor = false
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// 計時字級跟著系統字級放大（使用規則第 5 條）。
     @ScaledMetric(relativeTo: .largeTitle) private var timerSize = Token.Fonts.timerSize
     @State private var phase = Phase.starting
     @State private var isPulsing = false
     /// 按「繼續錄」沒成功時那一句；留在同一個畫面，等一下還能再按。
-    @State private var resumeFailure: String?
+    @State var resumeFailure: String?
     /// 按了停止、正在收掉邊錄邊轉（最多一兩秒）：停止與繼續錄都不給再按（S4 審查）。
-    @State private var isStopping = false
+    @State var isStopping = false
     /// K6：這段錄音標了幾個重點（觸覺回饋也跟著它）。
     @State private var markCount = 0
 
@@ -55,7 +57,8 @@ struct RecordingSheetView: View {
                     recordingURL: recordingURL,
                     captureGaps: recorder.lastGaps,
                     onOpenTranscript: onOpenTranscript,
-                    onOpenSettings: onOpenSettings
+                    onOpenSettings: onOpenSettings,
+                    returningTo: isInEditor ? appendingTo : nil
                 )
             }
         }
@@ -99,6 +102,7 @@ struct RecordingSheetView: View {
             phase = recorder.isPaused ? .interrupted : .recording
             isStopping = false
             if let liveURL = recorder.liveRecordingURL {
+                rememberAppendTarget(for: liveURL)
                 queue.startLive(recordingAt: liveURL)
             }
         } catch Recorder.Failure.microphoneDenied {
@@ -111,7 +115,7 @@ struct RecordingSheetView: View {
     }
 
     @MainActor
-    private func resumeRecording() {
+    func resumeRecording() {
         do {
             try recorder.resume()
             resumeFailure = nil
@@ -125,7 +129,7 @@ struct RecordingSheetView: View {
 
     /// 先停收音，再收掉邊錄邊轉（它還在讀這個檔），才把檔搬進待轉錄。
     @MainActor
-    private func stopRecording() {
+    func stopRecording() {
         guard !isStopping else {
             return
         }
@@ -142,21 +146,25 @@ struct RecordingSheetView: View {
             await queue.finishLive()
             do {
                 let pendingURL = try PendingRecordings().accept(recordingAt: recordedURL)
-                if let appendingTo {
-                    queue.appendTargets[pendingURL.lastPathComponent] = .init(
-                        transcriptID: appendingTo,
-                        insertion: insertingAt
-                    )
-                }
                 phase = .processing(pendingURL)
             } catch {
                 phase = .failed("錄音停不下來或存不進去，檔案還在，重開米說會撿回來。")
             }
         }
     }
+
+    /// 一開錄就用檔名記，不等到停止：面板被拆掉、停止時出錯，這段之後還認得要接回哪一篇。
+    private func rememberAppendTarget(for recordingURL: URL) {
+        if let appendingTo {
+            queue.appendTargets[recordingURL.lastPathComponent] = .init(
+                transcriptID: appendingTo,
+                insertion: insertingAt
+            )
+        }
+    }
 }
 
-/// 錄音前半段的內容：錄音中、被打斷、失敗。
+/// 錄音中的內容。被打斷、失敗在 `RecordingSheetView+Stopped.swift`。
 private extension RecordingSheetView {
     var recordingContent: some View {
         VStack(spacing: Token.Space.m) {
@@ -174,7 +182,7 @@ private extension RecordingSheetView {
         }
     }
 
-    /// K6：講到重點按一下，記下第幾秒；整理完在詳情頁「⋯ → 聽原音與重點」看得到。
+    /// K6：講到重點按一下，記下第幾秒；整理完在詳情頁「⋯ → 錄音與原稿」看得到。
     var markButton: some View {
         Button(markCount == 0 ? "標記重點" : "標記重點（已標 \(markCount) 個）") {
             guard let name = recorder.liveRecordingURL?.lastPathComponent else {
@@ -248,49 +256,5 @@ private extension RecordingSheetView {
         }
         // 被打斷再接回時這顆鈕會重新出現；不歸零的話值沒變，外圈就不再呼吸。
         .onDisappear { isPulsing = false }
-    }
-
-    /// 被打斷、接不回去、空間滿時：會自己接回，也可以自己按（2026-11-04 米點頭，取代 C3 的不自動續錄）。
-    var interruptedContent: some View {
-        VStack(spacing: Token.Space.m) {
-            IconCircle(systemName: "pause.fill")
-            Text(Self.pausedMessage(for: recorder.pauseReason, elapsed: recorder.elapsedSeconds))
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .multilineTextAlignment(.center)
-            Spacer(minLength: Token.Space.s)
-            Button("繼續錄") {
-                resumeRecording()
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .disabled(isStopping)
-            if let resumeFailure {
-                Text(resumeFailure)
-                    .font(Token.Fonts.secondary)
-                    .foregroundStyle(Token.Colors.danger)
-                    .multilineTextAlignment(.center)
-            }
-            Button("停止") {
-                stopRecording()
-            }
-            .buttonStyle(TextButtonStyle())
-            .disabled(isStopping)
-        }
-    }
-
-    /// 開不起來或收不進去：走到這裡時已經沒在錄了，只剩「完成」。
-    func failedContent(_ message: String) -> some View {
-        VStack(spacing: Token.Space.m) {
-            IconCircle.failure
-            Text(message)
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .multilineTextAlignment(.center)
-            Spacer(minLength: Token.Space.s)
-            Button("完成") {
-                dismiss()
-            }
-            .buttonStyle(TextButtonStyle())
-        }
     }
 }
