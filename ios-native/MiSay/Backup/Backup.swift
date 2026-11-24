@@ -69,10 +69,39 @@ struct Backup: Codable, Equatable {
         return transcripts.filter { seen.insert($0.id).inserted }
     }
 
+    /// 匯入要存的那份：備份裡不該有垃圾桶的篇，萬一帶著記號也拿掉，加進來就是在清單裡。
+    /// 手機垃圾桶裡有同一篇時也照加，以清單裡這份為準，垃圾桶那份放到期就刪。
+    static func importable(_ transcript: Transcript) -> Transcript {
+        var imported = transcript
+        imported.trashedAt = nil
+        return imported
+    }
+
     /// 只解開頭兩欄，用來分辨「不是米說的檔」和「米說的檔但壞了」。
     private struct Header: Decodable {
         let app: String
         let version: Int
+    }
+}
+
+/// 上次手動匯出備份的時間。備份區用 `@AppStorage` 讀同一個鍵，分享完當場就更新。
+struct BackupHistory {
+    static let lastExportedKey = "backupLastExportedSeconds"
+    /// 從沒匯出過。
+    static let neverExported: Double = 0
+
+    var defaults = UserDefaults.standard
+
+    func recordExport(at date: Date = Date()) {
+        defaults.set(date.timeIntervalSince1970, forKey: Self.lastExportedKey)
+    }
+
+    /// 手動匯出與自動備份，取近的那一次；都沒有是 nil。
+    static func latest(exportedSeconds: Double, autoWrittenAt: Date?) -> Date? {
+        let exportedAt = exportedSeconds > neverExported
+            ? Date(timeIntervalSince1970: exportedSeconds)
+            : nil
+        return [exportedAt, autoWrittenAt].compactMap { $0 }.max()
     }
 }
 
@@ -86,6 +115,7 @@ struct BackupFile: Transferable {
             let url = FileManager.default.temporaryDirectory.appending(path: fileName)
             let data = try Backup(transcripts: transcripts).encoded()
             try data.write(to: url, options: [.atomic, .completeFileProtection])
+            BackupHistory().recordExport()
             return SentTransferredFile(url)
         }
     }

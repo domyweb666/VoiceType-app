@@ -12,9 +12,11 @@ extension Transcript {
         rawText.isEmpty && durationSeconds == 0
     }
 
-    /// 開了新文稿、一個字都還沒寫。
+    /// 開了新文稿、一個字都還沒寫。取過標題、留過版（寫過又清空）、改寫來的都不算：離開時會直接刪，救不回來。
     var isBlankDraft: Bool {
         let text = (draftText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        return isWritten && text.isEmpty && (rewrites ?? []).isEmpty
+        let heading = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasLeftovers = !(rewrites ?? []).isEmpty || !(versions ?? []).isEmpty
+        return isWritten && text.isEmpty && heading.isEmpty && !hasLeftovers && sourceID == nil
     }
 }

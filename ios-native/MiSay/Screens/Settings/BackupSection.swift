@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// 設定 →「資料」（片 G1、G2）：匯出備份、匯入備份。
+/// 自動備份那幾列在 `AutoBackupRows`。
 /// 匯入合併不覆蓋：同一篇（同 id）已經在手機上就跳過；先講清楚會加幾篇，按了才寫（安全標準六）。
 struct BackupSection: View {
     @State private var transcriptCount = 0
@@ -9,6 +10,9 @@ struct BackupSection: View {
     @State private var skippedCount = 0
     @State private var isConfirmingImport = false
     @State private var resultMessage: String?
+    @AppStorage(BackupHistory.lastExportedKey)
+    private var exportedSeconds = BackupHistory.neverExported
+    private let autoBackup = AutoBackup.shared
 
     var body: some View {
         Section {
@@ -43,6 +47,8 @@ struct BackupSection: View {
                     .font(Token.Fonts.secondary)
                     .foregroundStyle(Token.Colors.textPrimary)
             }
+            LabeledContent("上次備份", value: lastBackupText)
+            AutoBackupRows()
         } header: {
             Text("資料")
         } footer: {
@@ -57,8 +63,20 @@ struct BackupSection: View {
     private var footerText: String {
         let lead = transcriptCount == 0
             ? "還沒有文字稿可以備份。"
-            : "備份是一個檔，裡面是全部 \(transcriptCount) 篇文字稿，不含金鑰；新手機要重貼金鑰。"
+            : "備份是一個檔，裡面是全部 \(transcriptCount) 篇文字稿，不含金鑰、錄音和垃圾桶；新手機要重貼金鑰。"
         return lead + "備份檔沒有加密，存在只有自己拿得到的地方。"
+            + Self.newPhoneNote + AutoBackupRows.note
+    }
+
+    /// 加密文字稿的鑰匙只在這支手機，iCloud 還原帶不過去。
+    static let newPhoneNote = "換新手機時，iCloud 還原過去的文字稿解不開，要靠備份檔匯入。"
+
+    private var lastBackupText: String {
+        let latest = BackupHistory.latest(
+            exportedSeconds: exportedSeconds,
+            autoWrittenAt: autoBackup.lastWrittenAt
+        )
+        return latest?.formatted(date: .abbreviated, time: .shortened) ?? "還沒備份過"
     }
 
     static func confirmTitle(adding newCount: Int, skipping skipped: Int) -> String {
@@ -124,7 +142,7 @@ struct BackupSection: View {
         var addedCount = 0
         for transcript in pendingImport {
             do {
-                try store.save(transcript)
+                try store.save(Backup.importable(transcript))
                 addedCount += 1
             } catch {
                 resultMessage = "加了 \(addedCount) 篇，之後的存不進去。再匯入一次會接著加。"

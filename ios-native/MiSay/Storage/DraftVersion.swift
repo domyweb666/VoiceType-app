@@ -15,12 +15,14 @@ struct DraftVersion: Codable, Hashable, Identifiable {
 }
 
 extension Transcript {
-    /// 最多留幾版：每版是整篇的字，留太多檔案會肥，清單讀起來變慢。
+    /// 最近幾版全部留：每版是整篇的字，留太多檔案會肥，清單讀起來變慢。
     static let maxVersions = 8
+    /// 更早的每天只留最後一版，最多留幾天（2026-11-24）。只留 8 版的話，認真改一天就把上星期的擠光。
+    static let maxDailyVersions = 14
     /// 同一次打開連著改，隔這麼久才再留一版。
     static let versionIntervalSeconds: Double = 600
 
-    /// 把現在存著的文字稿留一版，舊的在前；超過上限丟最舊的。
+    /// 把現在存著的文字稿留一版，舊的在前；超過的照 `prunedVersions` 丟。
     /// 空的、跟上一版一樣、跟 AI 剛整理好的那份一樣（那份本來就留著）都不留。
     mutating func keepVersion(now: Date = Date()) {
         guard let text = draftText,
@@ -31,6 +33,25 @@ extension Transcript {
             return
         }
         let kept = (versions ?? []) + [DraftVersion(savedAt: now, text: text)]
-        versions = Array(kept.suffix(Self.maxVersions))
+        versions = Self.prunedVersions(kept)
+    }
+
+    /// 最近 8 版照留；更早的一天留最後一版。那天已經有版在最近 8 版裡就不另外留。
+    static func prunedVersions(
+        _ versions: [DraftVersion],
+        calendar: Calendar = .current
+    ) -> [DraftVersion] {
+        let recent = Array(versions.suffix(maxVersions))
+        var coveredDays = Set(recent.map { calendar.startOfDay(for: $0.savedAt) })
+        var daily: [DraftVersion] = []
+        for version in versions.dropLast(maxVersions).reversed() {
+            guard daily.count < maxDailyVersions else {
+                break
+            }
+            if coveredDays.insert(calendar.startOfDay(for: version.savedAt)).inserted {
+                daily.append(version)
+            }
+        }
+        return Array(daily.reversed()) + recent
     }
 }

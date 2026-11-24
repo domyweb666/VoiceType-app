@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 「⋯ → 版本紀錄」（2026-11-15）：AI 剛整理好的那一版，和你每次打開來改之前的樣子（最多 8 版）。
+/// 「⋯ → 版本紀錄」（2026-11-15）：AI 剛整理好的那一版，和你每次打開來改之前的樣子。
 /// 點一版看全文，按「換回這一版」整篇換回去；換之前現在的樣子也會先留一版，所以換錯了回得來。
 struct VersionsSheet: View {
     let current: String
@@ -13,7 +13,8 @@ struct VersionsSheet: View {
 
     static let previewLength = 40
     static let note = "每次打開來改，改之前的樣子會留一版；連著改很久，每十分鐘再留一版。"
-        + "最多 \(Transcript.maxVersions) 版，滿了丟最舊的。"
+        + "最近 \(Transcript.maxVersions) 版都留著，"
+        + "更早的每天留最後一版，最多 \(Transcript.maxDailyVersions) 天。"
 
     var body: some View {
         NavigationStack {
