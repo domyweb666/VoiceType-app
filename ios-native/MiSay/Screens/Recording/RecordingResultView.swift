@@ -2,7 +2,6 @@ import SwiftUI
 
 /// 錄音面板的後半段（片 D6）：停止之後的整理中、完成、失敗、沒金鑰、潤飾失敗。文案照 06-首次體驗「錄音面板」。
 /// 整理跑在不跟畫面綁的 Task 裡：按「收起來」收起面板，流水照樣在背景跑完；錄音檔在口語稿存好前都在待轉錄。
-/// 完成面板「收成第 N 根」的位置留在「好了」那行下面，穀倉還沒做，不畫。
 /// 2026-11-07 統一風格：完成面板多三行文字稿預覽；純判斷搬到 `RecordingResultView+Status.swift`。
 struct RecordingResultView: View {
     enum Status: Equatable {
@@ -10,6 +9,7 @@ struct RecordingResultView: View {
         case noAPIKey
         case transcriptionFailed(reason: String, needsNewKey: Bool)
         case storageFailed
+        case progressUnreadable
         case polishFailed(Transcript)
         /// 潤飾好了但文字稿存不進去：再按一次會重新潤飾、再算一次錢，所以跟潤飾失敗分開講。
         case draftNotSaved(Transcript)
@@ -58,6 +58,12 @@ struct RecordingResultView: View {
                     reason: "口語稿存不進去，再試一次。",
                     needsNewKey: false
                 )
+            case .progressUnreadable:
+                failedContent(
+                    lead: "轉錄進度一時讀不到，錄音還在。",
+                    reason: "等一下再按重試。",
+                    needsNewKey: false
+                )
             case let .polishFailed(transcript):
                 polishFailedContent(transcript, message: "口語稿已經存好，潤飾沒有成功。")
             case let .draftNotSaved(transcript):
@@ -103,7 +109,7 @@ struct RecordingResultView: View {
 
     private func apply(_ outcome: TranscriptionQueue.Outcome?) {
         // 費用說明要等真的送出去過才算看過：沒金鑰時面板一閃就換掉，不能算。
-        if let outcome, outcome != .noAPIKey {
+        if let outcome, outcome != .noAPIKey, outcome != .progressUnreadable {
             AppSettings.shared.hasSeenCostNotice = true
         }
         switch outcome {
@@ -114,8 +120,8 @@ struct RecordingResultView: View {
             status = .noAPIKey
         case let .transcriptionFailed(failure):
             status = Self.failedStatus(for: failure)
-        case .storageFailed:
-            status = .storageFailed
+        case .storageFailed, .progressUnreadable:
+            status = outcome == .progressUnreadable ? .progressUnreadable : .storageFailed
         case .recordingUnreadable:
             status = .transcriptionFailed(reason: "這段錄音讀不出來，再試一次。", needsNewKey: false)
         case let .recordingNotDeleted(transcript):

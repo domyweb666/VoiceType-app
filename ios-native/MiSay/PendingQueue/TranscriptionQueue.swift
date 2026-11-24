@@ -28,6 +28,8 @@ final class TranscriptionQueue {
         case draftNotSaved(Transcript)
         /// 錄音檔讀不到或切不了段（不是 OpenAI 的事）：檔還在待轉錄，沒送出去的不扣款。
         case recordingUnreadable
+        /// 進度檔在但一時讀不到：錄音、轉好的段都還在，這一筆先跳過，下一輪再試。
+        case progressUnreadable
         /// 口語稿存好了但錄音檔搬不進留存區（S2-5 起不刪、改搬）：下一輪會從進度檔接回同一篇再存一次、
         /// 再潤飾一次（潤飾會再扣款）。名字沿用舊的，畫面已經接這個結局。
         case recordingNotDeleted(Transcript)
@@ -146,6 +148,7 @@ final class TranscriptionQueue {
     }
 
     /// 轉錄這一步。OpenAI 的錯原樣帶回；讀不到錄音是 `.recordingUnreadable`；被取消時不給結局。
+    /// 進度檔一時讀不到是 `.progressUnreadable`，跳過這一筆。
     /// S2-6：其他錯（金鑰一時讀不到、進度檔寫不進去）不是錄音壞了，當成「等一下再試」，不標紅字叫人刪。
     func transcribe(
         _ url: URL,
@@ -167,6 +170,9 @@ final class TranscriptionQueue {
             return .failure(StoppedOutcome(value: nil))
         } catch is WAVSegmenter.Failure, Transcriber.Failure.cannotReadFile {
             return .failure(StoppedOutcome(value: .recordingUnreadable))
+        } catch RecordingTranscriptionJob.Failure.cannotReadProgress {
+            DiagnosticLog.shared.record("轉錄進度一時讀不到，等一下再試")
+            return .failure(StoppedOutcome(value: .progressUnreadable))
         } catch {
             DiagnosticLog.shared.record("轉錄停下，等一下再試：\(type(of: error))")
             return .failure(StoppedOutcome(value: .transcriptionFailed(.malformedResponse)))
@@ -181,23 +187,12 @@ final class TranscriptionQueue {
         job: RecordingTranscriptionJob
     ) -> Result<Transcript, StoppedOutcome> {
         let name = url.lastPathComponent
-        let duration = (try? pending.list().first { $0.id == name }?.durationSeconds) ?? 0
-        var transcript = Transcript(
-            id: job.transcriptID(forRecordingAt: url),
-            durationSeconds: duration,
-            rawText: rawText,
-            possiblyMissingSegments: job.possiblyMissingSegments(forRecordingAt: url),
-            polishedChunks: job.polishedChunks(
-                matching: rawText,
-                polishedWith: polishSettingsKey,
-                forRecordingAt: url
-            )
-        )
-        let marks = RecordingMarks().load(forRecordingAt: url)
-        transcript.marks = marks.isEmpty ? nil : marks
-        transcript.timeline = job.timeline(forRecordingAt: url)
+        let transcript: Transcript
         do {
+            transcript = try makeTranscript(rawText, recordingAt: url, job: job)
             try store.save(transcript)
+        } catch RecordingTranscriptionJob.Failure.cannotReadProgress {
+            return .failure(StoppedOutcome(value: .progressUnreadable))
         } catch {
             return .failure(StoppedOutcome(value: .storageFailed))
         }
@@ -212,6 +207,31 @@ final class TranscriptionQueue {
         job.cleanUp(recordingAt: url)
         RecordingMarks().delete(forRecordingAt: url)
         return .success(transcript)
+    }
+
+    /// 進度檔一時讀不到就丟錯：id 對不上會多一篇，錄音與進度都還在，下一輪再來。
+    private func makeTranscript(
+        _ rawText: String,
+        recordingAt url: URL,
+        job: RecordingTranscriptionJob
+    ) throws -> Transcript {
+        let name = url.lastPathComponent
+        let duration = (try? pending.list().first { $0.id == name }?.durationSeconds) ?? 0
+        var transcript = try Transcript(
+            id: job.transcriptID(forRecordingAt: url),
+            durationSeconds: duration,
+            rawText: rawText,
+            possiblyMissingSegments: job.possiblyMissingSegments(forRecordingAt: url),
+            polishedChunks: job.polishedChunks(
+                matching: rawText,
+                polishedWith: polishSettingsKey,
+                forRecordingAt: url
+            )
+        )
+        let marks = RecordingMarks().load(forRecordingAt: url)
+        transcript.marks = marks.isEmpty ? nil : marks
+        transcript.timeline = try job.timeline(forRecordingAt: url)
+        return transcript
     }
 
     private func keepWorkingIfBusy() {

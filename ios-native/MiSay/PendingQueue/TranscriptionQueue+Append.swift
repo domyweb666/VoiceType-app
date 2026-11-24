@@ -18,7 +18,7 @@ extension TranscriptionQueue {
     enum TakeInResult: Equatable {
         /// 已經寫進存檔，這是寫進去的那份。
         case taken(Transcript)
-        /// 現在不能接（正在打字、正在整理、手上的字存不進去），等一下再叫一次。
+        /// 現在不能接（正在打字、正在整理、手上的字存不進去、存檔一時讀不到），等一下再叫一次。
         case busy
         /// 接不上：獨立那一篇留著。
         case refused
@@ -70,6 +70,13 @@ extension TranscriptionQueue {
         return mergeWaiting(into: target.transcriptID)[added.id] ?? added
     }
 
+    /// 自動續轉每一輪開頭叫一次：上次存檔一時讀不到、又沒有人開著那篇的，在這裡再接。
+    func retryWaitingAppends() {
+        for transcriptID in Set(waitingAppends.map(\.target.transcriptID)) {
+            mergeWaiting(into: transcriptID)
+        }
+    }
+
     /// 照整理好的順序一段一段接；碰到還不能接就停，後面的不插隊。回接上去的：那段的 id → 接好的原篇。
     @discardableResult
     func mergeWaiting(into transcriptID: UUID) -> [UUID: Transcript] {
@@ -88,13 +95,24 @@ extension TranscriptionQueue {
     }
 
     /// 獨立那一篇照存檔裡的讀：等的時候可能被改過、被刪掉。正開著給人改的不拿去併。
+    /// 一時讀不到就留著等，不當成不見了；壞掉的才當成接不上。
     private func merge(_ waiting: WaitingAppend) -> TakeInResult {
         let targetID = waiting.target.transcriptID
-        let stored = ((try? store.loadAll())?.transcripts ?? []).filter { $0.trashedAt == nil }
-        guard openEditors[waiting.addedID] == nil,
-              let added = stored.first(where: { $0.id == waiting.addedID })
-        else {
+        guard openEditors[waiting.addedID] == nil else {
             return .refused
+        }
+        let added: Transcript
+        let target: Transcript?
+        do {
+            guard let stored = try listed(waiting.addedID) else {
+                return .refused
+            }
+            added = stored
+            target = try listed(targetID)
+        } catch TranscriptStore.Failure.unreadable {
+            return .refused
+        } catch {
+            return .busy
         }
         guard !inFlight.contains(targetID.uuidString) else {
             return .busy
@@ -103,7 +121,7 @@ extension TranscriptionQueue {
         let result: TakeInResult = if let editor = openEditors[targetID] {
             editor.takeIn(added, insertion)
         } else {
-            write(added, into: stored.first { $0.id == targetID }, at: insertion)
+            write(added, into: target, at: insertion)
         }
         if case .taken = result {
             // 刪不掉只會多一篇重複的，使用者自己刪。
@@ -111,6 +129,13 @@ extension TranscriptionQueue {
             DiagnosticLog.shared.record("接著錄：接回原本那篇")
         }
         return result
+    }
+
+    private func listed(_ id: UUID) throws -> Transcript? {
+        guard let stored = try store.load(id: id), stored.trashedAt == nil else {
+            return nil
+        }
+        return stored
     }
 
     private func write(

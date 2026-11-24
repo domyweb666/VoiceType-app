@@ -68,6 +68,7 @@ dist/
 # 米說 SwiftUI（ios-native/）：Xcode 專案與 Info.plist 由 CI 用 XcodeGen 產生，不進 repo
 ios-native/*.xcodeproj/
 ios-native/MiSay/Info.plist
+ios-native/MiSayWidgets/Info.plist
 ios-native/DerivedData/
 
 # 只留在這台機器的工具與量測結果（結果含米的講話內容，repo 是 public，絕不進版控）

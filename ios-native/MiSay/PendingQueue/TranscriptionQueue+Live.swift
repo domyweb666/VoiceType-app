@@ -46,7 +46,9 @@ extension TranscriptionQueue {
     /// 錄音中也先潤飾（方案 D「停止時只剩最後一段和最後一塊」）：一小時的稿潤飾要 8 塊、約 80 秒，
     /// 全留到停止後，收進口袋 30 秒就被系統暫停了。最後一塊還會變長，不送。失敗就等下一輪。
     func polishFinishedChunks(job: RecordingTranscriptionJob, progressAt finalURL: URL) async {
-        var progress = job.loadProgress(for: finalURL)
+        guard var progress = try? job.loadProgress(for: finalURL) else {
+            return
+        }
         let chunks = Array(PolishChunks.split(progress.contiguousText).dropLast())
         // 設定換了：先前用舊設定潤飾的塊不算數，用新的從頭做。
         if progress.polishedWith != polishSettingsKey {

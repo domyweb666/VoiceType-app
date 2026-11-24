@@ -11,6 +11,7 @@ struct MiSayApp: App {
     init() {
         APIKeyStore().upgradeAccessibility()
         UNUserNotificationCenter.current().delegate = NotificationRouter.shared
+        RecordingActivityPresenter.shared.endLeftovers()
     }
 
     var body: some Scene {

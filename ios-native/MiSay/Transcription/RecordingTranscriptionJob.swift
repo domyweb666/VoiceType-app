@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 /// 方塊 M3：一個錄音（可能很長）→ 整篇口語稿。照 `WAVSegmenter` 切成約 5 分鐘一段、逐段送、每段成功就記進進度檔；
@@ -7,17 +6,25 @@ import Foundation
 struct RecordingTranscriptionJob {
     enum Failure: Error, Equatable {
         case cannotSaveProgress
+        /// 進度檔在，但一時讀不到（開機後還沒解鎖過）。
+        case cannotReadProgress
     }
 
     static let progressExtension = "progress.json"
 
     let transcriber: Transcriber
     let vocabulary: [String]
+    private let keyStore: TranscriptEncryptionKeyStore
     private let fileManager = FileManager.default
 
-    init(transcriber: Transcriber = Transcriber(), vocabulary: [String] = []) {
+    init(
+        transcriber: Transcriber = Transcriber(),
+        vocabulary: [String] = [],
+        keyStore: TranscriptEncryptionKeyStore = TranscriptEncryptionKeyStore()
+    ) {
         self.transcriber = transcriber
         self.vocabulary = vocabulary
+        self.keyStore = keyStore
     }
 
     /// 回整篇口語稿（各段直接接起來，舊版也是）。中途哪一段失敗就拋出那一段的錯，已成功的段留在進度檔。
@@ -31,7 +38,7 @@ struct RecordingTranscriptionJob {
         guard !segments.isEmpty else {
             throw WAVSegmenter.Failure.cannotRead
         }
-        var progress = loadProgress(for: recordingURL)
+        var progress = try loadProgress(for: recordingURL)
         progress.adopt(segments)
         let baseName = recordingURL.deletingPathExtension().lastPathComponent
         for (index, segment) in segments.enumerated() where progress.segmentTexts[index] == nil {
@@ -66,8 +73,8 @@ struct RecordingTranscriptionJob {
         matching rawText: String,
         polishedWith settings: String,
         forRecordingAt recordingURL: URL
-    ) -> [String]? {
-        let progress = loadProgress(for: recordingURL)
+    ) throws -> [String]? {
+        let progress = try loadProgress(for: recordingURL)
         guard progress.polishedWith == settings else {
             return nil
         }
@@ -76,14 +83,14 @@ struct RecordingTranscriptionJob {
     }
 
     /// 口語稿存進歷史前讀：每段在錄音裡的起訖秒數與字數（2026-11-15，聽原音跟讀用）。
-    func timeline(forRecordingAt recordingURL: URL) -> [TimelineSpan]? {
-        let progress = loadProgress(for: recordingURL)
+    func timeline(forRecordingAt recordingURL: URL) throws -> [TimelineSpan]? {
+        let progress = try loadProgress(for: recordingURL)
         return SpokenTimeline.spans(segments: progress.segments ?? [], texts: progress.segmentTexts)
     }
 
     /// 口語稿存進歷史前讀：可能漏字的段，從 1 數。沒有就是 nil（存進文字稿時不多一欄）。
-    func possiblyMissingSegments(forRecordingAt recordingURL: URL) -> [Int]? {
-        let suspects = loadProgress(for: recordingURL).suspectSegments
+    func possiblyMissingSegments(forRecordingAt recordingURL: URL) throws -> [Int]? {
+        let suspects = try loadProgress(for: recordingURL).suspectSegments
         return suspects.isEmpty ? nil : suspects.sorted().map { $0 + 1 }
     }
 
@@ -137,9 +144,9 @@ struct RecordingTranscriptionJob {
         try? fileManager.removeItem(at: Self.progressURL(for: recordingURL))
     }
 
-    /// 轉錄完之後呼叫；進度檔讀不到時給新的 id（最壞是多一篇，不會丟）。
-    func transcriptID(forRecordingAt recordingURL: URL) -> UUID {
-        loadProgress(for: recordingURL).transcriptID
+    /// 轉錄完之後呼叫；沒有進度檔、壞掉時給新的 id（最壞是多一篇，不會丟）。
+    func transcriptID(forRecordingAt recordingURL: URL) throws -> UUID {
+        try loadProgress(for: recordingURL).transcriptID
     }
 
     static func segmentsDirectory(for recordingURL: URL) -> URL {
@@ -150,25 +157,28 @@ struct RecordingTranscriptionJob {
         recordingURL.deletingPathExtension().appendingPathExtension(progressExtension)
     }
 
-    /// 進度檔裡是一段一段的口語稿，跟文字稿一樣加密（S2-4，安全標準二），金鑰共用文字稿那把。
-    /// v0.2.1 以前的進度檔是明文 JSON：解不開時照舊讀一次，下次存就變加密的。
-    func loadProgress(for recordingURL: URL) -> Progress {
-        // 進度檔讀不到就當從頭開始：最多多送已成功的段，不會丟任何東西。
-        guard let data = try? Data(contentsOf: Self.progressURL(for: recordingURL)) else {
+    /// 進度檔裡是一段一段的口語稿，跟文字稿一樣存 JSON（米 2026-11-25）。
+    /// 舊版加密的用文字稿那把舊金鑰解，下次存就變 JSON。
+    /// 沒有、壞了就當從頭開始：最多多送已成功的段。一時讀不到要丟錯，當成空的存回去會蓋掉轉好的段。
+    func loadProgress(for recordingURL: URL) throws -> Progress {
+        let url = Self.progressURL(for: recordingURL)
+        guard fileManager.fileExists(atPath: url.path) else {
             return Progress()
         }
-        let plaintext = (try? decrypt(data)) ?? data
-        return (try? JSONDecoder().decode(Progress.self, from: plaintext)) ?? Progress()
+        let json: Data
+        do {
+            let data = try Data(contentsOf: url)
+            json = try keyStore.unseal(data) ?? data
+        } catch {
+            throw Failure.cannotReadProgress
+        }
+        return (try? JSONDecoder().decode(Progress.self, from: json)) ?? Progress()
     }
 
     func saveProgress(_ progress: Progress, for recordingURL: URL) throws {
         do {
-            let plaintext = try JSONEncoder().encode(progress)
-            let key = try TranscriptEncryptionKeyStore().loadOrCreateKey()
-            guard let sealed = try AES.GCM.seal(plaintext, using: key).combined else {
-                throw Failure.cannotSaveProgress
-            }
-            try sealed.write(to: Self.progressURL(for: recordingURL), options: Self.writeOptions)
+            let json = try JSONEncoder().encode(progress)
+            try json.write(to: Self.progressURL(for: recordingURL), options: Self.writeOptions)
         } catch {
             throw Failure.cannotSaveProgress
         }
@@ -178,9 +188,4 @@ struct RecordingTranscriptionJob {
         .atomic,
         .completeFileProtectionUntilFirstUserAuthentication,
     ]
-
-    private func decrypt(_ data: Data) throws -> Data {
-        let key = try TranscriptEncryptionKeyStore().loadOrCreateKey()
-        return try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: key)
-    }
 }

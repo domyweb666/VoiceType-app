@@ -73,7 +73,8 @@ private extension ExportSheet {
                     UIPasteboard.general.string = title
                     copied("標題複製好了")
                 } label: {
-                    Label("複製標題", systemImage: "textformat")
+                    // 不用 textformat：中文系統會畫成「格式」兩個字。
+                    Label("複製標題", systemImage: "t.square")
                 }
             }
             Button {

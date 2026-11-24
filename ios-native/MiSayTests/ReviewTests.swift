@@ -126,6 +126,10 @@ final class ReviewTests: XCTestCase {
     func test失敗講的話() {
         let message = TranscriptDetailView.reviewFailureMessage
         XCTAssertEqual(message(OpenAIClient.Failure.timedOut), "現在沒有網路，連上後再按一次。")
+        XCTAssertEqual(
+            message(OpenAIClient.Failure.missingAPIKey),
+            "還沒設定 OpenAI 金鑰，到設定貼上。"
+        )
         XCTAssertEqual(message(Polisher.Failure.incomplete), "意見回到一半被截掉了，再按一次試試。")
         XCTAssertEqual(
             message(Polisher.Failure.malformedResponse),

@@ -39,11 +39,6 @@ final class Recorder {
         capture?.url
     }
 
-    /// 檔案開著、但現在沒在收音。面板要換字、要給「繼續錄」。
-    var isPaused: Bool {
-        pauseReason != nil
-    }
-
     /// 問權限（第一次會跳系統框）、開收音、開始寫檔。失敗就拋，什麼都不留。
     @MainActor
     func start() async throws {
@@ -186,6 +181,7 @@ private extension Recorder {
         watch.noteCaptureLost(at: Date(), byteCount: capture?.writtenByteCount ?? 0)
         backgroundTime.begin()
         DiagnosticLog.shared.record("收音暫停 \(reason)，已錄 \(Int(elapsedSeconds)) 秒")
+        showOnLockScreen()
     }
 }
 
@@ -210,6 +206,7 @@ private extension Recorder {
             }
         )
         alarm.pushBack()
+        showOnLockScreen()
     }
 
     func stopWatching() {
@@ -218,6 +215,7 @@ private extension Recorder {
         systemEvents.stop()
         alarm.cancel()
         backgroundTime.end()
+        RecordingActivityPresenter.shared.recordingDidStop()
     }
 
     func handleInterruption(_ kind: AudioInterruption?) {
@@ -260,6 +258,7 @@ private extension Recorder {
         guard isRecording, let capture else {
             return
         }
+        defer { showOnLockScreen() }
         if capture.hasWriteFailure, pauseReason != .outOfSpace {
             pause(.outOfSpace)
             return

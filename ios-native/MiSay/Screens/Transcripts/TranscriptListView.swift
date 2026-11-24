@@ -11,6 +11,7 @@ struct TranscriptListView: View {
     static let todayTitle = "今天"
     static let weekTitle = "本週"
     static let olderTitle = "更早"
+    static let loadFailedNote = "文字稿一時讀不到，檔案都還在。這裡是上次讀到的。"
 
     /// 「已刪除・復原」留多久（PRD：5 秒內可復原）。
     static let undoWindowSeconds: Double = 5
@@ -50,8 +51,8 @@ struct TranscriptListView: View {
 
     var body: some View {
         List {
-            if unreadableCount > 0 {
-                unreadableBanner
+            if let bannerText {
+                unreadableBanner(bannerText)
             }
             ForEach(groups, id: \.title) { group in
                 Section {
@@ -122,6 +123,11 @@ struct TranscriptListView: View {
         openedTranscript = openingTranscript
     }
 
+    /// 壞掉另存的與一時讀不到的都算，兩種的原檔都沒刪。
+    static func unreadableNote(_ count: Int) -> String {
+        "有 \(count) 篇文字稿讀不到，原檔已保留。"
+    }
+
     func reload() {
         do {
             let result = try TranscriptStore().loadAll()
@@ -137,12 +143,20 @@ struct TranscriptListView: View {
 
 /// 讀不到的橫幅與空狀態。列在 `TranscriptListView+Organize.swift`。
 private extension TranscriptListView {
-    var unreadableBanner: some View {
+    /// 整頁空的時候讀取失敗由空狀態講，不講兩次。
+    var bannerText: String? {
+        if loadFailed, !transcripts.isEmpty || unreadableCount > 0 {
+            return Self.loadFailedNote
+        }
+        return unreadableCount > 0 && !loadFailed ? Self.unreadableNote(unreadableCount) : nil
+    }
+
+    func unreadableBanner(_ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Token.Space.s) {
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(Token.Colors.danger)
                 .accessibilityHidden(true)
-            Text("有 \(unreadableCount) 篇文字稿讀不到，原檔已保留。")
+            Text(text)
                 .font(Token.Fonts.secondary)
                 .foregroundStyle(Token.Colors.textPrimary)
         }
@@ -199,7 +213,11 @@ private extension TranscriptListView {
     @ViewBuilder
     var emptyState: some View {
         if loadFailed {
-            ContentUnavailableView("文字稿讀取失敗", systemImage: "exclamationmark.triangle")
+            ContentUnavailableView {
+                Label("文字稿一時讀不到", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text("檔案都還在，等一下再打開這頁。")
+            }
         } else {
             ContentUnavailableView {
                 Label {

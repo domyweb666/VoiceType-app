@@ -7,12 +7,22 @@ options:
   deploymentTarget:
     iOS: "17.0" # 2026-10-31 米定：Tokens 的彈簧動畫與觸覺回饋是 iOS 17 的寫法
 
+# 版號與 build 號放專案層：App 與小工具擴充要一致 App Store 才收，兩個 target 讀同一個值。
+# CI 從 tag 與流水號帶入（ios-release.yml），這裡只是佔位。
+settings:
+  base:
+    MARKETING_VERSION: "0.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+
 targets:
   MiSay:
     type: application
     platform: iOS
     sources:
       - MiSay
+      - MiSayShared
+    dependencies:
+      - target: MiSayWidgets
     # Info.plist 由 XcodeGen 每次產生（不進 repo）。
     info:
       path: MiSay/Info.plist
@@ -36,6 +46,8 @@ targets:
         # 片 C3：鎖屏、切 App 照樣在錄（PRD「不弄丟剛講的話」）。只有 audio，沒有別的背景模式。
         UIBackgroundModes:
           - audio
+        # 組塊 LA：鎖定畫面與靈動島的即時動態，要宣告在 App 這邊（不是擴充）。
+        NSSupportsLiveActivities: true
         # K7：語音備忘錄、檔案 App 的分享表單裡出現米說，音檔送進來就收進待轉錄。只收副本，不就地改原檔。
         CFBundleDocumentTypes:
           - CFBundleTypeName: 音檔
@@ -46,10 +58,42 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay
-        MARKETING_VERSION: "0.0.0"
-        CURRENT_PROJECT_VERSION: "1"
         # 只給 iPhone（1）。不宣告的話 Apple 用 iPad 多工規格審，ITMS-90023／90474／90475 都是這樣來的
         TARGETED_DEVICE_FAMILY: "1"
+      configs:
+        # 每個 target 一張描述檔，所以寫在這裡；放到 xcodebuild 命令列會套到所有 target，擴充會簽錯
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: MiSay App Store
+
+  # 組塊 LA：即時動態與控制中心按鈕的小工具擴充，嵌在 App 裡一起上架。
+  MiSayWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - MiSayWidgets
+      - MiSayShared
+      # domy 的顏色與字級，兩邊只共用這一個檔；App 的顏色資源不搬過來
+      - MiSay/App/DomyTokens.swift
+    info:
+      path: MiSayWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: 米說
+        CFBundleDevelopmentRegion: zh-Hant
+        CFBundleLocalizations:
+          - zh-Hant
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.domyweb.misay.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        # 只跟著 App 走，不單獨裝進 archive
+        SKIP_INSTALL: YES
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: MiSay Widgets App Store
 
   MiSayTests:
     type: bundle.unit-test

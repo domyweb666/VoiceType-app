@@ -1,7 +1,7 @@
 @testable import MiSay
 import XCTest
 
-/// 片 D1：加密存檔。只准在模擬器跑：setUp 會把加密金鑰與資料夾清掉。
+/// 片 D1：存檔。只准在模擬器跑：setUp 會把舊金鑰與資料夾清掉。舊版加密檔在 `LegacyTranscriptTests`。
 final class TranscriptStoreTests: XCTestCase {
     private let store = TranscriptStore()
     private let keyStore = TranscriptEncryptionKeyStore()
@@ -32,9 +32,8 @@ final class TranscriptStoreTests: XCTestCase {
         XCTAssertEqual(loaded.transcripts.first?.durationSeconds, 90)
     }
 
-    func test存檔在磁碟上不是明文() throws {
-        let secret = "散步時想到的訂閱制想法"
-        let transcript = Transcript(durationSeconds: 10, rawText: secret)
+    func test存檔在磁碟上是JSON() throws {
+        let transcript = Transcript(durationSeconds: 10, rawText: "散步時想到的訂閱制想法")
         try store.save(transcript)
 
         let directory = try store.directoryURL()
@@ -44,8 +43,8 @@ final class TranscriptStoreTests: XCTestCase {
         )
         let file = try XCTUnwrap(files.first { $0.pathExtension == TranscriptStore.fileExtension })
         let bytes = try Data(contentsOf: file)
-        XCTAssertFalse(bytes.range(of: Data(secret.utf8)) != nil)
-        XCTAssertFalse(bytes.range(of: Data("rawText".utf8)) != nil)
+        let json = try JSONSerialization.jsonObject(with: bytes) as? [String: Any]
+        XCTAssertEqual(json?["rawText"] as? String, "散步時想到的訂閱制想法")
     }
 
     func test存檔改一篇再讀是改過的() throws {
@@ -75,7 +74,7 @@ final class TranscriptStoreTests: XCTestCase {
         let directory = try store.directoryURL()
         let broken = directory.appending(path: "broken")
             .appendingPathExtension(TranscriptStore.fileExtension)
-        try Data("這不是加密檔".utf8).write(to: broken)
+        try Data("這不是文字稿檔".utf8).write(to: broken)
 
         let loaded = try store.loadAll()
         XCTAssertEqual(loaded.transcripts.map(\.rawText), ["好的"])
@@ -86,7 +85,7 @@ final class TranscriptStoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: setAside.path))
     }
 
-    func test存檔換一個實例讀得到同一把金鑰的檔() throws {
+    func test存檔換一個實例也讀得到() throws {
         try store.save(Transcript(durationSeconds: 10, rawText: "跨實例"))
         let another = TranscriptStore()
         XCTAssertEqual(try another.loadAll().transcripts.first?.rawText, "跨實例")

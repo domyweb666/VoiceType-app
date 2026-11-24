@@ -14,6 +14,8 @@ struct HomeView: View {
     let isCurrentPage: Bool
     let onOpenTranscript: (Transcript) -> Void
     let onOpenSettings: () -> Void
+    /// 有人要開錄，面板要從首頁升起來，先切過來。
+    let onShowHome: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -63,6 +65,8 @@ struct HomeView: View {
         // K1、K3：捷徑或「接著錄」丟來的開錄請求。冷啟動時請求在畫面出來前就到了，onAppear 補。
         .onAppear { takeRecordingRequest() }
         .onChange(of: RecordingLauncher.shared.request) { _, _ in takeRecordingRequest() }
+        // 留著的請求，等開著的錄音面板（首頁的、文字稿頁的）收掉才開。
+        .onChange(of: RecordingLauncher.shared.hasOpenPanel) { _, _ in takeRecordingRequest() }
         .task {
             recoverThenReloadPending()
             reloadKey()
@@ -90,6 +94,7 @@ struct HomeView: View {
                 appendInsertion = nil
                 reloadPending()
                 reloadKey()
+                takeRecordingRequest()
             }
         }
         .onChange(of: queue.activity) { _, activity in
@@ -100,15 +105,16 @@ struct HomeView: View {
         }
     }
 
-    /// 面板已經開著（正在錄）就不理：一次只錄一段。
+    /// 正在錄就不理：一次只錄一段。停在上一段的完成面板時先留著，不收掉使用者正在看的。
     private func takeRecordingRequest() {
-        guard let request = RecordingLauncher.shared.request else {
+        let taken = RecordingLauncher.shared.take(
+            isRecording: recorder.isRecording,
+            isPanelOpening: isRecordingSheetShown
+        )
+        guard let request = taken else {
             return
         }
-        RecordingLauncher.shared.request = nil
-        guard !isRecordingSheetShown, !recorder.isRecording else {
-            return
-        }
+        onShowHome()
         if case let .append(target, insertion) = request {
             appendTarget = target
             appendInsertion = insertion

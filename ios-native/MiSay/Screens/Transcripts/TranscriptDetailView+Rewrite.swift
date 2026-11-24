@@ -128,11 +128,10 @@ extension TranscriptDetailView {
     /// 編號跟著那份改寫走：上次存好了但舊的沒拿掉，再按一次是同一篇，不會蓋掉改過的字、也不會多一篇。
     private func saveAsTranscript(_ rewrite: TranscriptRewrite) throws -> Transcript {
         let store = TranscriptStore()
-        let stored = try store.loadAll().transcripts.filter { $0.trashedAt == nil }
-        if let saved = stored.first(where: { $0.id == rewrite.id }) {
+        if let saved = try store.load(id: rewrite.id), saved.trashedAt == nil {
             return saved
         }
-        guard let source = stored.first(where: { $0.id == transcript.id }) else {
+        guard let source = try store.load(id: transcript.id), source.trashedAt == nil else {
             throw RewriteFailure.transcriptGone
         }
         let rewritten = Transcript.derived(from: source, rewrite: rewrite)
@@ -195,7 +194,9 @@ extension TranscriptDetailView {
     /// 跟上面拆開：兩層 switch 寫在一起，SwiftLint 的複雜度會超過 10。
     private static func rewriteFailureMessage(for failure: OpenAIClient.Failure) -> String {
         switch failure {
-        case .invalidAPIKey, .missingAPIKey:
+        case .missingAPIKey:
+            "還沒設定 OpenAI 金鑰，到設定貼上。"
+        case .invalidAPIKey:
             "金鑰沒有用，到設定換一把。"
         case .quotaExhausted:
             "OpenAI 說額度用完了，到 OpenAI 後台處理。"
@@ -213,12 +214,12 @@ extension TranscriptDetailView {
     func updateStored(_ change: (inout Transcript) -> Void) throws {
         flushAutosave()
         let keepsHand = hasUnsavedDraft
-        let stored = try TranscriptStore().loadAll().transcripts.first { $0.id == transcript.id }
-        guard var updated = stored, updated.trashedAt == nil else {
+        let store = TranscriptStore()
+        guard var updated = try store.load(id: transcript.id), updated.trashedAt == nil else {
             throw RewriteFailure.transcriptGone
         }
         change(&updated)
-        try TranscriptStore().save(updated)
+        try store.save(updated)
         transcript = updated
         // 手上的字剛才沒存進去：留在編輯框裡，不拿存檔的蓋掉。
         if !keepsHand {

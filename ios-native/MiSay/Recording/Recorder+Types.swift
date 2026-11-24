@@ -1,6 +1,11 @@
 import Foundation
 
 extension Recorder {
+    /// 檔案開著、但現在沒在收音。面板要換字、要給「繼續錄」。
+    var isPaused: Bool {
+        pauseReason != nil
+    }
+
     /// 波形每秒更新次數（手感參數表：約 20 次）。
     static let levelsPerSecond = Token.Motion.waveformHz
     /// 畫面上柱子的根數；滿了從左邊掉出去。

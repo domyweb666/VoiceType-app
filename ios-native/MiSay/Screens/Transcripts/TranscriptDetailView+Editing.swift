@@ -116,14 +116,16 @@ extension TranscriptDetailView {
             transcript = updated
             draftEdit = updated.draftText ?? ""
         case let .polishFailed(updated, _), let .draftNotSaved(updated):
-            // 整理的時候可能取了標題：流水手上那份是開始時的，換成存檔裡最新的。
-            transcript = queue.latest(of: updated)
-            draftEdit = transcript.draftText ?? draftEdit
+            // 整理的時候可能取了標題：流水手上那份是開始時的，換成存檔裡最新的。一時讀不到就不換。
+            if let latest = try? queue.latest(of: updated) {
+                transcript = latest
+                draftEdit = latest.draftText ?? draftEdit
+            }
             polishFailed = true
         case nil:
             break
         case .noAPIKey, .transcriptionFailed, .storageFailed, .recordingUnreadable,
-             .recordingNotDeleted:
+             .progressUnreadable, .recordingNotDeleted:
             polishFailed = true
         }
     }

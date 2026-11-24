@@ -59,9 +59,9 @@ struct VersionsSheet: View {
         )
     }
 
-    /// 列上面那兩行預覽：開頭的幾個字，換行當空白。
+    /// 列上面那兩行預覽：開頭的幾個字，去掉記號，換行當空白。
     static func preview(_ text: String) -> String {
-        String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(previewLength))
+        PlainTextExport.opening(of: text, limit: previewLength)
             .replacingOccurrences(of: "\n", with: " ")
     }
 

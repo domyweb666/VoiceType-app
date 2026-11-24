@@ -1,7 +1,7 @@
 import Foundation
 
 /// 文字稿改之前的樣子（2026-11-15 米：要在手機上寫五千字以上的長文，改壞了要回得去）。
-/// 跟文字稿存在同一個檔裡：一樣加密、一樣跟著備份、那篇刪了就一起沒了。
+/// 跟文字稿存在同一個檔裡：一樣跟著備份、那篇刪了就一起沒了。
 struct DraftVersion: Codable, Hashable, Identifiable {
     let id: UUID
     let savedAt: Date
