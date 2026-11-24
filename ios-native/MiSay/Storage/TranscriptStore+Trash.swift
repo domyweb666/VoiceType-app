@@ -104,7 +104,7 @@ extension TranscriptStore {
         let key = try loadKey()
         var transcripts: [Transcript] = []
         for file in files {
-            if let transcript = Self.decrypt(file, using: key) {
+            if let transcript = open(file, using: key) {
                 transcripts.append(transcript)
             } else {
                 // 搬不動就留在原地：檔還在，下次再搬。
@@ -130,7 +130,7 @@ extension TranscriptStore {
         try fileManager.fileExists(atPath: fileURL(for: id).path)
     }
 
-    private func trashURL(for id: UUID) throws -> URL {
+    func trashURL(for id: UUID) throws -> URL {
         try trashDirectoryURL().appending(path: id.uuidString)
             .appendingPathExtension(Self.fileExtension)
     }

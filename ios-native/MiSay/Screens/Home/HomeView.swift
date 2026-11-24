@@ -67,6 +67,8 @@ struct HomeView: View {
             recoverThenReloadPending()
             reloadKey()
             queue.startPendingRun()
+            // 2026-11-25：舊版只放本機的金鑰，打開時補一份進 iCloud 鑰匙圈。
+            TranscriptEncryptionKeyStore().backUpToICloud()
             CorrectedWordsRunner.start()
         }
         .onChange(of: scenePhase) { _, phase in
