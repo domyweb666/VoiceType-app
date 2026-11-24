@@ -28,6 +28,9 @@ struct TranscriptDetailView: View {
     @State var rewritingKind: RewriteKind?
     @State var rewriteTask: Task<Void, Never>?
     @State var rewriteFailure: String?
+    /// 請 AI 看整篇那張頁，與這次打開問到的意見（離開這頁就不留）。
+    @State var showsReview = false
+    @State var review = ReviewSheet.Session()
     /// W6：編這篇標籤的那張頁。
     @State var showsTags = false
     /// 底下那行一下就收的一句話（K2 存好了、存不進去）。
@@ -88,6 +91,7 @@ struct TranscriptDetailView: View {
                 RawTextSheet(transcript: transcript, startsWithDiff: rawSheetStartsWithDiff)
             }
             .sheet(isPresented: $showsRewrites) { rewritesSheet }
+            .sheet(isPresented: $showsReview) { reviewSheet }
             .sheet(isPresented: $showsTags) { tagsSheet }
             .sheet(isPresented: $showsOutline) { outlineSheet }
             .sheet(isPresented: $showsVersions) { versionsSheet }
@@ -143,6 +147,7 @@ struct TranscriptDetailView: View {
             .onDisappear {
                 // 離開這頁就停：再打開這篇是另一份畫面，改寫完存回來會跟它互相蓋。
                 cancelRewrite()
+                cancelReview()
                 flushAutosave()
                 discardIfBlank()
                 // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。

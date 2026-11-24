@@ -2,11 +2,13 @@ import Foundation
 
 /// W4 改一段（2026-11-09）：文字稿裡選一段，叫 AI 縮短、講清楚、改口語、改書面。
 /// 改好先給人看，按「換上」才換；提示詞寫死在這裡，不給改（11/08 決定照舊）。
+/// 2026-11-24 加「自己講怎麼改」：只管這一次，走改寫補充要求那套（上限、不准補事實都照 `RewriteKind`）。
 enum PassageRewriteKind: String, CaseIterable, Identifiable {
     case shorten
     case expand
     case spoken
     case written
+    case custom
 
     /// 一次最多改這麼多字：選太長就該用「改寫成其他格式」整篇改。
     static let maxPassageCharacters = 3000
@@ -23,7 +25,13 @@ enum PassageRewriteKind: String, CaseIterable, Identifiable {
         case .expand: "講清楚一點"
         case .spoken: "改口語"
         case .written: "改書面"
+        case .custom: "自己講怎麼改"
         }
+    }
+
+    /// 選單裡的字：還要再問一句才送的，尾巴加「…」。
+    var menuTitle: String {
+        self == .custom ? title + "…" : title
     }
 
     var systemImage: String {
@@ -32,6 +40,7 @@ enum PassageRewriteKind: String, CaseIterable, Identifiable {
         case .expand: "arrow.up.left.and.arrow.down.right"
         case .spoken: "bubble.left"
         case .written: "doc.text"
+        case .custom: "text.bubble"
         }
     }
 
@@ -65,6 +74,8 @@ enum PassageRewriteKind: String, CaseIterable, Identifiable {
         case .written:
             "把這段改得更像寫的：口頭禪、重複、倒裝整理掉，句子接順。不要改成公文腔或論文腔，"
                 + "還是要像他自己寫的。意思不變。"
+        case .custom:
+            "照最後面的補充要求改這一段。他沒有要求改的地方不要動。"
         }
     }
 }

@@ -7,7 +7,8 @@ import Observation
 final class AppSettings {
     static let shared = AppSettings()
 
-    /// 潤飾模型二選一（F4）。名稱 2026-11-01 查證，見 `Polisher`。
+    /// 認得的潤飾模型（2026-11-24 查證，見 `Polisher`）；存著別的（例如以前的 gpt-4o-mini）就用預設。
+    /// 2026-11-24 起畫面上不給選，存過的值照讀。
     static let polishModels = [Polisher.defaultModel, Polisher.alternativeModel]
 
     private enum Key {

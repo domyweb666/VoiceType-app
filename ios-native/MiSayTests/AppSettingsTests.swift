@@ -65,8 +65,12 @@ final class AppSettingsTests: XCTestCase {
 
     func test設定存著不在名單裡的模型時退回預設() throws {
         let defaults = try makeDefaults()
-        defaults.set("gpt-retired", forKey: "polishModel")
-        XCTAssertEqual(AppSettings(defaults: defaults).polishModel, Polisher.defaultModel)
+        for retired in ["gpt-retired", "gpt-4o-mini"] {
+            defaults.set(retired, forKey: "polishModel")
+            XCTAssertEqual(AppSettings(defaults: defaults).polishModel, "gpt-6-luna", retired)
+        }
+        defaults.set("gpt-5.4-mini", forKey: "polishModel")
+        XCTAssertEqual(AppSettings(defaults: defaults).polishModel, "gpt-5.4-mini")
     }
 
     func test設定自訂詞彙空白和重複的不收() {

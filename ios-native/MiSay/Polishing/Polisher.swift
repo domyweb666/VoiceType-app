@@ -10,14 +10,15 @@ struct Polisher {
         case incomplete
     }
 
-    /// 2026-11-01 查證：gpt-5.4-mini 存在（輸入 0.75／輸出 4.50 美元每百萬 token）；
-    /// gpt-4o-mini 存在但已標 Deprecated（輸入 0.15／輸出 0.60）。預設跟網頁版一樣。
-    static let defaultModel = "gpt-5.4-mini"
-    static let alternativeModel = "gpt-4o-mini"
+    /// 2026-11-07 米定案，2026-11-24 上 OpenAI 官方文件查證：兩個都在、都能走 chat completions；
+    /// gpt-4o-mini 2027-01-14 關閉，拿掉了。
+    static let defaultModel = "gpt-6-luna"
+    static let alternativeModel = "gpt-5.4-mini"
+    /// gpt-6-luna 預設 medium，第一個字來得很慢，要明講。官方模型頁寫兩個都收 none。
+    /// temperature 不帶：reasoning 不是 none 時帶了會被拒，用預設值最穩。
+    static let reasoningEffort = "none"
     static let maxAttempts = 3
     static let retryBaseDelaySeconds: Double = 2
-    /// 只有 gpt-4 系列帶：GPT-5 系列不收自訂 temperature（會回 400），網頁版 docs/index.html 也是這樣分。
-    static let gpt4Temperature = 0.3
     static let endpointPath = "/v1/chat/completions"
 
     private let client: OpenAIClient
@@ -70,28 +71,53 @@ struct Polisher {
     }
 
     /// W4 改一段：只送選起來的那段，加上前後各一小段讓模型看得懂在講什麼；回來的只有改好的那段。
+    /// 「自己講怎麼改」的那句要求接在最後，跟改寫的補充要求同一套。
     func rewritePassage(
         _ passage: PassageContext,
         kind: PassageRewriteKind,
         model: String,
-        vocabulary: [String]
+        vocabulary: [String],
+        instruction: String? = nil
     ) async throws -> String {
-        try await complete(
-            system: Self.systemContent(prompt: kind.prompt, vocabulary: vocabulary),
+        let base = Self.systemContent(prompt: kind.prompt, vocabulary: vocabulary)
+        return try await complete(
+            system: RewriteKind.appending(instruction, to: base),
             user: PassageRewriteKind.userContent(passage),
             model: model
         )
     }
 
-    /// 潤飾與改寫共用：送一次 chat completions，可重試的錯誤重試，回來的當純文字。
-    private func complete(system: String, user: String, model: String) async throws -> String {
+    /// 請 AI 看整篇：只要意見，回來的是 JSON，形狀在 `ReviewResult.parse` 驗。
+    func review(
+        text: String,
+        kind: ReviewKind,
+        model: String,
+        vocabulary: [String]
+    ) async throws -> ReviewResult {
+        let content = try await complete(
+            system: Self.systemContent(prompt: kind.prompt, vocabulary: vocabulary),
+            user: RewriteKind.userContent(text: text),
+            model: model,
+            responseFormat: kind.responseFormat
+        )
+        return try ReviewResult.parse(content, kind: kind)
+    }
+
+    /// 潤飾、改寫、看整篇共用：送一次 chat completions，可重試的錯誤重試，回來的當純文字。
+    private func complete(
+        system: String,
+        user: String,
+        model: String,
+        responseFormat: ChatResponseFormat? = nil
+    ) async throws -> String {
         let request = ChatRequest(
             model: model,
             messages: [
                 ChatMessage(role: "system", content: system),
                 ChatMessage(role: "user", content: user),
             ],
-            temperature: Self.temperature(for: model)
+            reasoningEffort: Self.reasoningEffort,
+            responseFormat: responseFormat
         )
         let body: Data
         do {
@@ -151,22 +177,6 @@ struct Polisher {
                 + habits.map { "- " + $0 }.joined(separator: "\n")
         }
         return content
-    }
-
-    private struct ChatMessage: Codable {
-        let role: String
-        let content: String
-    }
-
-    static func temperature(for model: String) -> Double? {
-        model.hasPrefix("gpt-4") ? gpt4Temperature : nil
-    }
-
-    /// temperature 是 nil 時整個欄位不送（Encodable 合成的會略過 nil）。
-    private struct ChatRequest: Encodable {
-        let model: String
-        let messages: [ChatMessage]
-        let temperature: Double?
     }
 
     private struct ChatResponse: Decodable {

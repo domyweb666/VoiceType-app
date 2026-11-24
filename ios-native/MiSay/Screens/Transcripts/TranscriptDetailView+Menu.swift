@@ -38,6 +38,7 @@ extension TranscriptDetailView {
                 )
             }
             .disabled(isPolishing || currentText.isEmpty)
+            reviewMenuItem
             // W6：標籤，清單可以照標籤篩。
             Button {
                 showsTags = true

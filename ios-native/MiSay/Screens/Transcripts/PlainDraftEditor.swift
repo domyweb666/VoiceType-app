@@ -39,7 +39,11 @@ struct PlainDraftEditor: View {
             }
         }
         .sheet(item: $request, onDismiss: cancelPassage) { request in
-            PassagePreviewSheet(request: request, onApply: applyPassage) {
+            PassagePreviewSheet(
+                request: request,
+                onSend: sendPassage,
+                onApply: applyPassage
+            ) {
                 self.request = nil
             }
         }

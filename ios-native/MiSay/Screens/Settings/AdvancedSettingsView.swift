@@ -1,25 +1,12 @@
 import SwiftUI
 
-/// 設定 →「進階」子頁：潤飾模型、備份、診斷紀錄、刪除全部資料（S2-9）。2026-11-08 設定頁簡化時從第一層收進來，
+/// 設定 →「進階」子頁：錄音、編輯框、備份、診斷紀錄、刪除全部資料（S2-9）。2026-11-08 設定頁簡化時從第一層收進來，
 /// 平常不用碰的放這裡，說明文字也跟著搬進來。
 struct AdvancedSettingsView: View {
     @Bindable private var settings = AppSettings.shared
 
     var body: some View {
         Form {
-            Section {
-                Picker("潤飾模型", selection: $settings.polishModel) {
-                    ForEach(AppSettings.polishModels, id: \.self) { model in
-                        Text(model).tag(model)
-                    }
-                }
-            } footer: {
-                Text(Self.modelNote)
-                    .font(Token.Fonts.footnote)
-            }
-            .font(Token.Fonts.body)
-            .listRowBackground(Token.Colors.rowBackground)
-
             Section {
                 Toggle("錄音中先整理只用 Wi-Fi", isOn: $settings.liveTranscriptionWiFiOnly)
             } footer: {
@@ -80,11 +67,4 @@ struct AdvancedSettingsView: View {
 
     static let liveTranscriptionNote = "錄音中每講滿約 5 分鐘就先送去轉成文字，按停止後很快就好。"
         + "關著時，走路也會用行動網路，每小時約 14 MB。"
-
-    /// 模型名稱與狀態 2026-11-01 查證（見 `Polisher`）；價格會變，這裡不寫數字。
-    static var modelNote: String {
-        "\(Polisher.defaultModel) 是預設，跟網頁版一樣。"
-            + "\(Polisher.alternativeModel) 比較便宜，但 OpenAI 已經說要停用。"
-            + "這篇用哪個模型，文字稿的「⋯」裡看得到。"
-    }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 新編輯框的「改這段」（W4）：做法跟 `DraftEditor` 一樣，只有選取範圍的來源不同（這裡是 UTF-16 換成第幾個字）。
-/// 兩邊各一份：這個編輯框還在試用，先不去動 `DraftEditor` 那份已經在用的。
+/// 送出與切段落在 `PassagePreviewSheet.Request`，兩種編輯框共用。
 extension PlainDraftEditor {
     var passageMenu: some View {
         Menu {
@@ -9,7 +9,7 @@ extension PlainDraftEditor {
                 Button {
                     startPassage(kind)
                 } label: {
-                    Label(kind.title, systemImage: kind.systemImage)
+                    Label(kind.menuTitle, systemImage: kind.systemImage)
                 }
             }
         } label: {
@@ -19,53 +19,43 @@ extension PlainDraftEditor {
         .disabled(selectionOffsets.isEmpty)
     }
 
+    /// 「自己講怎麼改」先問要求，打好按了才送；其他的直接送。
     private func startPassage(_ kind: PassageRewriteKind) {
         let offsets = selectionOffsets
-        let start = offsets.lowerBound
-        guard !offsets.isEmpty,
-              let passage = PassageContext(in: text, offset: start, length: offsets.count),
-              !passage.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        else {
-            return
-        }
-        var newRequest = PassagePreviewSheet.Request(
+        request = PassagePreviewSheet.Request(
             kind: kind,
-            original: passage.text,
-            offset: start
+            in: text,
+            offset: offsets.lowerBound,
+            length: offsets.count
         )
-        guard passage.text.count <= PassageRewriteKind.maxPassageCharacters else {
-            newRequest.failure = "選的太長了，一次改 3,000 字以內。整篇要改，用「⋯ → 改寫成其他格式」。"
-            request = newRequest
+        if kind != .custom {
+            sendPassage(nil)
+        }
+    }
+
+    func sendPassage(_ instruction: String?) {
+        guard let current = request, !current.isTooLong, !current.isRunning else {
             return
         }
-        request = newRequest
+        request?.begin()
         task = Task { @MainActor in
-            await runPassage(passage, kind: kind, requestID: newRequest.id)
+            await runPassage(current, instruction: instruction)
         }
     }
 
     /// 回來時這頁已經關了或換了另一次請求，就不寫。
-    private func runPassage(
-        _ passage: PassageContext,
-        kind: PassageRewriteKind,
-        requestID: UUID
-    ) async {
+    private func runPassage(_ sent: PassagePreviewSheet.Request, instruction: String?) async {
         do {
-            let result = try await Polisher().rewritePassage(
-                passage,
-                kind: kind,
-                model: AppSettings.shared.polishModel,
-                vocabulary: AppSettings.shared.vocabulary
-            )
-            guard !Task.isCancelled, request?.id == requestID else {
+            let result = try await sent.rewritten(instruction: instruction)
+            guard !Task.isCancelled, request?.id == sent.id else {
                 return
             }
-            request?.result = result
+            request?.finish(result: result)
         } catch {
-            guard !Task.isCancelled, request?.id == requestID else {
+            guard !Task.isCancelled, request?.id == sent.id else {
                 return
             }
-            request?.failure = TranscriptDetailView.rewriteFailureMessage(error)
+            request?.finish(failure: TranscriptDetailView.rewriteFailureMessage(error))
         }
     }
 
@@ -80,8 +70,7 @@ extension PlainDraftEditor {
             with: result,
             in: text
         ) else {
-            request?.result = nil
-            request?.failure = "這段在等的時候被改過了，找不到原本那段，沒有換上。"
+            request?.finish(failure: PassagePreviewSheet.Request.movedNote)
             return
         }
         let caret = EditHistory.changeEnd(from: text, to: replaced)

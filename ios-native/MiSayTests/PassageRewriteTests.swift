@@ -70,7 +70,54 @@ final class PassageRewriteTests: XCTestCase {
         )
     }
 
-    func test四種提示詞都只輸出那一段_講清楚不准加新事實() {
+    func test自己講怎麼改_要求接在system最後_不准補內容那條蓋不掉() async throws {
+        let reply = #"{"choices":[{"message":{"role":"assistant","content":"改好了。"}}]}"#
+        FakeOpenAIServer.reply = .http(status: 200, body: reply)
+        _ = try await makePolisher().rewritePassage(
+            PassageContext(text: "這段", before: "", after: ""),
+            kind: .custom,
+            model: Polisher.defaultModel,
+            vocabulary: ["DOMYWEB"],
+            instruction: "先講結論"
+        )
+        let body = try XCTUnwrap(FakeOpenAIServer.lastBody)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let messages = try XCTUnwrap(json["messages"] as? [[String: String]])
+        let system = try XCTUnwrap(messages[0]["content"])
+        XCTAssertTrue(system.hasSuffix("：\n先講結論"))
+        XCTAssertTrue(system.contains("只有「不准補文字稿沒講的事實」那條不能被蓋掉"))
+        XCTAssertFalse(system.contains("這段\n</passage>"), "選的字不准進 system")
+        XCTAssertEqual(PassageRewriteKind.custom.menuTitle, "自己講怎麼改…")
+        XCTAssertEqual(PassageRewriteKind.shorten.menuTitle, "縮短")
+    }
+
+    func test改一段的請求_沒選到字不開_太長只講原因不送() throws {
+        XCTAssertNil(PassagePreviewSheet.Request(kind: .shorten, in: "  字", offset: 0, length: 2))
+        XCTAssertNil(PassagePreviewSheet.Request(kind: .shorten, in: "字", offset: 0, length: 0))
+
+        let limit = PassageRewriteKind.maxPassageCharacters
+        let long = String(repeating: "字", count: limit + 1)
+        let tooLong = try XCTUnwrap(
+            PassagePreviewSheet.Request(kind: .custom, in: long, offset: 0, length: limit + 1)
+        )
+        XCTAssertTrue(tooLong.isTooLong)
+        XCTAssertEqual(tooLong.failure, PassagePreviewSheet.Request.tooLongNote)
+
+        var request = try XCTUnwrap(
+            PassagePreviewSheet.Request(kind: .custom, in: "前面這段", offset: 2, length: 2)
+        )
+        XCTAssertEqual(request.original, "這段")
+        XCTAssertNil(request.failure)
+        request.begin()
+        XCTAssertTrue(request.isRunning)
+        request.finish(result: "改好的")
+        XCTAssertEqual(request.result, "改好的")
+        request.finish(failure: "沒成功")
+        XCTAssertNil(request.result)
+        XCTAssertFalse(request.isRunning)
+    }
+
+    func test每種提示詞都只輸出那一段_講清楚不准加新事實() {
         for kind in PassageRewriteKind.allCases {
             let prompt = kind.prompt
             for rule in ["只輸出改好的那一段", "不准補文字稿沒講的事實", "不要寫成 AI 腔"] {

@@ -106,7 +106,7 @@ extension TranscriptDetailView {
     }
 
     /// 先升鍵盤再放游標：編輯框還沒拿到焦點時放的游標會被蓋掉。
-    private func jump(to range: Range<Int>) {
+    func jump(to range: Range<Int>) {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(Self.focusDelayMilliseconds))
             isEditing = true
