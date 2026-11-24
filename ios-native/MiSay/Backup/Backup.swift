@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 /// 方塊 M8：全部文字稿打包成一個 JSON 檔（片 G1），再從這種檔合併回來（片 G2）。
 /// 檔裡只有文字稿，沒有金鑰（安全標準二）；新手機要重貼金鑰。
-/// 備份檔沒有加密：沒開 iCloud 鑰匙圈的人換手機時加密金鑰帶不過去，加密了新手機也解不開。畫面要講清楚。
+/// 備份檔沒有加密：換手機時舊手機 Keychain 的加密金鑰帶不過去，加密了新手機也解不開。畫面要講清楚。
 struct Backup: Codable, Equatable {
     enum Failure: Error, Equatable {
         case tooLarge

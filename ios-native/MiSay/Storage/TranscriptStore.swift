@@ -35,7 +35,7 @@ struct TranscriptStore {
     ]
 
     let fileManager = FileManager.default
-    let keyStore = TranscriptEncryptionKeyStore()
+    private let keyStore = TranscriptEncryptionKeyStore()
 
     func directoryURL() throws -> URL {
         try ensuredDirectory(named: "Transcripts")
@@ -64,7 +64,7 @@ struct TranscriptStore {
         guard fileManager.fileExists(atPath: url.path) else {
             return nil
         }
-        guard let transcript = try open(url, using: loadKey()) else {
+        guard let transcript = try Self.decrypt(url, using: loadKey()) else {
             throw Failure.unreadable
         }
         return transcript
@@ -91,7 +91,6 @@ struct TranscriptStore {
     /// 讀全部。解不開的檔搬去 Unreadable/（不刪），數量回報給畫面。
     func loadAll() throws -> LoadResult {
         let key = try loadKey()
-        restoreSetAside(using: key)
         let directory = try directoryURL()
         let files: [URL]
         do {
@@ -105,7 +104,7 @@ struct TranscriptStore {
         var transcripts: [Transcript] = []
         var unreadableCount = 0
         for file in files where file.pathExtension == Self.fileExtension {
-            if let transcript = open(file, using: key) {
+            if let transcript = Self.decrypt(file, using: key) {
                 transcripts.append(transcript)
             } else {
                 unreadableCount += 1
@@ -120,14 +119,16 @@ struct TranscriptStore {
 
     /// Unreadable/ 裡現有幾個檔。數不到就當 0：只影響橫幅的數字，不影響任何資料。
     private func setAsideFileCount() -> Int {
-        (try? setAsideFiles().count) ?? 0
-    }
-
-    func setAsideFiles() throws -> [URL] {
-        try fileManager.contentsOfDirectory(
-            at: ensuredDirectory(named: Self.unreadableDirectoryName),
-            includingPropertiesForKeys: nil
-        ).filter { $0.pathExtension == Self.fileExtension }
+        do {
+            let unreadable = try ensuredDirectory(named: Self.unreadableDirectoryName)
+            let files = try fileManager.contentsOfDirectory(
+                at: unreadable,
+                includingPropertiesForKeys: nil
+            )
+            return files.filter { $0.pathExtension == Self.fileExtension }.count
+        } catch {
+            return 0
+        }
     }
 
     /// 真的把那一篇的檔刪掉，不進垃圾桶。使用者自己刪的走 `moveToTrash`；

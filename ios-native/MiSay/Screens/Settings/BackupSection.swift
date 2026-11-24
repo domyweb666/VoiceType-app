@@ -75,7 +75,7 @@ struct BackupSection: View {
     }
 
     /// 加密文字稿的鑰匙只在這支手機，iCloud 還原帶不過去。
-    static let newPhoneNote = "換新手機時，舊手機和新手機都開著 iCloud 鑰匙圈，iCloud 還原過去的文字稿就打得開；沒開的要靠備份檔匯入。"
+    static let newPhoneNote = "換新手機時，iCloud 還原過去的文字稿解不開，要靠備份檔匯入。"
 
     private var lastBackupText: String {
         let latest = BackupHistory.latest(
