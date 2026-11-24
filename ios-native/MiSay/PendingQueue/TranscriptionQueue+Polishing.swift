@@ -72,18 +72,27 @@ extension TranscriptionQueue {
     }
 
     /// 潤飾要好幾分鐘，這段時間人可能改了標題、標籤（還沒有文字稿的篇也能取標題）；流水手上的是開始時那份，
-    /// 存之前把人改的換成存檔裡最新的，不然會蓋回去。讀不到存檔就照手上的存，字不能不存。
+    /// 存之前把人改的換成存檔裡最新的，不然會蓋回去。存檔壞了就照手上的存（壞的會先另存）；
+    /// 一時讀不到就丟錯不存，口語稿還在，之後再整理一次。
     /// 這段時間被丟進垃圾桶的，存在垃圾桶那份，不放回清單。
     func saveKeepingUserFields(_ transcript: inout Transcript) throws {
         let id = transcript.id
-        if let stored = (try? store.loadAll())?.transcripts.first(where: { $0.id == id }) {
+        if let stored = try ignoringBroken({ try store.load(id: id) }) {
             transcript.keepUserFields(from: stored)
-        } else if let trashed = try? store.loadFromTrash(id: id) {
+        } else if let trashed = try ignoringBroken({ try store.loadFromTrash(id: id) }) {
             transcript.keepUserFields(from: trashed)
             try store.saveInTrash(transcript)
             return
         }
         try store.save(transcript)
+    }
+
+    private func ignoringBroken(_ read: () throws -> Transcript?) throws -> Transcript? {
+        do {
+            return try read()
+        } catch TranscriptStore.Failure.unreadable {
+            return nil
+        }
     }
 
     /// 還在等著接回去的那段，通知點下去要打開的是原本那篇：獨立那一篇等一下就併掉了。

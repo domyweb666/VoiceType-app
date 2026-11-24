@@ -1,6 +1,6 @@
 import Foundation
 
-/// 垃圾桶（2026-11-24 主力編輯器）：刪掉的篇先放 Transcripts/Trash/，一樣加密，30 天後才真的刪。
+/// 垃圾桶（2026-11-24 主力編輯器）：刪掉的篇先放 Transcripts/Trash/，30 天後才真的刪。
 /// 搬的順序一律是「那邊寫成功，才刪這邊」；中途被殺會兩邊都有，以沒在垃圾桶的那份為準，
 /// 所以這裡不會拿垃圾桶的蓋掉清單裡的。留存錄音由叫的人刪（`RetainedRecordings`）。
 extension TranscriptStore {
@@ -74,7 +74,7 @@ extension TranscriptStore {
         return try expired.map(\.id).filter { try deleteFromTrash(id: $0) }
     }
 
-    /// 只看檔名，不解密：解不開的那幾篇也要算在內，它們的錄音才不會被當孤兒刪掉。
+    /// 只看檔名，不讀內容：讀不到的那幾篇也要算在內，它們的錄音才不會被當孤兒刪掉。
     func trashedIDs() throws -> Set<UUID> {
         let ids = try trashFiles().compactMap {
             UUID(uuidString: $0.deletingPathExtension().lastPathComponent)
@@ -96,15 +96,11 @@ extension TranscriptStore {
         return min(max(left, 0), trashKeepDays)
     }
 
+    /// 舊版加密的順便換成 JSON；有檔一時讀不到就丟錯，跟 `loadAll` 一樣。
     private func readTrash() throws -> [Transcript] {
-        let files = try trashFiles()
-        guard !files.isEmpty else {
-            return []
-        }
-        let key = try loadKey()
         var transcripts: [Transcript] = []
-        for file in files {
-            if let transcript = Self.decrypt(file, using: key) {
+        for file in try trashFiles() {
+            if let transcript = try readReplacingSealed(file) {
                 transcripts.append(transcript)
             } else {
                 // 搬不動就留在原地：檔還在，下次再搬。

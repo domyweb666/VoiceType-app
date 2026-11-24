@@ -58,12 +58,12 @@ extension TranscriptionQueue {
         url: URL
     ) -> Transcript? {
         var updated = latest(of: transcript)
-        updated.replaceRawText(
-            rawText,
-            possiblyMissing: job.possiblyMissingSegments(forRecordingAt: url),
-            timeline: job.timeline(forRecordingAt: url)
-        )
         do {
+            try updated.replaceRawText(
+                rawText,
+                possiblyMissing: job.possiblyMissingSegments(forRecordingAt: url),
+                timeline: job.timeline(forRecordingAt: url)
+            )
             try saveKeepingUserFields(&updated)
             return updated
         } catch {

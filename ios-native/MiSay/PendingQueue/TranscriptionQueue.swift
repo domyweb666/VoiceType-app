@@ -181,22 +181,9 @@ final class TranscriptionQueue {
         job: RecordingTranscriptionJob
     ) -> Result<Transcript, StoppedOutcome> {
         let name = url.lastPathComponent
-        let duration = (try? pending.list().first { $0.id == name }?.durationSeconds) ?? 0
-        var transcript = Transcript(
-            id: job.transcriptID(forRecordingAt: url),
-            durationSeconds: duration,
-            rawText: rawText,
-            possiblyMissingSegments: job.possiblyMissingSegments(forRecordingAt: url),
-            polishedChunks: job.polishedChunks(
-                matching: rawText,
-                polishedWith: polishSettingsKey,
-                forRecordingAt: url
-            )
-        )
-        let marks = RecordingMarks().load(forRecordingAt: url)
-        transcript.marks = marks.isEmpty ? nil : marks
-        transcript.timeline = job.timeline(forRecordingAt: url)
+        let transcript: Transcript
         do {
+            transcript = try makeTranscript(rawText, recordingAt: url, job: job)
             try store.save(transcript)
         } catch {
             return .failure(StoppedOutcome(value: .storageFailed))
@@ -212,6 +199,31 @@ final class TranscriptionQueue {
         job.cleanUp(recordingAt: url)
         RecordingMarks().delete(forRecordingAt: url)
         return .success(transcript)
+    }
+
+    /// 進度檔一時讀不到就丟錯：id 對不上會多一篇，錄音與進度都還在，下一輪再來。
+    private func makeTranscript(
+        _ rawText: String,
+        recordingAt url: URL,
+        job: RecordingTranscriptionJob
+    ) throws -> Transcript {
+        let name = url.lastPathComponent
+        let duration = (try? pending.list().first { $0.id == name }?.durationSeconds) ?? 0
+        var transcript = try Transcript(
+            id: job.transcriptID(forRecordingAt: url),
+            durationSeconds: duration,
+            rawText: rawText,
+            possiblyMissingSegments: job.possiblyMissingSegments(forRecordingAt: url),
+            polishedChunks: job.polishedChunks(
+                matching: rawText,
+                polishedWith: polishSettingsKey,
+                forRecordingAt: url
+            )
+        )
+        let marks = RecordingMarks().load(forRecordingAt: url)
+        transcript.marks = marks.isEmpty ? nil : marks
+        transcript.timeline = try job.timeline(forRecordingAt: url)
+        return transcript
     }
 
     private func keepWorkingIfBusy() {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 設定 → 進階 →「刪除全部資料」（S2-9，安全標準六 🔴）：文字稿（含垃圾桶）、待轉錄的錄音、留著的錄音、錄到一半的檔、
-/// 進度檔、診斷紀錄一起刪，加密文字稿的那把鑰匙也刪。OpenAI 金鑰另有鈕，不動；設定與詞彙不動。
+/// 進度檔、診斷紀錄一起刪，以前加密文字稿的那把舊鑰匙也刪。OpenAI 金鑰另有鈕，不動；設定與詞彙不動。
 /// 一定先過確認框；正在錄音或整理時不給按，免得刪到一半又被寫回去。
 struct EraseAllDataSection: View {
     enum Failure: Error, Equatable {
@@ -64,7 +64,7 @@ struct EraseAllDataSection: View {
 
     /// 刪資料夾裡的東西，不刪資料夾本身：其他地方隨時會再寫進來，資料夾要在。
     /// 垃圾桶是 Transcripts 裡的子資料夾，整個一起刪。
-    /// 一個檔刪不掉不停，其他照刪，最後才說有沒有漏；鑰匙最後刪，漏掉的文字稿也就讀不出來了。
+    /// 一個檔刪不掉不停，其他照刪，最後才說有沒有漏；舊鑰匙最後刪，沒有鑰匙也算成功。
     static func eraseAll() throws {
         let fileManager = FileManager.default
         let directories = try [

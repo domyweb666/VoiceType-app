@@ -127,7 +127,7 @@ struct RetainedRecordings {
         let retainedIDs = files.compactMap {
             UUID(uuidString: $0.deletingPathExtension().lastPathComponent)
         }.filter { !busy.contains($0.uuidString) }
-        // 先看檔名再解密：解不開的那幾篇會被搬走，這一輪照樣保住它們的錄音。
+        // 先看檔名再讀內容：壞掉的那幾篇會被搬走，這一輪照樣保住它們的錄音。
         let store = TranscriptStore()
         let trashedIDs = try? store.trashedIDs()
         let trash = try? store.loadTrash()

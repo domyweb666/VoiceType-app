@@ -63,6 +63,19 @@ final class CleanExportTests: XCTestCase {
         )
     }
 
+    func test預覽的連結只留字_切在網址中間也不露() {
+        XCTAssertEqual(
+            PlainTextExport.opening(of: "[官網](https://domyweb.org/a_(b))開課了"),
+            "官網開課了"
+        )
+        XCTAssertEqual(PlainTextExport.opening(of: "- **[官網](https://a.tw)**"), "・官網")
+        XCTAssertEqual(PlainTextExport.opening(of: "[https://a.tw](https://a.tw)"), "https://a.tw")
+        let longURL = "https://a.tw/" + String(repeating: "x", count: 500)
+        XCTAssertEqual(PlainTextExport.opening(of: "看[官網](\(longURL))吧"), "看官網")
+        XCTAssertEqual(PlainTextExport.opening(of: "**看[官網](\(longURL))吧**"), "看官網")
+        XCTAssertEqual(PlainTextExport.opening(of: "[註](見下)"), "[註](見下)")
+    }
+
     func test三個以上連續換行縮成兩個() {
         XCTAssertEqual(PlainTextExport.text(from: "前\n\n\n\n後"), "前\n\n後")
         XCTAssertEqual(PlainTextExport.text(from: "前\n \n　\n  後"), "前\n\n  後")

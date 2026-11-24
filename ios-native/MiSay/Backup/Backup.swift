@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 /// 方塊 M8：全部文字稿打包成一個 JSON 檔（片 G1），再從這種檔合併回來（片 G2）。
 /// 檔裡只有文字稿，沒有金鑰（安全標準二）；新手機要重貼金鑰。
-/// 備份檔沒有加密：換手機時舊手機 Keychain 的加密金鑰帶不過去，加密了新手機也解不開。畫面要講清楚。
+/// 備份檔沒有加密，換到哪支手機都讀得到。畫面要講清楚。
 struct Backup: Codable, Equatable {
     enum Failure: Error, Equatable {
         case tooLarge
@@ -116,7 +116,10 @@ struct BackupFile: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(exportedContentType: .json) { _ in
-            let transcripts = try TranscriptStore().loadAll().transcripts
+            // 讀文字稿回主執行緒：讀全部會順便換舊檔，不能跟存檔、刪除交錯。
+            let transcripts = try await MainActor.run {
+                try TranscriptStore().loadAll().transcripts
+            }
             let url = FileManager.default.temporaryDirectory.appending(path: fileName)
             let data = try Backup(transcripts: transcripts).encoded()
             try data.write(to: url, options: [.atomic, .completeFileProtection])

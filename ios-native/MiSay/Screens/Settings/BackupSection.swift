@@ -74,8 +74,8 @@ struct BackupSection: View {
             + Self.newPhoneNote + AutoBackupRows.note
     }
 
-    /// 加密文字稿的鑰匙只在這支手機，iCloud 還原帶不過去。
-    static let newPhoneNote = "換新手機時，iCloud 還原過去的文字稿解不開，要靠備份檔匯入。"
+    /// 文字稿不另外加密（米 2026-11-25），iCloud 還原就帶得過去。
+    static let newPhoneNote = "換新手機用 iCloud 還原，文字稿會一起過去；沒開 iCloud 備份的，用備份檔匯入。"
 
     private var lastBackupText: String {
         let latest = BackupHistory.latest(
