@@ -16,19 +16,19 @@ struct RecordingActivityPlan {
     /// 要送出去的一次。
     struct Frame: Equatable {
         var state: State
+        /// 過了這一刻還沒再送，畫面就改說「狀態沒更新」。
+        var staleDate: Date
         /// 畫面上還沒有的話，這一次可不可以新開（系統只准在前景開）。
         var canStart: Bool
-
-        var staleDate: Date {
-            state.timerEnd
-        }
     }
 
-    /// 5 分鐘沒續期才當作錄音死了。續期連漏好幾次才會誤判，所以長錄音在背景也不會。
+    /// 5 分鐘沒續期才說狀態沒更新，漏掉幾次續期不算。
     /// App 真的被殺時，90 秒就有 `RecordingAlarm` 的通知，這裡不用搶快。
     static let staleAfterSeconds: TimeInterval = 300
     /// 一分鐘送一次，不耗電；數字由系統自己走。
     static let renewAfterSeconds: TimeInterval = 60
+    /// 計時終點，比系統收掉即時動態的上限還晚，等於不會走到。
+    static let timerRunSeconds = RecordingActivityHost.systemLimitSeconds
     /// 計時差不到這麼多就沿用舊的起點，續期時數字才不會來回跳。
     static let driftLimitSeconds: TimeInterval = 2
 
@@ -52,7 +52,11 @@ struct RecordingActivityPlan {
         }
         lastState = state
         lastSentAt = now
-        return Frame(state: state, canStart: canStart)
+        return Frame(
+            state: state,
+            staleDate: now.addingTimeInterval(Self.staleAfterSeconds),
+            canStart: canStart
+        )
     }
 
     /// 已錄長度用 `Recorder` 的秒數（跟錄音面板同一個），不用牆上的時間：中間斷掉的不算。
@@ -60,7 +64,7 @@ struct RecordingActivityPlan {
         var state = State(
             phase: phase(for: status),
             timerStart: now.addingTimeInterval(-status.elapsedSeconds),
-            timerEnd: now.addingTimeInterval(staleAfterSeconds),
+            timerEnd: now.addingTimeInterval(timerRunSeconds),
             pausedAt: now
         )
         guard state.phase == .recording else {

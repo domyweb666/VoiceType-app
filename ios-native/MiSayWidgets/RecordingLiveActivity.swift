@@ -4,6 +4,8 @@ import WidgetKit
 
 /// 錄音中的即時動態：鎖定畫面與靈動島。點下去打開米說（沒設網址，系統預設），錄音面板還在上面。
 struct RecordingLiveActivity: Widget {
+    private static let smallestScale = 0.6
+
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RecordingActivityAttributes.self) { context in
             RecordingLockScreenView(state: context.state, display: Self.display(for: context))
@@ -28,6 +30,8 @@ struct RecordingLiveActivity: Widget {
                 Label(display.title, systemImage: display.symbol)
                     .font(DomyTokens.TypeScale.headline.font)
                     .foregroundStyle(DomyTheme.gold.bright)
+                    .lineLimit(1)
+                    .minimumScaleFactor(Self.smallestScale)
                     .accessibilityLabel(display.spokenTitle)
             }
             DynamicIslandExpandedRegion(.trailing) {
@@ -49,9 +53,10 @@ struct RecordingLiveActivity: Widget {
                     .font(DomyTokens.TypeScale.callout.font)
                     .foregroundStyle(DomyTheme.gold.bright)
             } else {
-                Text("已停")
+                Text("沒更新")
                     .font(DomyTokens.TypeScale.callout.font)
                     .foregroundStyle(DomyTheme.gold.bright)
+                    .accessibilityHidden(true)
             }
         } minimal: {
             // 最小那顆圓放不下會走的時間，只放圖示。
@@ -63,6 +68,6 @@ struct RecordingLiveActivity: Widget {
     private static func icon(_ display: RecordingActivityDisplay) -> some View {
         Image(systemName: display.symbol)
             .foregroundStyle(DomyTheme.gold.bright)
-            .accessibilityLabel(display.spokenTitle)
+            .accessibilityLabel(display.spokenSummary)
     }
 }

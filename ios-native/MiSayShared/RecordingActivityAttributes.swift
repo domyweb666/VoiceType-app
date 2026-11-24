@@ -8,7 +8,7 @@ struct RecordingActivityAttributes: ActivityAttributes {
         var phase: RecordingActivityPhase
         /// 現在減掉已錄長度。計時由系統自己從這裡走，不用每秒更新。
         var timerStart: Date
-        /// 計時走到這裡就停，跟過期時間同一個：App 被殺又沒重畫時，數字也不會一直跳。
+        /// 系統計時要一個終點。放很遠：沒續到期不代表錄音停了，計時不准停在半路裝成停了。
         var timerEnd: Date
         /// 沒在收音時計時停在這一刻；錄音中是 nil。
         var pausedAt: Date?

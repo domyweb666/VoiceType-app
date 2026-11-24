@@ -26,7 +26,7 @@ final class RecordingActivityTests: XCTestCase {
     }
 
     private func display(_ state: Plan.State, isStale: Bool = false) -> RecordingActivityDisplay {
-        RecordingActivityDisplay(state: state, isStale: isStale)
+        RecordingActivityDisplay(state: state, isStale: isStale, now: start)
     }
 
     func test即時動態開錄從零開始走() throws {
@@ -132,14 +132,22 @@ final class RecordingActivityTests: XCTestCase {
         XCTAssertTrue(RecordingActivityHost.canStart(lastStartedAt: start, now: time(limit)))
     }
 
-    func test即時動態過期改說法計時收起來() {
+    func test即時動態過期只說沒更新不說停了() {
         let state = Plan.state(for: status(elapsed: 30), after: nil, now: start)
         let stale = display(state, isStale: true)
-        XCTAssertEqual(stale.title, "錄音已停")
+        XCTAssertEqual(stale.title, "狀態沒更新")
         XCTAssertEqual(stale.hint, "打開米說看看")
+        XCTAssertEqual(stale.spokenSummary, "米說狀態沒更新，打開米說看看")
         XCTAssertFalse(stale.showsTimer)
         XCTAssertTrue(display(state).showsTimer)
-        XCTAssertEqual(shownSeconds(state, at: time(9999)), 30 + Plan.staleAfterSeconds)
+        XCTAssertEqual(display(state).spokenSummary, "米說錄音中")
+    }
+
+    func test即時動態沒續到期計時也不停在半路() throws {
+        var plan = Plan()
+        let frame = try XCTUnwrap(plan.next(status(elapsed: 30), appState: .active, now: start))
+        XCTAssertEqual(frame.staleDate, time(Plan.staleAfterSeconds))
+        XCTAssertEqual(shownSeconds(frame.state, at: time(3600)), 3630)
     }
 
     func test即時動態計時框的寬度先留給下次更新前() {

@@ -8,7 +8,7 @@ struct StartRecordingIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        RecordingLauncher.shared.request = .new
+        RecordingLauncher.shared.ask(.new)
         return .result()
     }
 }

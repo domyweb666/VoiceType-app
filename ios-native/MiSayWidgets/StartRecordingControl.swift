@@ -3,6 +3,10 @@ import SwiftUI
 import WidgetKit
 
 /// 控制中心、鎖定畫面、動作按鈕可以放的「開始錄音」（iOS 18 起）。
+/// 用 `OpenIntent` 開 App 是 Apple 的寫法：
+/// https://developer.apple.com/documentation/appintents/openintent
+/// 真機若只開 App 不開錄，先換 AppIntentsPackage：
+/// https://developer.apple.com/documentation/appintents/appintentspackage
 @available(iOS 18.0, *)
 struct StartRecordingControl: ControlWidget {
     /// 系統靠這串字認得使用者放好的那一顆，上架後不准改。

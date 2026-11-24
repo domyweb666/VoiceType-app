@@ -4,23 +4,31 @@ import Foundation
 struct RecordingActivityDisplay: Equatable {
     private static let secondsPerHour: TimeInterval = 3600
     private static let twoDigitHours: TimeInterval = 10 * secondsPerHour
+    /// 計時框先留這麼久以後的寬度：下次更新前跨過一小時也不破版。
+    private static let timerRoomSeconds: TimeInterval = 300
 
     let title: String
     /// 第二行；平常沒有。
     let hint: String?
     let symbol: String
-    /// 過期就不給計時看：那個數字已經不是真的。
+    /// 過期就不給計時看：不知道是不是還在錄，數字不能信。
     let showsTimer: Bool
     /// 計時最寬會長到多寬。系統的計時文字會撐滿能用的寬度，靠這串字把它框住。
     let timerTemplate: String
 
-    init(state: RecordingActivityAttributes.ContentState, isStale: Bool) {
+    /// 過期只代表太久沒更新。系統可能擋掉背景更新（論壇 748569），錄音好好的也會走到這裡，
+    /// 所以不准寫成「已停」。
+    init(
+        state: RecordingActivityAttributes.ContentState,
+        isStale: Bool,
+        now: Date = Date()
+    ) {
         showsTimer = !isStale
-        timerTemplate = Self.template(for: state)
+        timerTemplate = Self.template(for: state, now: now)
         guard !isStale else {
-            title = "錄音已停"
+            title = "狀態沒更新"
             hint = "打開米說看看"
-            symbol = "mic.slash.fill"
+            symbol = "questionmark"
             return
         }
         hint = nil
@@ -42,9 +50,17 @@ struct RecordingActivityDisplay: Equatable {
         "米說\(title)"
     }
 
-    /// 看計時「會走到」多長，不看現在多長：下次更新前跨過一小時也不破版。
-    private static func template(for state: RecordingActivityAttributes.ContentState) -> String {
-        let longest = (state.pausedAt ?? state.timerEnd).timeIntervalSince(state.timerStart)
+    /// 靈動島上沒有地方放第二行，唸的時候一起講。
+    var spokenSummary: String {
+        hint.map { "\(spokenTitle)，\($0)" } ?? spokenTitle
+    }
+
+    private static func template(
+        for state: RecordingActivityAttributes.ContentState,
+        now: Date
+    ) -> String {
+        let shownUntil = state.pausedAt ?? now.addingTimeInterval(timerRoomSeconds)
+        let longest = shownUntil.timeIntervalSince(state.timerStart)
         if longest >= twoDigitHours {
             return "00:00:00"
         }

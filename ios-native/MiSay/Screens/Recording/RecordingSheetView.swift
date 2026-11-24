@@ -39,6 +39,8 @@ struct RecordingSheetView: View {
     @State var isStopping = false
     /// K6：這段錄音標了幾個重點（觸覺回饋也跟著它）。
     @State private var markCount = 0
+    /// 面板開著時，別處要開錄的請求先等（`RecordingLauncher`）。
+    @State private var panelID = UUID()
 
     var body: some View {
         VStack(spacing: Token.Space.xl) {
@@ -71,6 +73,8 @@ struct RecordingSheetView: View {
             Self.feedback(from: old, to: new)
         }
         .task { await startRecording() }
+        .onAppear { RecordingLauncher.shared.panelOpened(panelID) }
+        .onDisappear { RecordingLauncher.shared.panelClosed(panelID) }
         .onChange(of: recorder.isPaused) { _, paused in
             if paused {
                 phase = .interrupted
