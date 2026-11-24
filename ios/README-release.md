@@ -6,13 +6,14 @@
 
 ## 現在的狀態
 
-2026-11-01：六個 GitHub secret 已設好，`.github/workflows/ios-release.yml` 已改成編 `ios-native/`。
+2026-11-25：七個 GitHub secret 都設好了。`.github/workflows/ios-release.yml` 編 `ios-native/`，App 和小工具擴充各用一張描述檔。
 
 | secret | 內容 |
 |---|---|
 | `IOS_DIST_CERT_BASE64` | Apple Distribution 憑證（p12 轉 base64） |
 | `IOS_DIST_CERT_PASSWORD` | 上面那包 p12 的密碼 |
-| `IOS_PROVISIONING_PROFILE_BASE64` | App Store provisioning profile 轉 base64 |
+| `IOS_PROVISIONING_PROFILE_BASE64` | App 的描述檔（`MiSay App Store`）轉 base64 |
+| `IOS_WIDGET_PROVISIONING_PROFILE_BASE64` | 小工具擴充的描述檔（`MiSay Widgets App Store`）轉 base64 |
 | `ASC_ISSUER_ID` | App Store Connect API 的 Issuer ID |
 | `ASC_KEY_ID` | App Store Connect API 的 Key ID |
 | `ASC_API_PRIVATE_KEY` | App Store Connect API 的 `.p8` 私鑰內容 |
@@ -28,12 +29,14 @@
 |---|---|---|
 | Bundle ID | `org.domyweb.misay` | `ios-native/project.yml`、`ios-native/ExportOptions.plist` |
 | Team ID | `3ZT74P4WM2` | `ios-native/ExportOptions.plist`、`ios-release.yml` |
-| Provisioning profile 名稱 | `MiSay App Store` | `ios-native/ExportOptions.plist`、`ios-release.yml` |
+| 描述檔名稱 | `MiSay App Store` | `ios-native/project.yml`、`ios-native/ExportOptions.plist`、`ios-release.yml` |
+| 擴充的 Bundle ID | `org.domyweb.misay.widgets` | 同上 |
+| 擴充的描述檔名稱 | `MiSay Widgets App Store` | 同上 |
 | 最低 iOS 版本 | 17.0 | `ios-native/project.yml` |
-| App Group | `group.org.domyweb.misay` | 還沒用到，第 4 階段的錄音小工具要 |
+| App Group | `group.org.domyweb.misay` | 沒用到，小工具擴充也不需要 |
 | iCloud container | `iCloud.org.domyweb.misay` | 還沒用到，第 5 階段的同步要 |
 
-profile 名稱寫死在專案裡，取錯名字 CI 會找不到 profile。
+描述檔名稱寫死在專案裡，取錯名字 CI 會找不到。
 
 ## 要親手辦的五步
 
@@ -55,7 +58,7 @@ profile 名稱寫死在專案裡，取錯名字 CI 會找不到 profile。
 
 Capabilities 這次要勾三個，不要跳過：
 
-- **App Groups** —— 之後控制中心的錄音鍵要跟 App 共用資料
+- **App Groups** —— 目前沒用到，控制中心的錄音鍵不靠它
 - **iCloud**（勾 iCloud Documents）—— 文字稿同步到你自己的 iCloud
 - **App Attest** —— 伺服器用來確認請求真的來自這個 App
 
@@ -101,7 +104,7 @@ App ID 選 `org.domyweb.misay`，憑證選第 1 步辦的那張 Apple Distributi
 ## 辦完之後 Claude 接手
 
 1. 用簽章資料夾裡的私鑰加第 1 步的 `.cer` 合成 p12，轉 base64
-2. 設上面那六個 GitHub secret
+2. 設上面那七個 GitHub secret
 3. 推一個 `v*` tag 觸發 workflow，確認 App Store Connect 收到建置
 
 跟 Claude 說一聲就好，不用自己弄 base64。
@@ -111,11 +114,14 @@ App ID 選 `org.domyweb.misay`，憑證選第 1 步辦的那張 Apple Distributi
 版本號跟 tag 走（`v0.1.0` → 0.1.0），build 號用 GitHub Actions 的流水號，永遠不會重複，不用手動加。
 推 tag 的指令：`git tag v0.1.0 && git push origin v0.1.0`。
 
-## 之後還會再來一輪
+## 小工具擴充
 
-第 4 階段要做控制中心和鎖定畫面的錄音鍵，那是一個獨立的 Widget Extension，
-需要它自己的 App ID（`org.domyweb.misay.RecordWidget`）和它自己的 provisioning profile。
-到時候會再請你跑一次第 2、3 步。
+靈動島、鎖定畫面的計時和控制中心按鈕都放在小工具擴充，它有自己的 App ID 和描述檔，2026-11-25 辦好了：
+
+- App ID：`org.domyweb.misay.widgets`，選 Explicit，capability 都不勾
+- 描述檔：`MiSay Widgets App Store`，類型選 App Store Connect，憑證跟 App 用同一張
+
+憑證換新時，兩張描述檔都要重新產生，兩個描述檔的 secret 也要一起換。
 
 ## 送審前還缺的素材
 

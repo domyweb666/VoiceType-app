@@ -72,6 +72,8 @@ targets:
     sources:
       - MiSayWidgets
       - MiSayShared
+      # domy 的顏色與字級，兩邊只共用這一個檔；App 的顏色資源不搬過來
+      - MiSay/App/DomyTokens.swift
     info:
       path: MiSayWidgets/Info.plist
       properties:
