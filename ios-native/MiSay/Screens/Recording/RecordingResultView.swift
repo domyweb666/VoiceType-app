@@ -132,7 +132,7 @@ struct RecordingResultView: View {
         guard isShown, AppSettings.shared.autoCopy else {
             return false
         }
-        UIPasteboard.general.string = transcript.displayText
+        DraftPasteboard.copy(transcript.displayText)
         return true
     }
 }

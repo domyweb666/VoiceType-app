@@ -7,7 +7,7 @@ extension TranscriptDetailView {
         guard !currentText.isEmpty else {
             return
         }
-        UIPasteboard.general.string = currentText
+        DraftPasteboard.copy(currentText)
         copyCount += 1
         showsCopied = true
         Task { @MainActor in

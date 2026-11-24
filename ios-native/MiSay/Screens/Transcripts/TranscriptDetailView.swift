@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 文字稿詳情（片 E1～E5）。2026-11-08 米：米說是讓人錄很長、再簡單修飾的，這頁改成備忘錄式編輯器。
-/// 整頁白紙就是正文；頂上返回、分享、複製、「⋯」，打字時右上多一顆玉米黃的勾（完成）。
+/// 整頁白紙就是正文；頂上返回、匯出、複製、「⋯」，打字時右上多一顆玉米黃的勾（完成）。
 /// 口語稿收進「⋯ → 看口語稿」，從下面升起一張唯讀的頁。改字停下來 1 秒就存（E2）；刪除走「⋯」（E3）。
 /// 重新潤飾拿掉了（會把改好的字整篇蓋掉）；只剩還沒有文字稿的那篇有「整理這篇」。
 /// 改字、整理、複製那些動作在 `TranscriptDetailView+Editing.swift`，所以狀態不加 private。
@@ -19,8 +19,8 @@ struct TranscriptDetailView: View {
     @State var polishFailed = false
     @State var isConfirmingDelete = false
     @State var isConfirmingRetranscribe = false
-    /// K2：選 Markdown 要存到哪個資料夾。
-    @State var isPickingMarkdownFolder = false
+    /// Y1：匯出那張頁。
+    @State var showsExport = false
     /// K5：聽原音與重點那一頁。
     @State var showsOriginalAudio = false
     /// W1：改寫成其他格式那張頁、正在改寫哪一種、改寫沒成功那句話。
@@ -33,7 +33,7 @@ struct TranscriptDetailView: View {
     @State var review = ReviewSheet.Session()
     /// W6：編這篇標籤的那張頁。
     @State var showsTags = false
-    /// 底下那行一下就收的一句話（K2 存好了、存不進去）。
+    /// 底下那行一下就收的一句話。
     @State var note: String?
     @State var copyCount = 0
     @State var showsCopied = false
@@ -104,11 +104,7 @@ struct TranscriptDetailView: View {
                         : RetainedRecordings().existingURL(for: transcript.id)
                 )
             }
-            .fileImporter(
-                isPresented: $isPickingMarkdownFolder,
-                allowedContentTypes: [.folder],
-                onCompletion: pickedMarkdownFolder
-            )
+            .sheet(isPresented: $showsExport) { exportSheet }
             .confirmationDialog(
                 "刪掉這篇？",
                 isPresented: $isConfirmingDelete,
@@ -156,7 +152,7 @@ struct TranscriptDetailView: View {
             }
     }
 
-    /// 複製、分享用的那份：有文字稿就是編輯框裡的字，沒有就是口語稿。
+    /// 複製、匯出用的那份：有文字稿就是編輯框裡的字，沒有就是口語稿。
     var currentText: String {
         transcript.draftText == nil ? transcript.rawText : draftEdit
     }
@@ -227,14 +223,7 @@ private extension TranscriptDetailView {
             }
         } else {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                ShareLink(
-                    item: TranscriptTextFile(transcript: transcript, text: currentText),
-                    preview: SharePreview(TranscriptListView.subtitle(for: transcript))
-                ) {
-                    Image(systemName: "square.and.arrow.up")
-                }
-                .disabled(currentText.isEmpty)
-                .accessibilityLabel("分享")
+                exportButton
                 Button(action: copy) {
                     Image(systemName: "doc.on.doc")
                 }
