@@ -126,10 +126,14 @@ struct RecordingResultView: View {
             status = .draftNotSaved(transcript)
         case let .finished(transcript):
             status = .finished(transcript, isCopied: copyIfWanted(transcript))
-            // 字已經回到底下那一頁，面板自己收；中間斷過的要留著給人看。
-            if transcript.id == returningTo, captureGaps.times == 0, isShown {
-                dismiss()
-            }
+            dismissIfReturned(transcript)
+        }
+    }
+
+    /// 字已經回到底下那一頁，面板自己收；中間斷過的要留著給人看。
+    private func dismissIfReturned(_ transcript: Transcript) {
+        if transcript.id == returningTo, captureGaps.times == 0, isShown {
+            dismiss()
         }
     }
 
