@@ -8,8 +8,9 @@ extension Transcript {
     }
 
     /// 自己打的，不是錄音轉的：沒有口語稿、沒有長度。接著錄過之後就不算了。
+    /// 改寫來的也沒有錄音，但字是 AI 寫的，不算。
     var isWritten: Bool {
-        rawText.isEmpty && durationSeconds == 0
+        !isDerived && rawText.isEmpty && durationSeconds == 0
     }
 
     /// 開了新文稿、一個字都還沒寫。

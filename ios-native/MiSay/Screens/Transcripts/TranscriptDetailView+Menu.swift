@@ -6,7 +6,10 @@ extension TranscriptDetailView {
     var moreMenu: some View {
         Menu {
             // 片 F4：看得出這篇用哪種潤飾、哪個模型。只是說明，按不下去。
-            if let model = transcript.polishModel {
+            // Y5：改寫來的講改寫成哪一種、當時的補充要求。
+            if transcript.isDerived {
+                derivedNoteSection
+            } else if let model = transcript.polishModel {
                 Section {
                     Text(Self.polishNote(model: model, style: transcript.polishStyle))
                 }
@@ -28,12 +31,13 @@ extension TranscriptDetailView {
                 }
             }
             writingMenuItems
-            // W1：改寫成別的格式，存成這篇底下的另一份。整理中不給：文字稿還沒定。
+            derivedMenuItems
+            // W1：改寫成別的格式，另外存成一篇。整理中不給：文字稿還沒定。
             Button {
-                showsRewrites = true
+                openRewrites()
             } label: {
                 Label(
-                    Self.rewriteMenuTitle(copies: transcript.rewrites?.count ?? 0),
+                    Self.rewriteMenuTitle(copies: rewriteCount),
                     systemImage: "arrow.triangle.branch"
                 )
             }
@@ -105,11 +109,10 @@ extension TranscriptDetailView {
 
     /// 這篇在存檔裡比畫面上的新（接著錄、重轉、別處整理完）：換成存檔裡的。正在打字或整理時不換。
     func reloadFromStore() {
-        guard !isPolishing, !isEditing else {
-            return
-        }
         let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
-        guard let stored = transcripts.first(where: { $0.id == transcript.id }),
+        derived.refresh(sourceID: transcript.id, from: transcripts)
+        guard !isPolishing, !isEditing,
+              let stored = transcripts.first(where: { $0.id == transcript.id }),
               stored.updatedAt > transcript.updatedAt
         else {
             return

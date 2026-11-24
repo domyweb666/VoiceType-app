@@ -1,7 +1,8 @@
 @testable import MiSay
 import XCTest
 
-/// W1 改寫成其他格式：請求的形狀、提示詞的規矩、存在這篇底下不動文字稿、失敗講的話。
+/// W1 改寫成其他格式：請求的形狀、提示詞的規矩、以前存在這篇底下的、失敗講的話。
+/// 存成新的一篇在 `DerivedTranscriptTests`。
 /// 「改得像不像米寫的」只有米讀得出來，這裡不碰。送請求的測試只准在模擬器跑（會存假金鑰）。
 final class RewriteTests: XCTestCase {
     private let keyStore = APIKeyStore()
@@ -68,22 +69,21 @@ final class RewriteTests: XCTestCase {
             XCTAssertEqual(hasRules, kind == .article || kind == .newsletter, kind.title)
         }
         XCTAssertEqual(RewriteKind.title(forStored: "threads"), "Threads 串文")
+        XCTAssertEqual(RewriteKind.title(forStored: "outline"), "重點與金句")
         XCTAssertEqual(RewriteKind.title(forStored: "以後拿掉的"), "以後拿掉的")
     }
 
-    func test改寫存在這篇底下_文字稿不動_刪光回到nil() {
+    func test以前的改寫存在這篇底下_拿掉不動文字稿_刪光回到nil() {
         var transcript = Transcript(durationSeconds: 10, rawText: "口語")
         transcript.applyPolish("文字稿。", model: "m", style: .keepVoice)
         let rewrite = TranscriptRewrite(kind: RewriteKind.article.rawValue, text: "文章", model: "m")
 
-        transcript.addRewrite(rewrite)
-        XCTAssertEqual(transcript.rewrites, [rewrite])
-        XCTAssertEqual(transcript.draftText, "文字稿。")
-        XCTAssertEqual(transcript.originalDraft, "文字稿。")
+        transcript.rewrites = [rewrite]
         XCTAssertNil(transcript.unlearnedEdit, "改寫不算使用者改字")
-
         transcript.removeRewrite(id: rewrite.id)
         XCTAssertNil(transcript.rewrites)
+        XCTAssertEqual(transcript.draftText, "文字稿。")
+        XCTAssertEqual(transcript.originalDraft, "文字稿。")
     }
 
     func test舊檔沒有改寫欄也讀得出來() throws {
