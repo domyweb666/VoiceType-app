@@ -46,19 +46,19 @@ enum ReviewKind: String, CaseIterable, Identifiable {
     private var schema: JSONSchema {
         switch self {
         case .titles:
-            .object(["titles": .list(of: .text, max: Self.maxTitles)])
+            .object(["titles": .list(item: .text, max: Self.maxTitles)])
         case .opening:
             .object([
                 "summary": .text,
                 "points": .list(
-                    of: .object(["problem": .text, "direction": .text]),
+                    item: .object(["problem": .text, "direction": .text]),
                     max: Self.maxOpeningPoints
                 ),
             ])
         case .stuck:
             .object([
                 "points": .list(
-                    of: .object(["quote": .text, "reason": .text]),
+                    item: .object(["quote": .text, "reason": .text]),
                     max: Self.maxStuckPoints
                 ),
             ])

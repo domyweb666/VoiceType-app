@@ -50,11 +50,13 @@ enum ThreadsParts {
         var chunks: [[String]] = []
         var total: Int?
         for line in MarkdownLine.lines(of: text) {
-            if let marker = parseMarker(in: line), marker.number == chunks.count + 1,
-               // 寫法要跟第一篇一樣：用「1/」分篇時，行首的「2/3 的人」是內文。
-               chunks.isEmpty || marker.total == total
-            {
-                total = marker.total
+            // 寫法要跟第一篇一樣：用「1/」分篇時，行首的「2/3 的人」是內文。
+            let next = parseMarker(in: line).flatMap { marker in
+                let isNext = marker.number == chunks.count + 1
+                return isNext && (chunks.isEmpty || marker.total == total) ? marker : nil
+            }
+            if let next {
+                total = next.total
                 chunks.append([line])
                 continue
             }

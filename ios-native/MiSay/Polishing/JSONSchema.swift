@@ -4,7 +4,7 @@ import Foundation
 /// strict 規定每個物件都要 `additionalProperties: false`、欄位全部列在 `required`。只做用得到的三種。
 indirect enum JSONSchema: Encodable {
     case text
-    case list(of: JSONSchema, max: Int)
+    case list(item: JSONSchema, max: Int)
     case object([String: JSONSchema])
 
     private enum CodingKeys: String, CodingKey {
