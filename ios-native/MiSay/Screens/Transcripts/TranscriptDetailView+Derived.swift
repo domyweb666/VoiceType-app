@@ -50,13 +50,17 @@ extension TranscriptDetailView {
 
     /// 改寫中先不給看原篇：離開這頁會停掉改寫。
     @ViewBuilder
-    var derivedMenuItems: some View {
+    var openSourceMenuItem: some View {
         if transcript.isDerived {
             Button(action: openSource) {
                 Label("看原篇", systemImage: "arrow.uturn.backward")
             }
             .disabled(rewritingKind != nil)
         }
+    }
+
+    @ViewBuilder
+    var threadsPartsMenuItem: some View {
         if RewriteKind.isThreads(stored: transcript.sourceKind) {
             Button {
                 derived.showsThreadsParts = true

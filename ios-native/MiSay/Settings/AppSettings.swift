@@ -1,15 +1,11 @@
 import Foundation
 import Observation
 
-/// 方塊 M7：一般設定（模型、詞彙、潤飾方式、自動複製）。都不是秘密，放 UserDefaults；金鑰在 M6。
+/// 方塊 M7：一般設定（詞彙、潤飾方式、自動複製）。都不是秘密，放 UserDefaults；金鑰在 M6。
 /// 外觀與字級跟系統走，不另外存。
 @Observable
 final class AppSettings {
     static let shared = AppSettings()
-
-    /// 認得的潤飾模型（2026-11-24 查證，見 `Polisher`）；存著別的（例如以前的 gpt-4o-mini）就用預設。
-    /// 2026-11-24 起畫面上不給選，存過的值照讀。
-    static let polishModels = [Polisher.defaultModel, Polisher.alternativeModel]
 
     private enum Key {
         static let autoCopy = "autoCopy"
@@ -18,7 +14,6 @@ final class AppSettings {
         static let vocabulary = "vocabulary"
         /// 2026-11-08 起不讀舊的 "polishPrompt"（提示詞全文不再給改），只存選了哪一項。
         static let polishStyle = "polishStyle"
-        static let polishModel = "polishModel"
         static let hasSeenCostNotice = "hasSeenCostNotice"
         static let autoVocabulary = "autoVocabulary"
         static let autoAddedVocabulary = "autoAddedVocabulary"
@@ -37,7 +32,7 @@ final class AppSettings {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        autoCopy = defaults.object(forKey: Key.autoCopy) as? Bool ?? true
+        autoCopy = defaults.object(forKey: Key.autoCopy) as? Bool ?? false
         liveTranscriptionWiFiOnly = defaults.bool(forKey: Key.liveTranscriptionWiFiOnly)
         keepsRecordingsForever = defaults.bool(forKey: Key.keepsRecordingsForever)
         vocabulary = defaults.stringArray(forKey: Key.vocabulary) ?? []
@@ -51,8 +46,6 @@ final class AppSettings {
         if chosenStyle == nil, hasRecordedBefore {
             defaults.set(fallback.rawValue, forKey: Key.polishStyle)
         }
-        let storedModel = defaults.string(forKey: Key.polishModel) ?? Polisher.defaultModel
-        polishModel = Self.polishModels.contains(storedModel) ? storedModel : Polisher.defaultModel
         hasSeenCostNotice = defaults.bool(forKey: Key.hasSeenCostNotice)
         autoVocabulary = defaults.object(forKey: Key.autoVocabulary) as? Bool ?? true
         autoAddedVocabulary = defaults.stringArray(forKey: Key.autoAddedVocabulary) ?? []
@@ -70,7 +63,7 @@ final class AppSettings {
         didSet { defaults.set(hasSeenCostNotice, forKey: Key.hasSeenCostNotice) }
     }
 
-    /// 整理完自動複製（F1）。預設開。
+    /// 整理完自動複製（F1）。2026-11-24 起預設關：稿子在米說裡寫完才帶走。自己選過的照舊。
     var autoCopy: Bool {
         didSet { defaults.set(autoCopy, forKey: Key.autoCopy) }
     }
@@ -100,9 +93,8 @@ final class AppSettings {
         didSet { defaults.set(polishStyle.rawValue, forKey: Key.polishStyle) }
     }
 
-    var polishModel: String {
-        didSet { defaults.set(polishModel, forKey: Key.polishModel) }
-    }
+    /// 2026-11-24 起畫面上不給選，存過的值也不讀：存著別的模型的人沒地方換回來。
+    let polishModel = Polisher.defaultModel
 
     // MARK: - 2026-11-08 自動詞彙、從修改學習（米選：詞彙直接加入、習慣要做）
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 文字稿詳情（片 E1～E5）。2026-11-08 米：米說是讓人錄很長、再簡單修飾的，這頁改成備忘錄式編輯器。
 /// 整頁白紙就是正文；頂上返回、匯出、複製、「⋯」，打字時右上多一顆玉米黃的勾（完成）。
-/// 口語稿收進「⋯ → 看口語稿」，從下面升起一張唯讀的頁。改字停下來 1 秒就存（E2）；刪除走「⋯」（E3）。
+/// 口語稿與錄音收進「⋯ → 錄音與原稿」，從下面升起一張唯讀的頁。改字停下來 1 秒就存（E2）；刪除走「⋯」（E3）。
 /// 重新潤飾拿掉了（會把改好的字整篇蓋掉）；只剩還沒有文字稿的那篇有「整理這篇」。
 /// 改字、整理、複製那些動作在 `TranscriptDetailView+Editing.swift`，所以狀態不加 private。
 struct TranscriptDetailView: View {
@@ -10,19 +10,15 @@ struct TranscriptDetailView: View {
     @Environment(TranscriptionQueue.self) var queue
     @State var transcript: Transcript
     @State var draftEdit: String
-    @State var showsRawText = false
-    /// W3：口語稿那張頁一打開就停在「AI 改了什麼」。
-    @State var rawSheetStartsWithDiff = false
+    /// Y6：錄音與原稿那張頁（口語稿、AI 改了什麼、聽原音、重新轉錄）。
+    @State var showsSource = false
     @State var autosaveTask: Task<Void, Never>?
     @State var polishTask: Task<Void, Never>?
     @State var isPolishing = false
     @State var polishFailed = false
     @State var isConfirmingDelete = false
-    @State var isConfirmingRetranscribe = false
     /// Y1：匯出那張頁。
     @State var showsExport = false
-    /// K5：聽原音與重點那一頁。
-    @State var showsOriginalAudio = false
     /// W1：改寫成其他格式那張頁、正在改寫哪一種、改寫沒成功那句話。
     @State var showsRewrites = false
     @State var rewritingKind: RewriteKind?
@@ -44,6 +40,8 @@ struct TranscriptDetailView: View {
     @State var showsOutline = false
     @State var jumpTarget: Range<Int>?
     @State var isLeavingToRecord = false
+    /// Y6：打開時是一篇空白新文稿。寫過又全刪才離開，進垃圾桶。
+    @State var openedBlank: Bool
     /// 版本紀錄那張頁；下次該留版的時間（nil 是這次打開還沒留過）。
     @State var showsVersions = false
     @State var versionDueAt: Date?
@@ -80,6 +78,7 @@ struct TranscriptDetailView: View {
     ) {
         _transcript = State(initialValue: transcript)
         _draftEdit = State(initialValue: transcript.draftText ?? "")
+        _openedBlank = State(initialValue: transcript.isBlankDraft)
         self.openedFrom = openedFrom
         self.onDelete = onDelete
         self.onLeave = onLeave
@@ -93,9 +92,7 @@ struct TranscriptDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .safeAreaInset(edge: .bottom) { bottomLine }
-            .sheet(isPresented: $showsRawText) {
-                RawTextSheet(transcript: transcript, startsWithDiff: rawSheetStartsWithDiff)
-            }
+            .sheet(isPresented: $showsSource) { sourceSheet }
             .sheet(isPresented: $showsRewrites, onDismiss: openPendingRelated) { rewritesSheet }
             .sheet(isPresented: $derived.showsThreadsParts) { threadsPartsSheet }
             .navigationDestination(isPresented: $derived.showsOpened) { relatedPage }
@@ -103,15 +100,6 @@ struct TranscriptDetailView: View {
             .sheet(isPresented: $showsTags) { tagsSheet }
             .sheet(isPresented: $showsOutline) { outlineSheet }
             .sheet(isPresented: $showsVersions) { versionsSheet }
-            .sheet(isPresented: $showsOriginalAudio) {
-                // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
-                OriginalAudioSheet(
-                    transcript: transcript,
-                    audioURL: transcript.combinedAt != nil
-                        ? nil
-                        : RetainedRecordings().existingURL(for: transcript.id)
-                )
-            }
             .sheet(isPresented: $showsExport) { exportSheet }
             .confirmationDialog(
                 "刪掉這篇？",
@@ -124,16 +112,6 @@ struct TranscriptDetailView: View {
                     dismiss()
                 }
                 Button("取消", role: .cancel) {}
-            }
-            .confirmationDialog(
-                "用錄音重新轉一次？",
-                isPresented: $isConfirmingRetranscribe,
-                titleVisibility: .visible
-            ) {
-                Button("重新轉錄", action: retranscribe)
-                Button("取消", role: .cancel) {}
-            } message: {
-                Text("口語稿和文字稿都會換成新的，你改過的字會不見。")
             }
             .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
             .onChange(of: draftEdit) { _, _ in scheduleAutosave() }
@@ -166,7 +144,7 @@ struct TranscriptDetailView: View {
     }
 }
 
-/// 畫面的各塊：正文、頂上一排、底下一行。口語稿那張頁在 `RawTextSheet`。
+/// 畫面的各塊：正文、頂上一排、底下一行。錄音與原稿那張頁在 `SourceSheet`。
 private extension TranscriptDetailView {
     @ViewBuilder
     var page: some View {

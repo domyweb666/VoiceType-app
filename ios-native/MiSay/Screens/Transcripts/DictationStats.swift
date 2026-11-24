@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 口述統計：口述字數、節省時間、口述速度、總口述時間（2026-11-08 米：像 Typeless 那張）。
-/// 放在設定頁最上面；同天先放文字稿頁，米看過改到設定頁。
+/// 只放設定頁最下面、版本上面；首頁那一行 2026-11-24 拿掉。
 /// 全部從已存的文字稿算，不另外記資料。
 struct DictationStats: Equatable {
     /// 手機打字一分鐘幾個字。注音大約 20～40，取 40：寧可「節省時間」算少，不灌水。
@@ -37,38 +37,6 @@ struct DictationStats: Equatable {
     var savedSeconds: Double {
         let typingSeconds = Double(writtenCharacters) / Self.typingCharactersPerMinute * 60
         return max(typingSeconds - spokenSeconds, 0)
-    }
-
-    /// 首頁頂端那一行（2026-11-09 米：首頁上面太空；四格卡留在設定頁，首頁只放縮小的一行）。
-    /// 本週有講就講本週，本週還沒講就講累計；一篇都沒有回 nil，整行不出現，新用戶不會看到一排 0。
-    static func homeSummary(
-        for transcripts: [Transcript],
-        now: Date = .now,
-        calendar: Calendar = .current
-    ) -> String? {
-        // 改寫來的不是講的：這週只改寫過，不能寫成「本週講了 0 秒」。
-        let ownTranscripts = transcripts.filter { !$0.isDerived }
-        guard !ownTranscripts.isEmpty else {
-            return nil
-        }
-        let thisWeek = ownTranscripts.filter {
-            calendar.isDate($0.createdAt, equalTo: now, toGranularity: .weekOfYear)
-        }
-        let isThisWeek = !thisWeek.isEmpty
-        let stats = DictationStats(transcripts: isThisWeek ? thisWeek : ownTranscripts)
-        var parts = [
-            (isThisWeek ? "本週講了 " : "累計講了 ") + durationText(stats.spokenSeconds),
-            "約 \(stats.spokenCharacters.formatted()) 字",
-        ]
-        if stats.savedSeconds > 0 {
-            parts.append("省下 " + durationText(stats.savedSeconds))
-        }
-        return parts.joined(separator: "・")
-    }
-
-    private static func durationText(_ seconds: Double) -> String {
-        let duration = duration(seconds)
-        return duration.value + " " + duration.unit
     }
 
     /// 「45 秒」「12 分鐘」「3 小時 5 分」：數字與單位分開，卡片上單位字比較小。

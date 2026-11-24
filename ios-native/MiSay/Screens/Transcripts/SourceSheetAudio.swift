@@ -1,12 +1,12 @@
 import AVFoundation
 import SwiftUI
 
-/// 詳情頁「⋯ → 聽原音與重點」（K5、K6）：上面是錄音中標的重點，下面是口語稿，點了就從那裡開始播。
+/// 「錄音與原稿」裡的「聽原音與重點」（K5、K6）：上面是錄音中標的重點，下面是口語稿，點了就從那裡開始播。
 /// 2026-11-15 米：要像有聲書那樣標出正在講哪句、重點的範圍太模糊。所以改成放口語稿（錄音講的原話，
 /// 時間對得上），播到哪句就把那句標出來、還沒講到的字變淡；重點是按下去那句加前一句，在口語稿裡畫底線。
 /// 轉錄不給每句話的時間（gpt-transcribe 沒有時間戳），位置是在每 5 分鐘一段裡照字數估的（`SpokenTimeline`），
 /// 會差幾秒，所以從前 3 秒開始放。錄音已經刪了（超過 7 天）的篇只列重點與口語稿，不能播。
-struct OriginalAudioSheet: View {
+struct SourceSheetAudio: View {
     let transcript: Transcript
     let audioURL: URL?
     private let sentences: [SpokenTimeline.Sentence]
@@ -14,7 +14,6 @@ struct OriginalAudioSheet: View {
     private let passages: [SpokenTimeline.Passage]
     private let markedSentences: Set<Int>
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var player: AVAudioPlayer?
     @State private var isPlaying = false
@@ -41,43 +40,35 @@ struct OriginalAudioSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollViewReader { proxy in
-                List {
-                    if !passages.isEmpty {
-                        Section("重點") {
-                            ForEach(passages) { passage in
-                                row(time: passage.markSeconds, startsAt: passage.start) {
-                                    Text(passage.text)
-                                        .foregroundStyle(Token.Colors.textPrimary)
-                                }
+        ScrollViewReader { proxy in
+            List {
+                if !passages.isEmpty {
+                    Section("重點") {
+                        ForEach(passages) { passage in
+                            row(time: passage.markSeconds, startsAt: passage.start) {
+                                Text(passage.text)
+                                    .foregroundStyle(Token.Colors.textPrimary)
                             }
                         }
                     }
-                    Section {
-                        ForEach(blocks) { block in
-                            blockRow(block)
-                        }
-                    } header: {
-                        Text("口語稿")
-                    } footer: {
-                        Text(footnote)
-                            .font(Token.Fonts.footnote)
-                    }
                 }
-                .onChange(of: playingBlockID) { _, blockID in
-                    follow(blockID, with: proxy)
+                Section {
+                    ForEach(blocks) { block in
+                        blockRow(block)
+                    }
+                } header: {
+                    Text("口語稿")
+                } footer: {
+                    Text(footnote)
+                        .font(Token.Fonts.footnote)
                 }
             }
-            .safeAreaInset(edge: .bottom) { controls }
-            .navigationTitle("聽原音與重點")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
-                }
+            .scrollContentBackground(.hidden)
+            .onChange(of: playingBlockID) { _, blockID in
+                follow(blockID, with: proxy)
             }
         }
+        .safeAreaInset(edge: .bottom) { controls }
         .task { await tick() }
         .onDisappear { player?.stop() }
     }
@@ -168,7 +159,7 @@ struct OriginalAudioSheet: View {
 }
 
 /// 底下那排播放鈕與播放本身（拆出來：主型別超過 200 行）。
-extension OriginalAudioSheet {
+extension SourceSheetAudio {
     @ViewBuilder
     private var controls: some View {
         if audioURL == nil {

@@ -10,11 +10,10 @@ struct Polisher {
         case incomplete
     }
 
-    /// 2026-11-07 米定案，2026-11-24 上 OpenAI 官方文件查證：兩個都在、都能走 chat completions；
-    /// gpt-4o-mini 2027-01-14 關閉，拿掉了。
+    /// 2026-11-07 米定案，2026-11-24 上 OpenAI 官方文件查證：在、能走 chat completions。
+    /// gpt-4o-mini 2027-01-14 關閉、gpt-5.4-mini 沒地方選，都拿掉了。
     static let defaultModel = "gpt-6-luna"
-    static let alternativeModel = "gpt-5.4-mini"
-    /// gpt-6-luna 預設 medium，第一個字來得很慢，要明講。官方模型頁寫兩個都收 none。
+    /// gpt-6-luna 預設 medium，第一個字來得很慢，要明講。官方模型頁寫收 none。
     /// temperature 不帶：reasoning 不是 none 時帶了會被拒，用預設值最穩。
     static let reasoningEffort = "none"
     static let maxAttempts = 3

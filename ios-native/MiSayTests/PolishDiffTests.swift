@@ -27,7 +27,7 @@ final class PolishDiffTests: XCTestCase {
     func test沒改就整段沒動_合起來等於文字稿() {
         let same = PolishDiff(from: "一模一樣", to: "一模一樣")
         XCTAssertEqual(same.runs, [run(.same, "一模一樣")])
-        XCTAssertEqual(RawTextSheet.summary(same), "AI 一個字都沒改。")
+        XCTAssertEqual(SourceSheetText.summary(same), "AI 一個字都沒改。")
 
         let diff = PolishDiff(from: "所以我就所以我就先關掉", to: "所以我就先把它關掉。")
         let shown = diff.runs.filter { $0.kind != .removed }.map(\.text).joined()
@@ -47,13 +47,13 @@ final class PolishDiffTests: XCTestCase {
         transcript.applyPolish("AI 那份。", model: "m", style: .keepVoice)
         transcript.draftText = "我改過的。"
         XCTAssertEqual(
-            RawTextSheet(transcript: transcript, startsWithDiff: true).polishedForCompare,
+            SourceSheetText(transcript: transcript, showsDiff: true).polishedForCompare,
             "AI 那份。"
         )
 
         let old = Transcript(durationSeconds: 10, rawText: "口語", draftText: "舊的文字稿。")
         XCTAssertEqual(
-            RawTextSheet(transcript: old, startsWithDiff: true).polishedForCompare,
+            SourceSheetText(transcript: old, showsDiff: true).polishedForCompare,
             "舊的文字稿。"
         )
     }

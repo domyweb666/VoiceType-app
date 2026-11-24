@@ -1,57 +1,24 @@
 import SwiftUI
 
-/// 詳情頁「⋯ → 看口語稿／看 AI 改了什麼」升起的那張頁（2026-11-09 從詳情檔搬出來，加 W3）。
-/// 上面分段切「口語稿」與「AI 改了什麼」；兩邊都唯讀、可以選字複製，看完拉下去。
-struct RawTextSheet: View {
-    enum Mode: String, CaseIterable, Identifiable {
-        case raw = "口語稿"
-        case diff = "AI 改了什麼"
-
-        var id: Self {
-            self
-        }
-    }
-
+/// 「錄音與原稿」裡的「口語稿」與「AI 改了什麼」（W3）：都唯讀、可以選字複製。
+/// 兩種看法是同一個畫面，切來切去不用重比。
+struct SourceSheetText: View {
     let transcript: Transcript
-    @State private var mode: Mode
+    let showsDiff: Bool
     @State private var diff: PolishDiff?
-    @Environment(\.dismiss) private var dismiss
-
-    init(transcript: Transcript, startsWithDiff: Bool) {
-        self.transcript = transcript
-        _mode = State(initialValue: startsWithDiff ? .diff : .raw)
-    }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Token.Space.l) {
-                    Picker("顯示", selection: $mode) {
-                        ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    switch mode {
-                    case .raw:
-                        bodyText(Text(transcript.rawText))
-                    case .diff:
-                        diffContent
-                    }
-                }
-                .padding(Token.Space.l)
-            }
-            .background(Token.Colors.rowBackground)
-            .navigationTitle(mode.rawValue)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
-                        .tint(Token.Colors.link)
+        ScrollView {
+            VStack(alignment: .leading, spacing: Token.Space.l) {
+                if showsDiff {
+                    diffContent
+                } else {
+                    bodyText(Text(transcript.rawText))
                 }
             }
+            .padding(Token.Space.l)
         }
-        .presentationDetents([.medium, .large])
-        .presentationCornerRadius(Token.Shape.radiusSheet)
-        .task { await compare() }
+        .task(id: showsDiff) { await compare() }
     }
 
     /// 比的是 AI 剛整理出來、還沒被人改過的那份；v0.1.9 以前整理的篇沒存那份，只能拿現在的文字稿比。
@@ -69,7 +36,7 @@ struct RawTextSheet: View {
 
     /// 一小時的稿子要比幾萬個字，放到背景算，畫面先轉圈。
     private func compare() async {
-        guard diff == nil, let polished = polishedForCompare,
+        guard showsDiff, diff == nil, let polished = polishedForCompare,
               !PolishDiff.isTooLong(raw: transcript.rawText, polished: polished)
         else {
             return

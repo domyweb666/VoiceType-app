@@ -65,6 +65,18 @@ struct TrashView: View {
         return days > 0 ? "還有 \(days) 天" : "今天會刪"
     }
 
+    /// 寫過又全刪的那篇，正文是空的：拿最後留的那版認。
+    static func rowText(for transcript: Transcript) -> String {
+        if let title = TranscriptListView.rowTitle(of: transcript) {
+            return title
+        }
+        let text = transcript.displayText
+        guard Transcript.isBlank(text), let kept = transcript.versions?.last else {
+            return text
+        }
+        return kept.text
+    }
+
     private func row(_ transcript: Transcript) -> some View {
         HStack(spacing: Token.Space.s) {
             VStack(alignment: .leading, spacing: Token.Space.xs) {
@@ -73,7 +85,7 @@ struct TrashView: View {
                         .font(Token.Fonts.footnote)
                         .foregroundStyle(Token.Colors.textSecondary)
                 }
-                Text(TranscriptListView.rowTitle(of: transcript) ?? transcript.displayText)
+                Text(Self.rowText(for: transcript))
                     .font(Token.Fonts.body)
                     .foregroundStyle(Token.Colors.textPrimary)
                     .lineLimit(2)

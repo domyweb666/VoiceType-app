@@ -17,10 +17,10 @@ final class AppSettingsTests: XCTestCase {
         return defaults
     }
 
-    func test設定第一次打開自動複製是開的而且模型是預設() throws {
+    func test設定第一次打開自動複製是關的而且模型是預設() throws {
         let defaults = try makeDefaults()
         let settings = AppSettings(defaults: defaults)
-        XCTAssertTrue(settings.autoCopy)
+        XCTAssertFalse(settings.autoCopy)
         XCTAssertEqual(settings.polishModel, Polisher.defaultModel)
         XCTAssertEqual(settings.polishStyle, .heavy)
         XCTAssertEqual(settings.vocabulary, [])
@@ -43,15 +43,13 @@ final class AppSettingsTests: XCTestCase {
     func test設定改了之後重開還在() throws {
         let defaults = try makeDefaults()
         let settings = AppSettings(defaults: defaults)
-        settings.autoCopy = false
+        settings.autoCopy = true
         settings.vocabulary = ["DOMYWEB"]
-        settings.polishModel = Polisher.alternativeModel
         settings.polishStyle = .heavy
 
         let reopened = AppSettings(defaults: defaults)
-        XCTAssertFalse(reopened.autoCopy)
+        XCTAssertTrue(reopened.autoCopy)
         XCTAssertEqual(reopened.vocabulary, ["DOMYWEB"])
-        XCTAssertEqual(reopened.polishModel, Polisher.alternativeModel)
         XCTAssertEqual(reopened.polishStyle, .heavy)
     }
 
@@ -63,14 +61,20 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(AppSettings(defaults: defaults).polishStyle, .keepVoice)
     }
 
-    func test設定存著不在名單裡的模型時退回預設() throws {
+    func test設定存過別的模型也一律用預設() throws {
         let defaults = try makeDefaults()
-        for retired in ["gpt-retired", "gpt-4o-mini"] {
-            defaults.set(retired, forKey: "polishModel")
-            XCTAssertEqual(AppSettings(defaults: defaults).polishModel, "gpt-6-luna", retired)
+        for stored in ["gpt-retired", "gpt-4o-mini", "gpt-5.4-mini"] {
+            defaults.set(stored, forKey: "polishModel")
+            XCTAssertEqual(AppSettings(defaults: defaults).polishModel, "gpt-6-luna", stored)
         }
-        defaults.set("gpt-5.4-mini", forKey: "polishModel")
-        XCTAssertEqual(AppSettings(defaults: defaults).polishModel, "gpt-5.4-mini")
+    }
+
+    func test設定選過自動複製的照舊() throws {
+        let defaults = try makeDefaults()
+        for chosen in [true, false] {
+            defaults.set(chosen, forKey: "autoCopy")
+            XCTAssertEqual(AppSettings(defaults: defaults).autoCopy, chosen)
+        }
     }
 
     func test設定自訂詞彙空白和重複的不收() {

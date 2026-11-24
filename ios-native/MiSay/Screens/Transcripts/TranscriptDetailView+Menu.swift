@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 詳情頁右上的「⋯」（K 組塊拆檔：主檔快到 300 行）：潤飾說明、看口語稿、看 AI 改了什麼、改寫成其他格式、接著錄、
-/// 從錄音重新轉錄、刪除。
+/// 詳情頁右上的「⋯」（K 組塊拆檔：主檔快到 300 行）：最上面是潤飾說明，
+/// 2026-11-24 Y6 起照「寫、出、查來源、刪」分四組，中間隔線。
 extension TranscriptDetailView {
     var moreMenu: some View {
         Menu {
@@ -14,24 +14,23 @@ extension TranscriptDetailView {
                     Text(Self.polishNote(model: model, style: transcript.polishStyle))
                 }
             }
-            // 自己打的新文稿沒有口語稿，這兩顆不出現。
-            if transcript.draftText != nil, !transcript.rawText.isEmpty {
-                Button {
-                    rawSheetStartsWithDiff = false
-                    showsRawText = true
-                } label: {
-                    Label("看口語稿", systemImage: "waveform")
-                }
-                // W3：跟口語稿逐字比，看 AI 刪了什麼、加了什麼。
-                Button {
-                    rawSheetStartsWithDiff = true
-                    showsRawText = true
-                } label: {
-                    Label("看 AI 改了什麼", systemImage: "text.badge.minus")
-                }
-            }
             writingMenuItems
-            derivedMenuItems
+            // K3：接著錄，錄好的那段接在這篇後面。
+            Button {
+                appendRecording()
+            } label: {
+                Label("接著錄", systemImage: "mic.badge.plus")
+            }
+            // 這篇還在整理時接上去，整理完存回來會蓋掉接上去的字（K 審查）。
+            .disabled(isPolishing)
+            reviewMenuItem
+            // W6：標籤，清單可以照標籤篩。
+            Button {
+                showsTags = true
+            } label: {
+                Label(Self.tagMenuTitle(transcript.tags ?? []), systemImage: "tag")
+            }
+            Divider()
             // W1：改寫成別的格式，另外存成一篇。整理中不給：文字稿還沒定。
             Button {
                 openRewrites()
@@ -42,38 +41,11 @@ extension TranscriptDetailView {
                 )
             }
             .disabled(isPolishing || currentText.isEmpty)
-            reviewMenuItem
-            // W6：標籤，清單可以照標籤篩。
-            Button {
-                showsTags = true
-            } label: {
-                Label(Self.tagMenuTitle(transcript.tags ?? []), systemImage: "tag")
-            }
-            // K5、K6：錄音還留著或標過重點，才有這頁。
-            let hasMarks = !(transcript.marks ?? []).isEmpty
-            if RetainedRecordings().exists(for: transcript.id) || hasMarks {
-                Button {
-                    showsOriginalAudio = true
-                } label: {
-                    Label("聽原音與重點", systemImage: "headphones")
-                }
-            }
-            // K3：接著錄，錄好的那段接在這篇後面。
-            Button {
-                appendRecording()
-            } label: {
-                Label("接著錄", systemImage: "mic.badge.plus")
-            }
-            // 這篇還在整理時接上去，整理完存回來會蓋掉接上去的字（K 審查）。
-            .disabled(isPolishing)
-            // S2-5：錄音還留著才有這顆（文字稿存好後留 7 天）。接著錄過的篇錄音不只一段，不給。
-            if transcript.combinedAt == nil, RetainedRecordings().exists(for: transcript.id) {
-                Button {
-                    isConfirmingRetranscribe = true
-                } label: {
-                    Label("從錄音重新轉錄", systemImage: "arrow.clockwise")
-                }
-            }
+            threadsPartsMenuItem
+            Divider()
+            sourceMenuItem
+            openSourceMenuItem
+            Divider()
             Button(role: .destructive) {
                 isConfirmingDelete = true
             } label: {
@@ -83,6 +55,27 @@ extension TranscriptDetailView {
             Image(systemName: "ellipsis")
         }
         .accessibilityLabel("更多")
+    }
+
+    /// Y6：三種看法一種都沒有就不出現。
+    @ViewBuilder
+    private var sourceMenuItem: some View {
+        let hasRecording = RetainedRecordings().exists(for: transcript.id)
+        if !SourceSheet.modes(for: transcript, hasRecording: hasRecording).isEmpty {
+            Button {
+                showsSource = true
+            } label: {
+                Label("錄音與原稿", systemImage: "waveform")
+            }
+        }
+    }
+
+    var sourceSheet: some View {
+        SourceSheet(
+            transcript: transcript,
+            recordingURL: RetainedRecordings().existingURL(for: transcript.id),
+            onRetranscribe: retranscribe
+        )
     }
 
     /// K3：先存好手上改的字、退出這頁，再請分頁列切到錄音頁開錄。退出是為了不留一份舊的在畫面上。

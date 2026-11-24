@@ -2,8 +2,8 @@ import SwiftUI
 
 /// 設定（片 B3、F1～F5、G）。2026-11-08 米：設定頁要簡潔，照 iPhone 設定 App 的做法。
 /// 第一層只留短短幾列、右邊帶現況，細節和說明都在子頁：金鑰（`APIKeySettingsView`）、
-/// 從修改學習（`LearningSettingsView`）、進階（`AdvancedSettingsView`：模型、備份、診斷紀錄）。
-/// 最上面是口述統計（同天米說要從文字稿頁搬過來）。改了馬上存（M7），下一筆整理就照新的走。
+/// 從修改學習（`LearningSettingsView`）、進階（`AdvancedSettingsView`：備份、診斷紀錄）。
+/// 口述統計在最下面、版本上面（2026-11-24 主力編輯器）。改了馬上存（M7），下一筆整理就照新的走。
 /// 2026-11-14 照 domy-design：統計卡淡金底、潤飾方式改淡金膠囊；列與箭頭還是系統的。
 struct SettingsView: View {
     @Bindable private var settings = AppSettings.shared
@@ -12,14 +12,6 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            if let stats {
-                // domy：統計卡自己有淡金底，不疊在白卡上，邊緣貼齊下面的白卡。
-                Section {
-                    DictationStatsCard(stats: stats)
-                        .listRowInsets(EdgeInsets())
-                }
-                .listRowBackground(Color.clear)
-            }
             Section {
                 NavigationLink {
                     APIKeySettingsView()
@@ -33,6 +25,17 @@ struct SettingsView: View {
                 NavigationLink("進階") {
                     AdvancedSettingsView()
                 }
+            }
+            .listRowBackground(Token.Colors.rowBackground)
+            if let stats {
+                // domy：統計卡自己有淡金底，不疊在白卡上，邊緣貼齊下面的白卡。
+                Section {
+                    DictationStatsCard(stats: stats)
+                        .listRowInsets(EdgeInsets())
+                }
+                .listRowBackground(Color.clear)
+            }
+            Section {
                 detailRow("版本", value: Self.versionText)
             }
             .listRowBackground(Token.Colors.rowBackground)

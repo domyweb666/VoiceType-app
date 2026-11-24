@@ -39,9 +39,12 @@ final class DraftVersionTests: XCTestCase {
         var cleared = Transcript.blankDraft()
         cleared.versions = [DraftVersion(text: "寫過的字")]
         XCTAssertFalse(cleared.isBlankDraft)
+        XCTAssertTrue(cleared.hasNothingLeft, "寫過又全刪，離開時進垃圾桶")
+        XCTAssertEqual(TrashView.rowText(for: cleared), "寫過的字")
         var titled = Transcript.blankDraft()
         titled.title = "標題"
         XCTAssertFalse(titled.isBlankDraft)
+        XCTAssertFalse(titled.hasNothingLeft)
         var rewritten = Transcript.blankDraft()
         rewritten.sourceID = UUID()
         XCTAssertFalse(rewritten.isBlankDraft)

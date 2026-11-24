@@ -59,7 +59,6 @@ final class DerivedTranscriptTests: XCTestCase {
             DictationStats(transcripts: [source, derived]),
             DictationStats(transcripts: [source])
         )
-        XCTAssertNil(DictationStats.homeSummary(for: [derived]))
     }
 
     func test列出改寫好的_新的在前_垃圾桶與別篇的不算() {

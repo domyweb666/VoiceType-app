@@ -41,7 +41,9 @@ extension TranscriptDetailView {
         }
         var updated = transcript
         // 這次打開第一次存、或連著改超過十分鐘：先把存檔裡那份（改之前的樣子）留一版。
-        let keepsVersion = isVersionDue
+        // 新文稿寫過又全刪也留一版：離開時整篇進垃圾桶，撿得回剛寫的字。
+        let isClearing = openedBlank && Transcript.isBlank(draftEdit)
+        let keepsVersion = isVersionDue || isClearing
         if keepsVersion {
             updated.keepVersion()
         }
@@ -70,7 +72,7 @@ extension TranscriptDetailView {
         runPolish { await queue.retryPolish(source) }
     }
 
-    /// S2-5「⋯ → 從錄音重新轉錄」：確認框按了重新轉錄才會叫。
+    /// S2-5「⋯ → 錄音與原稿 → 從錄音重新轉錄」：確認框按了重新轉錄才會叫。
     func retranscribe() {
         flushAutosave()
         isEditing = false
