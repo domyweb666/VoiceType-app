@@ -41,15 +41,20 @@ struct LinkSheet: View {
         NavigationStack {
             List {
                 Section {
-                    TextField("https://", text: $input)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .submitLabel(.done)
-                        .focused($isFocused)
-                        .onSubmit(add)
-                        .accessibilityLabel("網址")
-                        .listRowBackground(Token.Colors.rowBackground)
+                    TextField(
+                        "https://",
+                        text: $input,
+                        prompt: Text(verbatim: "https://")
+                            .foregroundStyle(Token.Colors.textSecondary)
+                    )
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .focused($isFocused)
+                    .onSubmit(add)
+                    .accessibilityLabel("網址")
+                    .listRowBackground(Token.Colors.rowBackground)
                 } footer: {
                     Text(isRejected ? Self.rejectedNote : Self.usageNote)
                         .font(Token.Fonts.footnote)

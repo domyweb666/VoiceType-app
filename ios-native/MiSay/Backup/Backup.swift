@@ -69,8 +69,13 @@ struct Backup: Codable, Equatable {
         return transcripts.filter { seen.insert($0.id).inserted }
     }
 
+    /// 備份裡有幾篇在手機的垃圾桶：加進來的話，垃圾桶那份就看不到、到期會刪，所以跳過。
+    func trashedCount(trashedIDs: Set<UUID>, listedIDs: Set<UUID>) -> Int {
+        Set(transcripts.map(\.id)).intersection(trashedIDs.subtracting(listedIDs)).count
+    }
+
     /// 匯入要存的那份：備份裡不該有垃圾桶的篇，萬一帶著記號也拿掉，加進來就是在清單裡。
-    /// 手機垃圾桶裡有同一篇時也照加，以清單裡這份為準，垃圾桶那份放到期就刪。
+    /// 手機垃圾桶裡有同一篇的不會走到這裡（`BackupSection` 跳過、請人先放回）。
     static func importable(_ transcript: Transcript) -> Transcript {
         var imported = transcript
         imported.trashedAt = nil
@@ -84,7 +89,7 @@ struct Backup: Codable, Equatable {
     }
 }
 
-/// 上次手動匯出備份的時間。備份區用 `@AppStorage` 讀同一個鍵，分享完當場就更新。
+/// 上次手動匯出時產生備份檔的時間（有沒有存到別處，米說看不到）。備份區用 `@AppStorage` 讀同一個鍵，分享完當場就更新。
 struct BackupHistory {
     static let lastExportedKey = "backupLastExportedSeconds"
     /// 從沒匯出過。

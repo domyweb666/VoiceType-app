@@ -76,6 +76,24 @@ extension TranscriptListView {
         }
     }
 
+    /// 不用 NavigationLink：編輯頁開著時清單會照最後改的重排，那一列換了位置，推出去的頁會被收掉。
+    func openableRow(_ transcript: Transcript, showsDate: Bool) -> some View {
+        Button {
+            openedTranscript = transcript
+        } label: {
+            HStack(spacing: Token.Space.s) {
+                row(transcript, showsDate: showsDate)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: Token.Space.s)
+                Image(systemName: "chevron.forward")
+                    .font(Token.Fonts.footnote)
+                    .foregroundStyle(Token.Colors.textSecondary)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+    }
+
     /// 「#讀書心得 #課程」
     static func tagLine(_ tags: [String]) -> String {
         tags.map { "#" + $0 }.joined(separator: " ")

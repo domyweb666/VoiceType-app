@@ -152,4 +152,20 @@ final class TrashTests: XCTestCase {
         XCTAssertThrowsError(try store.update(id: UUID()) { $0.title = "標題" })
         XCTAssertEqual(try store.loadAll().transcripts.count, 1)
     }
+
+    func test垃圾桶已經有同一篇_留較新的正文_另一份留成版本() throws {
+        var transcript = Transcript(durationSeconds: 10, rawText: "口語", draftText: "新稿")
+        transcript.updatedAt = now
+        try store.save(transcript)
+        try store.moveToTrash(id: transcript.id, now: now)
+        transcript.draftText = "舊備份的稿"
+        transcript.updatedAt = now.addingTimeInterval(-day)
+        try store.save(transcript)
+        try store.moveToTrash(id: transcript.id, now: now)
+
+        let kept = try XCTUnwrap(store.loadTrash().first)
+        XCTAssertEqual(kept.draftText, "新稿")
+        XCTAssertEqual(kept.versions?.map(\.text), ["舊備份的稿"])
+        XCTAssertNil(try store.load(id: transcript.id))
+    }
 }

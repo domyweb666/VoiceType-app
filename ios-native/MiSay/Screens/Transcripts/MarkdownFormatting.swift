@@ -24,13 +24,15 @@ enum MarkdownFormatting {
     }
 
     /// 一行開頭原本的記號：是哪一種（別的標題層級、沒有記號都是 nil）、佔幾個字。
-    private struct Marker {
+    struct Marker {
         let mark: LineMark?
         let length: Int
+        /// 記號前面縮了幾個字。沒有記號的行算 0，縮排當成內文。
+        var indent = 0
     }
 
     /// 從 `start` 開始的記號，原本佔幾個字、換成哪幾個字。
-    private struct Change {
+    struct Change {
         let start: Int
         let removed: Int
         let inserted: [Character]
@@ -52,10 +54,13 @@ enum MarkdownFormatting {
         let starts = markableStarts(in: characters, covering: selection)
         let markers = starts.map { marker(in: characters, at: $0) }
         let isRemoving = markers.allSatisfy { $0.mark == mark }
+        // 標題不縮排，換成標題時縮排一起拿掉。
+        let dropsIndent = !isRemoving && (mark == .heading || mark == .subheading)
         let changes = starts.indices.map { index in
-            Change(
-                start: starts[index],
-                removed: markers[index].length,
+            let marker = markers[index]
+            return Change(
+                start: starts[index] + (dropsIndent ? 0 : marker.indent),
+                removed: marker.length + (dropsIndent ? marker.indent : 0),
                 inserted: isRemoving ? [] : Array(prefix(for: mark, order: index + 1))
             )
         }
@@ -67,32 +72,6 @@ enum MarkdownFormatting {
         let lower = moved(selection.lowerBound, by: changes)
         let upper = moved(selection.upperBound, by: changes)
         return Edit(text: String(characters), selection: lower ..< upper)
-    }
-
-    /// 粗體：選到的字前後加 `**`；前後已經是 `**` 就拿掉。沒選字時插一對，游標停在中間。
-    static func toggleBold(in text: String, selection: Range<Int>) -> Edit {
-        var characters = Array(text)
-        let marker = Array(boldMarker)
-        let selection = clamped(selection, count: characters.count)
-        let lower = selection.lowerBound
-        let upper = selection.upperBound
-        let isWrapped = lower >= marker.count
-            && hasMarker(marker, in: characters, at: lower - marker.count)
-            && hasMarker(marker, in: characters, at: upper)
-        if isWrapped {
-            characters.removeSubrange(upper ..< upper + marker.count)
-            characters.removeSubrange(lower - marker.count ..< lower)
-            return Edit(
-                text: String(characters),
-                selection: lower - marker.count ..< upper - marker.count
-            )
-        }
-        characters.insert(contentsOf: marker, at: upper)
-        characters.insert(contentsOf: marker, at: lower)
-        return Edit(
-            text: String(characters),
-            selection: lower + marker.count ..< upper + marker.count
-        )
     }
 
     /// 選到的字變成 `[字](網址)`；沒選字就放網址。選到的字跨行或有方括號，包起來會壞掉，網址放在後面。
@@ -154,14 +133,14 @@ enum MarkdownFormatting {
     }
 
     /// 選取範圍可能比字還長（字剛被別處改短）：夾回字的範圍內，不越界。
-    private static func clamped(_ selection: Range<Int>, count: Int) -> Range<Int> {
+    static func clamped(_ selection: Range<Int>, count: Int) -> Range<Int> {
         let lower = min(max(selection.lowerBound, 0), count)
         let upper = min(max(selection.upperBound, lower), count)
         return lower ..< upper
     }
 
     /// 選取碰到的每一行的開頭。選取剛好停在下一行開頭，那一行不算。
-    private static func lineStarts(
+    static func lineStarts(
         in characters: [Character],
         covering selection: Range<Int>
     ) -> [Int] {
@@ -191,8 +170,18 @@ enum MarkdownFormatting {
         return written.isEmpty ? starts : written
     }
 
-    private static func marker(in characters: [Character], at start: Int) -> Marker {
+    /// 縮排的清單也認得出記號（「  - 乙」），不然再按一次會疊上去。
+    static func marker(in characters: [Character], at start: Int) -> Marker {
         let line = characters[start...].prefix { !$0.isNewline }
+        let indent = line.prefix { $0 == " " || $0 == "\t" }.count
+        let found = marker(of: line.dropFirst(indent))
+        guard found.length > 0 else {
+            return found
+        }
+        return Marker(mark: found.mark, length: found.length, indent: indent)
+    }
+
+    private static func marker(of line: ArraySlice<Character>) -> Marker {
         let level = line.prefix { $0 == "#" }.count
         let isHeading = (1 ... DraftOutline.maxHeadingLevel).contains(level)
         if isHeading, line.dropFirst(level).first == " " {
@@ -211,7 +200,7 @@ enum MarkdownFormatting {
         return Marker(mark: nil, length: 0)
     }
 
-    private static func hasMarker(
+    static func hasMarker(
         _ marker: [Character],
         in characters: [Character],
         at offset: Int
@@ -224,7 +213,7 @@ enum MarkdownFormatting {
 
     /// 原本第幾個字，改完變第幾個字。加在游標前面的往後推；游標在被換掉的記號裡，就停在新記號後面
     /// （拿掉的話就是那行開頭）。
-    private static func moved(_ offset: Int, by changes: [Change]) -> Int {
+    static func moved(_ offset: Int, by changes: [Change]) -> Int {
         var shift = 0
         for change in changes {
             if offset >= change.start + change.removed {

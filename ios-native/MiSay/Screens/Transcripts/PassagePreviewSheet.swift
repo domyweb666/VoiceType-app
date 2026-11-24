@@ -39,6 +39,8 @@ struct PassagePreviewSheet: View {
         .onAppear { isInstructionFocused = asksInstruction }
     }
 
+    private static let instructionPrompt = "例如：開頭先講結論、舉的例子留著"
+
     private var asksInstruction: Bool {
         request.kind == .custom && !request.isTooLong
     }
@@ -55,16 +57,22 @@ struct PassagePreviewSheet: View {
     private var instructionSection: some View {
         if asksInstruction {
             VStack(alignment: .leading, spacing: Token.Space.s) {
-                TextField("例如：開頭先講結論、舉的例子留著", text: $instruction, axis: .vertical)
-                    .font(Token.Fonts.body)
-                    .lineLimit(2 ... 5)
-                    .focused($isInstructionFocused)
-                    .padding(Token.Space.m)
-                    .background(
-                        Token.Colors.sunkenBackground,
-                        in: RoundedRectangle(cornerRadius: Token.Shape.radiusField)
-                    )
-                    .accessibilityLabel("想怎麼改這一段")
+                TextField(
+                    Self.instructionPrompt,
+                    text: $instruction,
+                    prompt: Text(Self.instructionPrompt)
+                        .foregroundStyle(Token.Colors.textSecondary),
+                    axis: .vertical
+                )
+                .font(Token.Fonts.body)
+                .lineLimit(2 ... 5)
+                .focused($isInstructionFocused)
+                .padding(Token.Space.m)
+                .background(
+                    Token.Colors.sunkenBackground,
+                    in: RoundedRectangle(cornerRadius: Token.Shape.radiusField)
+                )
+                .accessibilityLabel("想怎麼改這一段")
                 Text(RewritesSheet.instructionNote(characters: instructionCharacters))
                     .font(Token.Fonts.footnote)
                     .foregroundStyle(

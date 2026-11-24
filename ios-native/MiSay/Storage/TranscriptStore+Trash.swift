@@ -13,13 +13,31 @@ extension TranscriptStore {
     }
 
     /// 搬進垃圾桶的是存檔裡最新的那份。已經不在清單就不用搬。
+    /// 垃圾桶已經有同一篇就合成一份，不直接蓋；那份解不開就先另存。
     func moveToTrash(id: UUID, now: Date = Date()) throws {
         guard var transcript = try load(id: id) else {
             return
         }
+        let url = try trashURL(for: id)
+        do {
+            if let trashed = try read(url) {
+                transcript = transcript.combined(with: trashed, now: now)
+            }
+        } catch Failure.unreadable {
+            try setAside(url)
+        }
         transcript.trashedAt = now
-        try write(transcript, to: trashURL(for: id))
+        try write(transcript, to: url)
         try delete(id: id)
+    }
+
+    func loadFromTrash(id: UUID) throws -> Transcript? {
+        try read(trashURL(for: id))
+    }
+
+    /// 整理到一半被丟進垃圾桶的篇，整理好存在垃圾桶那份：放回來還有。
+    func saveInTrash(_ transcript: Transcript) throws {
+        try write(transcript, to: trashURL(for: transcript.id))
     }
 
     /// 放回清單。清單裡已經有同一篇（例如匯入過備份）就不放，免得蓋掉它。

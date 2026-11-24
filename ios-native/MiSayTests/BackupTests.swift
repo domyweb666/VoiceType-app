@@ -61,4 +61,15 @@ final class BackupTests: XCTestCase {
             XCTAssertEqual(error as? Backup.Failure, .tooLarge)
         }
     }
+
+    func test匯入時垃圾桶裡有的跳過並講出來() {
+        let backup = Backup(transcripts: [first, first, second])
+        XCTAssertEqual(backup.trashedCount(trashedIDs: [first.id], listedIDs: []), 1)
+        XCTAssertEqual(backup.trashedCount(trashedIDs: [first.id], listedIDs: [first.id]), 0)
+        XCTAssertEqual(backup.newTranscripts(existingIDs: [first.id]), [second])
+        XCTAssertTrue(
+            BackupSection.confirmTitle(adding: 1, skipping: 0, inTrash: 1).contains("垃圾桶裡有 1 篇")
+        )
+        XCTAssertFalse(BackupSection.confirmTitle(adding: 1, skipping: 0).contains("垃圾桶"))
+    }
 }

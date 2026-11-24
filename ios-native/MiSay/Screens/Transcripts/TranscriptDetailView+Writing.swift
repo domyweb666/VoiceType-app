@@ -47,7 +47,7 @@ extension TranscriptDetailView {
             if usesPlainEditor {
                 PlainDraftEditor(
                     text: $draftEdit,
-                    canRecordHere: !isPolishing,
+                    canRecordHere: !isLocked,
                     onRecordHere: insertRecording(at:),
                     isEditing: $isPlainEditing,
                     jump: $jumpTarget,
@@ -56,7 +56,7 @@ extension TranscriptDetailView {
             } else if #available(iOS 18, *) {
                 DraftEditor(
                     text: $draftEdit,
-                    canRecordHere: !isPolishing,
+                    canRecordHere: !isLocked,
                     onRecordHere: insertRecording(at:),
                     isEditing: isEditing,
                     jump: $jumpTarget
@@ -74,6 +74,7 @@ extension TranscriptDetailView {
         // 最後一行底下留白（米 11/17：打到最下面，字貼著鍵盤那一排）。`PlainTextView` 自己留。
         .contentMargins(.bottom, Token.Space.editorBottom, for: .scrollContent)
         .focused($isSystemEditorFocused)
+        .disabled(isLocked)
         // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
         .padding(.horizontal, Token.Space.m)
     }

@@ -7,8 +7,9 @@ import Foundation
 /// 2. 一開始錄就用錄音檔名記下要接到哪一篇（`appendTargets`）。面板不管怎麼關掉、最後由誰按停止，
 ///    檔名不變，搬進待轉錄之後照樣認得。
 /// 3. 轉錄、潤飾照一般錄音走，口語稿與文字稿先存成獨立的一篇。走到這裡 App 被殺，字都在那一篇裡。
-/// 4. 接回去（這個檔）：原篇連同接上去的字寫成功，才刪獨立那一篇。寫不成功、原篇不見了、
-///    原篇正在整理，獨立那一篇就留著。刪不掉只會多一篇重複的，不會少字。
+/// 4. 接回去（這個檔）：原篇連同接上去的字寫成功，才刪獨立那一篇。寫不成功、原篇不見了，
+///    獨立那一篇就留著。原篇正在整理就先等，整理完再接（`finishInFlight`）。
+///    刪不掉只會多一篇重複的，不會少字。
 /// 5. 原篇正開在編輯頁：流水不碰原篇的檔，交給那頁接（`OpenEditor.takeIn`），那頁先存手上的字，
 ///    再拿存檔裡最新的那份接、存、換上畫面。同一篇同一時間只有一個人寫，誰也蓋不掉誰。
 /// 6. 那頁正在打字就先等（`waitingAppends`）：注音選到一半時換字，編輯框下一個字會拿
@@ -17,7 +18,7 @@ extension TranscriptionQueue {
     enum TakeInResult: Equatable {
         /// 已經寫進存檔，這是寫進去的那份。
         case taken(Transcript)
-        /// 現在不能接（正在打字、手上的字存不進去），等一下再叫一次。
+        /// 現在不能接（正在打字、正在整理、手上的字存不進去），等一下再叫一次。
         case busy
         /// 接不上：獨立那一篇留著。
         case refused
@@ -90,10 +91,13 @@ extension TranscriptionQueue {
     private func merge(_ waiting: WaitingAppend) -> TakeInResult {
         let targetID = waiting.target.transcriptID
         let stored = ((try? store.loadAll())?.transcripts ?? []).filter { $0.trashedAt == nil }
-        guard !inFlight.contains(targetID.uuidString), openEditors[waiting.addedID] == nil,
+        guard openEditors[waiting.addedID] == nil,
               let added = stored.first(where: { $0.id == waiting.addedID })
         else {
             return .refused
+        }
+        guard !inFlight.contains(targetID.uuidString) else {
+            return .busy
         }
         let insertion = waiting.target.insertion
         let result: TakeInResult = if let editor = openEditors[targetID] {
@@ -135,6 +139,7 @@ extension TranscriptionQueue {
         to target: inout Transcript,
         at insertion: InsertionPoint?
     ) -> Bool {
+        target.adoptRecording(of: added)
         guard let insertion else {
             target.append(added)
             return false

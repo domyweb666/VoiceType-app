@@ -52,6 +52,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var sourceKind: String?
     /// 改寫時多打的補充要求（2026-11-24）。沒打、不是改寫來的是 nil。
     var sourceInstruction: String?
+    /// 接著錄併進來的錄音（2026-11-24）：那幾個留存檔歸這篇管。沒併過是 nil。
+    var mergedRecordings: [MergedRecording]?
     /// 丟進垃圾桶的時間（2026-11-24）。不在垃圾桶是 nil。
     var trashedAt: Date?
     var updatedAt: Date

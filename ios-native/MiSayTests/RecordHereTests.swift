@@ -70,16 +70,71 @@ final class RecordHereTests: XCTestCase {
         XCTAssertNil(try stored(added.id))
     }
 
-    func test接不上_原篇正在整理或不見了_留成獨立一篇() throws {
+    func test原篇正在整理先等_整理完接回去_錄音與漏字提示記在原篇() throws {
+        added.possiblyMissingSegments = [1]
+        try store.save(added)
         let busy = makeQueue(at: nil)
         busy.inFlight.insert(target.id.uuidString)
         XCTAssertEqual(busy.mergeIntoAppendTarget(added).id, added.id)
-        XCTAssertFalse(busy.hasUnfinishedAppend(to: target.id))
+        XCTAssertTrue(busy.hasUnfinishedAppend(to: target.id))
+        XCTAssertEqual(try stored(added.id)?.draftText, "補的。")
 
+        busy.finishInFlight(target.id.uuidString)
+        let merged = try XCTUnwrap(stored(target.id))
+        XCTAssertEqual(merged.draftText, "第一段。\n\n第二段。\n\n補的。")
+        XCTAssertEqual(merged.mergedRecordings?.map(\.id), [added.id])
+        XCTAssertEqual(merged.possiblyMissingSegments, [2], "原篇一分鐘是一段，接在它後面數")
+        XCTAssertNil(try stored(added.id))
+        XCTAssertFalse(busy.hasUnfinishedAppend(to: target.id))
+    }
+
+    func test接不上_原篇不見了_留成獨立一篇() throws {
         let gone = makeQueue(at: nil)
         try store.delete(id: target.id)
         XCTAssertEqual(gone.mergeIntoAppendTarget(added).id, added.id)
         XCTAssertEqual(try stored(added.id)?.draftText, "補的。")
+    }
+
+    // MARK: 流水存檔不蓋人改的
+
+    func test整理存檔前換上人改的_被換掉的文字稿留一版() throws {
+        let queue = TranscriptionQueue()
+        var working = target
+        working.replaceRawText("重轉", possiblyMissing: nil)
+        var edited = target
+        edited.title = "新標題"
+        edited.tags = ["讀書"]
+        edited.draftText = "人打的字"
+        try store.save(edited)
+
+        try queue.saveKeepingUserFields(&working)
+        let saved = try XCTUnwrap(stored(target.id))
+        XCTAssertEqual(saved.rawText, "重轉")
+        XCTAssertEqual(saved.title, "新標題")
+        XCTAssertEqual(saved.tags, ["讀書"])
+        XCTAssertEqual(saved.versions?.map(\.text), ["人打的字"])
+    }
+
+    func test整理到一半丟進垃圾桶_存在垃圾桶_不回清單() throws {
+        let queue = TranscriptionQueue()
+        var working = target
+        working.draftText = "整理好的"
+        try store.moveToTrash(id: target.id)
+        try queue.saveKeepingUserFields(&working)
+        XCTAssertNil(try stored(target.id))
+        XCTAssertEqual(try store.loadFromTrash(id: target.id)?.draftText, "整理好的")
+        XCTAssertNotNil(working.trashedAt)
+        _ = try store.deleteFromTrash(id: target.id)
+    }
+
+    func test手上那份舊了_別處整理好的不再送() async {
+        var unpolished = target
+        unpolished.draftText = nil
+        let outcome = await TranscriptionQueue().retryPolish(unpolished)
+        guard case let .finished(latest) = outcome else {
+            return XCTFail("應該直接回存檔裡那份，拿到 \(String(describing: outcome))")
+        }
+        XCTAssertEqual(latest.draftText, target.draftText)
     }
 
     // MARK: 標題欄

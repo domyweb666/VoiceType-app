@@ -82,6 +82,7 @@ extension TranscriptDetailView {
         titleTask = nil
         let title = Self.cleanedTitle(titleEdit)
         guard title != transcript.title else {
+            titleSaveFailed = false
             return
         }
         do {
@@ -89,8 +90,9 @@ extension TranscriptDetailView {
                 $0.title = title
                 $0.updatedAt = Date()
             }
+            titleSaveFailed = false
         } catch {
-            showNote("標題沒存進去，再改一個字試試。")
+            titleSaveFailed = true
         }
     }
 }

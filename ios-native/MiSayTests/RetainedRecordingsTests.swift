@@ -71,4 +71,29 @@ final class RetainedRecordingsTests: XCTestCase {
             polishedAt: now.addingTimeInterval(-days * 24 * 60 * 60)
         )
     }
+
+    func test併進別篇的錄音從併入起留七天_一直留著就跟著原篇() {
+        let fresh = UUID()
+        let old = UUID()
+        var target = transcript(polishedDaysAgo: 30)
+        target.mergedRecordings = [
+            MergedRecording(id: fresh, mergedAt: now.addingTimeInterval(-6 * 24 * 60 * 60)),
+            MergedRecording(id: old, mergedAt: now.addingTimeInterval(-7 * 24 * 60 * 60)),
+        ]
+        func doomed(_ listed: [Transcript], trashed: [Transcript], forever: Bool) -> [UUID] {
+            RetainedRecordings.idsToDelete(
+                retainedIDs: [fresh, old],
+                transcripts: listed,
+                trashed: trashed,
+                deletesOrphans: true,
+                keepsForever: forever,
+                now: now,
+                availableBytes: plentyOfSpace
+            )
+        }
+        XCTAssertEqual(doomed([target], trashed: [], forever: false), [old])
+        XCTAssertEqual(doomed([], trashed: [target], forever: false), [old])
+        XCTAssertEqual(doomed([target], trashed: [], forever: true), [])
+        XCTAssertEqual(doomed([], trashed: [], forever: true), [fresh, old], "原篇真的刪了")
+    }
 }

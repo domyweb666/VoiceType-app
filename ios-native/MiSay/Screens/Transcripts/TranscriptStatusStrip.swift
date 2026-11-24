@@ -9,6 +9,7 @@ struct TranscriptStatusStrip: View {
         case polishing
         case polishFailed
         case saveFailed
+        case titleSaveFailed
         case empty
         case copied
         /// 一下就收的一句話（K2 存成 Markdown 的結果）。
@@ -21,11 +22,12 @@ struct TranscriptStatusStrip: View {
     let onCancel: () -> Void
     let onRetry: () -> Void
 
-    /// 一次只講一件事，照這個順序：正在整理 > 整理失敗 > 存不進去 > 沒有文字 > 剛複製。
+    /// 一次只講一件事，照這個順序：正在整理 > 整理失敗 > 存不進去（正文、標題）> 沒有文字 > 剛複製。
     static func kind(
         isPolishing: Bool,
         polishFailed: Bool,
         saveFailed: Bool,
+        titleSaveFailed: Bool = false,
         isEmpty: Bool = false,
         showsCopied: Bool = false,
         note: String? = nil,
@@ -39,6 +41,9 @@ struct TranscriptStatusStrip: View {
         }
         if saveFailed {
             return .saveFailed
+        }
+        if titleSaveFailed {
+            return .titleSaveFailed
         }
         if isEmpty {
             return .empty
@@ -72,6 +77,8 @@ struct TranscriptStatusStrip: View {
             )
         case .saveFailed:
             StatusStrip(glyph: .failed, message: "改的字沒存進去，字還在這裡。再改一個字會再存一次。")
+        case .titleSaveFailed:
+            StatusStrip(glyph: .failed, message: "標題沒存進去，字還在這裡。再改一個字會再存一次。")
         case .empty:
             StatusStrip(glyph: .note, message: "沒有文字可以複製")
         case .copied:

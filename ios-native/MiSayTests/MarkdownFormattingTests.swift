@@ -130,4 +130,31 @@ final class MarkdownFormattingTests: XCTestCase {
         XCTAssertEqual(edit?.text, "新的一段。看[這裡](https://a.tw)喔")
         XCTAssertNil(request.adding("https://a.tw", to: "整篇換掉"))
     }
+
+    func test粗體選好幾行一行一行包_跳過行首記號與空白行_再按拿掉() {
+        let text = "甲\n\n- 乙\n"
+        let bold = Format.toggleBold(in: text, selection: 0 ..< text.count)
+        XCTAssertEqual(bold, Format.Edit(text: "**甲**\n\n- **乙**\n", selection: 2 ..< 12))
+        let plain = Format.toggleBold(in: bold.text, selection: bold.selection)
+        XCTAssertEqual(plain, Format.Edit(text: text, selection: 0 ..< 6))
+        let whole = Format.toggleBold(in: bold.text, selection: 0 ..< bold.text.count)
+        XCTAssertEqual(whole.text, text)
+
+        // 一行已經是粗體，只補另一行。
+        XCTAssertEqual(
+            Format.toggleBold(in: "**甲**\n乙", selection: 0 ..< 7).text,
+            "**甲**\n**乙**"
+        )
+        XCTAssertEqual(Format.toggleBold(in: "甲\n\n", selection: 1 ..< 3).text, "甲\n\n")
+    }
+
+    func test縮排的清單不疊記號() {
+        XCTAssertEqual(Format.toggle(.list, in: "  - 乙", selection: 5 ..< 5).text, "  乙")
+        XCTAssertEqual(
+            Format.toggle(.numbered, in: "  - 乙", selection: 5 ..< 5),
+            Format.Edit(text: "  1. 乙", selection: 6 ..< 6)
+        )
+        XCTAssertEqual(Format.toggle(.heading, in: "  - 乙", selection: 5 ..< 5).text, "## 乙")
+        XCTAssertEqual(Format.toggle(.list, in: "  乙", selection: 3 ..< 3).text, "-   乙")
+    }
 }

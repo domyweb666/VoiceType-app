@@ -31,7 +31,7 @@ extension TranscriptDetailView {
     /// 不比 `updatedAt`：存檔只記到秒，同一秒裡接上去的會看不出來。
     /// 手上有還沒存進去的字（上次存檔失敗）就留著手上的，存檔裡那份下次存之前先留成一版。
     /// 讀不到存檔就什麼都不換，改寫好的那幾篇也照舊列著。
-    private func reloadFromStore() {
+    func reloadFromStore() {
         guard let transcripts = try? TranscriptStore().loadAll().transcripts else {
             return
         }

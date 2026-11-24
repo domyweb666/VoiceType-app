@@ -56,6 +56,8 @@ final class TranscriptionQueue {
     var refusedRecordings: Set<String> = []
     /// 在飛的錄音檔名與正在潤飾的篇 id（S2-4：補潤飾時不重送同一篇）。
     var inFlight: Set<String> = []
+    /// 正在從錄音重新轉錄的篇：編輯頁先鎖著，打的字等一下會被整篇換掉。
+    var retranscribing: Set<UUID> = []
     var isProcessingPending = false
     /// 最近一次自動續轉（S2-7）：回到前景時要取消重來的就是它。
     var pendingRun: Task<Void, Never>?
@@ -131,8 +133,16 @@ final class TranscriptionQueue {
         activity = .polishing(recording: name)
         let polishKey = transcript.id.uuidString
         inFlight.insert(polishKey)
-        defer { inFlight.remove(polishKey) }
+        defer { finishInFlight(polishKey) }
         return await polishAndSave(transcript)
+    }
+
+    /// 一篇整理完：等著接到這篇的那幾段，現在可以接了。
+    func finishInFlight(_ key: String) {
+        inFlight.remove(key)
+        if let id = UUID(uuidString: key) {
+            mergeWaiting(into: id)
+        }
     }
 
     /// 轉錄這一步。OpenAI 的錯原樣帶回；讀不到錄音是 `.recordingUnreadable`；被取消時不給結局。

@@ -127,12 +127,19 @@ struct RetainedRecordings {
         let retainedIDs = files.compactMap {
             UUID(uuidString: $0.deletingPathExtension().lastPathComponent)
         }.filter { !busy.contains($0.uuidString) }
-        let trashedIDs = try? TranscriptStore().trashedIDs()
+        // 先看檔名再解密：解不開的那幾篇會被搬走，這一輪照樣保住它們的錄音。
+        let store = TranscriptStore()
+        let trashedIDs = try? store.trashedIDs()
+        let trash = try? store.loadTrash()
+        let readableIDs = (loaded.transcripts + (trash ?? [])).map(\.id)
+        let seesWholeTrash = trash != nil
+            && trashedIDs.map { $0.subtracting(readableIDs).isEmpty } == true
         let doomed = Self.idsToDelete(
             retainedIDs: retainedIDs,
             transcripts: loaded.transcripts,
+            trashed: trash ?? [],
             trashedIDs: trashedIDs ?? [],
-            deletesOrphans: loaded.unreadableCount == 0 && trashedIDs != nil,
+            deletesOrphans: loaded.unreadableCount == 0 && seesWholeTrash,
             keepsForever: keepsForever,
             now: now,
             availableBytes: RecordingSpace.availableBytes()
@@ -167,9 +174,12 @@ struct RetainedRecordings {
     }
 
     /// 純判斷（CI 測得到）：哪些留存錄音可以刪。
+    /// 接著錄併進別篇的（`mergedRecordings`）不算孤兒：從併入那時起留 7 天，設了一直留著就跟著原篇。
+    /// 原篇在垃圾桶也一樣；原篇真的刪了才變孤兒。
     static func idsToDelete(
         retainedIDs: [UUID],
         transcripts: [Transcript],
+        trashed: [Transcript] = [],
         trashedIDs: Set<UUID> = [],
         deletesOrphans: Bool,
         keepsForever: Bool = false,
@@ -180,10 +190,19 @@ struct RetainedRecordings {
             transcripts.map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
         )
+        let merged = Dictionary(
+            (transcripts + trashed).flatMap { $0.mergedRecordings ?? [] }
+                .map { ($0.id, $0.mergedAt) },
+            uniquingKeysWith: max
+        )
         let isLowOnSpace = availableBytes.map { $0 < lowSpaceBytes } ?? false
         return retainedIDs.filter { id in
             guard let transcript = byID[id] else {
-                return deletesOrphans && !trashedIDs.contains(id)
+                guard let mergedAt = merged[id], !trashedIDs.contains(id) else {
+                    return deletesOrphans && !trashedIDs.contains(id)
+                }
+                let isOld = now.timeIntervalSince(mergedAt) >= keepAfterPolishSeconds
+                return !keepsForever && (isLowOnSpace || isOld)
             }
             // 潤飾一直沒成功的不刪；設了一直留著的也不刪（只有那篇刪了才刪）。
             guard transcript.draftText != nil, !keepsForever else {

@@ -8,6 +8,8 @@ struct BackupSection: View {
     @State private var isImporting = false
     @State private var pendingImport: [Transcript] = []
     @State private var skippedCount = 0
+    /// 備份裡有、現在在垃圾桶的篇數。
+    @State private var trashedCount = 0
     @State private var isConfirmingImport = false
     @State private var resultMessage: String?
     @AppStorage(BackupHistory.lastExportedKey)
@@ -35,7 +37,11 @@ struct BackupSection: View {
                 prepareImport(result)
             }
             .confirmationDialog(
-                Self.confirmTitle(adding: pendingImport.count, skipping: skippedCount),
+                Self.confirmTitle(
+                    adding: pendingImport.count,
+                    skipping: skippedCount,
+                    inTrash: trashedCount
+                ),
                 isPresented: $isConfirmingImport,
                 titleVisibility: .visible
             ) {
@@ -47,7 +53,7 @@ struct BackupSection: View {
                     .font(Token.Fonts.secondary)
                     .foregroundStyle(Token.Colors.textPrimary)
             }
-            LabeledContent("上次備份", value: lastBackupText)
+            LabeledContent("上次產生備份", value: lastBackupText)
             AutoBackupRows()
         } header: {
             Text("資料")
@@ -76,12 +82,20 @@ struct BackupSection: View {
             exportedSeconds: exportedSeconds,
             autoWrittenAt: autoBackup.lastWrittenAt
         )
-        return latest?.formatted(date: .abbreviated, time: .shortened) ?? "還沒備份過"
+        return latest?.formatted(date: .abbreviated, time: .shortened) ?? "還沒有過"
     }
 
-    static func confirmTitle(adding newCount: Int, skipping skipped: Int) -> String {
+    static func confirmTitle(
+        adding newCount: Int,
+        skipping skipped: Int,
+        inTrash: Int = 0
+    ) -> String {
         let skippedText = skipped > 0 ? "手機上已經有的 \(skipped) 篇跳過，" : ""
-        return "會加入 \(newCount) 篇，\(skippedText)現有的文字稿不會被改。"
+        return "會加入 \(newCount) 篇，\(skippedText)現有的文字稿不會被改。" + trashNote(inTrash: inTrash)
+    }
+
+    static func trashNote(inTrash: Int) -> String {
+        inTrash > 0 ? "垃圾桶裡有 \(inTrash) 篇一樣的，要的話先去放回。" : ""
     }
 
     /// 匯入擋下來時講是哪一關，最後都說「沒有匯入」：手機上的東西沒動。
@@ -119,18 +133,22 @@ struct BackupSection: View {
             resultMessage = "沒有匯入：讀不到這個檔。"
             return
         }
-        let existingIDs: Set<UUID>
+        let listedIDs: Set<UUID>
+        let trashedIDs: Set<UUID>
         do {
-            existingIDs = try Set(TranscriptStore().loadAll().transcripts.map(\.id))
+            listedIDs = try Set(TranscriptStore().loadAll().transcripts.map(\.id))
+            trashedIDs = try TranscriptStore().trashedIDs()
         } catch {
             // 不知道手機上有哪些，就不知道會不會重複，寧可不匯。
             resultMessage = "沒有匯入：手機上的文字稿讀不到，不知道會不會重複。"
             return
         }
-        pendingImport = backup.newTranscripts(existingIDs: existingIDs)
-        skippedCount = backup.transcripts.count - pendingImport.count
+        pendingImport = backup.newTranscripts(existingIDs: listedIDs.union(trashedIDs))
+        trashedCount = backup.trashedCount(trashedIDs: trashedIDs, listedIDs: listedIDs)
+        skippedCount = max(backup.transcripts.count - pendingImport.count - trashedCount, 0)
         guard !pendingImport.isEmpty else {
             resultMessage = "這個備份裡的文字稿手機上都有了，沒有要加的。"
+                + Self.trashNote(inTrash: trashedCount)
             return
         }
         isConfirmingImport = true

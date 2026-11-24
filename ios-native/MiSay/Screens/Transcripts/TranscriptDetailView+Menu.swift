@@ -15,6 +15,7 @@ extension TranscriptDetailView {
                 }
             }
             writingMenuItems
+                .disabled(isLocked)
             // K3：接著錄，錄好的那段接在這篇後面，不離開這頁（`+RecordHere`）。
             Button {
                 appendRecording()
@@ -22,7 +23,7 @@ extension TranscriptDetailView {
                 Label("接著錄", systemImage: "mic.badge.plus")
             }
             // 這篇還在整理時接上去，整理完存回來會蓋掉接上去的字（K 審查）。
-            .disabled(isPolishing)
+            .disabled(isLocked)
             reviewMenuItem
             // W6：標籤，清單可以照標籤篩。
             Button {

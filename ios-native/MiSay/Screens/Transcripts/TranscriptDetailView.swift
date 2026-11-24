@@ -55,6 +55,7 @@ struct TranscriptDetailView: View {
     /// Y4 標題（`+Title`）、在這頁錄音（`+RecordHere`）。
     @State var titleEdit: String
     @State var titleTask: Task<Void, Never>?
+    @State var titleSaveFailed = false
     @FocusState var isTitleFocused: Bool
     @State var showsRecorder = false
     @State var recordInsertion: InsertionPoint?
@@ -227,7 +228,8 @@ private extension TranscriptDetailView {
             isPolishing: isPolishing,
             polishFailed: polishFailed,
             saveFailed: saveFailed,
-            isEmpty: currentText.isEmpty && !transcript.isWritten,
+            titleSaveFailed: titleSaveFailed,
+            isEmpty: currentText.isEmpty && !transcript.isWritten && !transcript.isDerived,
             showsCopied: showsCopied,
             note: note,
             possiblyMissing: transcript.possiblyMissingSegments ?? []

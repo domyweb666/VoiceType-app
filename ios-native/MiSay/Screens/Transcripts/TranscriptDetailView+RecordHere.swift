@@ -30,6 +30,12 @@ extension TranscriptDetailView {
                     mergeAfterTyping()
                 }
             }
+            // 重新轉錄可能是上一次打開時按的，這頁等它做完換成新的。
+            .onChange(of: isRetranscribing) { _, isRunning in
+                if !isRunning {
+                    reloadFromStore()
+                }
+            }
             // 整理「接著錄還沒接回去的那段」時，這頁會換成接好的原篇。
             .onChange(of: transcript.id) { old, _ in
                 queue.closeEditor(token: editorToken, for: old)
@@ -65,6 +71,15 @@ extension TranscriptDetailView {
             try? await Task.sleep(for: .milliseconds(Self.focusDelayMilliseconds))
             queue.mergeWaiting(into: transcript.id)
         }
+    }
+
+    var isRetranscribing: Bool {
+        queue.retranscribing.contains(transcript.id)
+    }
+
+    /// 整理中，或這篇正在重新轉錄：整篇等一下會換掉，不給改字。
+    var isLocked: Bool {
+        isPolishing || isRetranscribing
     }
 
     var hasUnsavedDraft: Bool {
@@ -125,7 +140,7 @@ extension TranscriptDetailView {
         _ added: Transcript,
         at insertion: InsertionPoint?
     ) -> TranscriptionQueue.TakeInResult {
-        guard !isEditing, !isPolishing else {
+        guard !isEditing, !isLocked else {
             showNote(Self.waitingNote)
             return .busy
         }

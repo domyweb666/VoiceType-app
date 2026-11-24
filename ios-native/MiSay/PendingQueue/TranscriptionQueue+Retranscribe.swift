@@ -18,12 +18,15 @@ extension TranscriptionQueue {
         }
         // 解碼之前就算在用：背景壓縮不會同時動這個檔（K 審查）。
         inFlight.insert(name)
+        retranscribing.insert(transcript.id)
+        defer {
+            retranscribing.remove(transcript.id)
+            finishInFlight(name)
+        }
         guard let url = await recordingForRetranscription(of: transcript.id) else {
-            inFlight.remove(name)
             return .recordingUnreadable
         }
         defer {
-            inFlight.remove(name)
             // 轉錄那一步的進度用錄音檔名記，潤飾那一步用 id 記，兩個都要歸零。
             resetActivity(ifShowing: url.lastPathComponent)
             resetActivity(ifShowing: name)
@@ -39,19 +42,32 @@ extension TranscriptionQueue {
         case let .failure(stopped):
             return stopped.value
         }
-        var updated = transcript
+        guard let updated = saveRetranscribed(rawText, of: transcript, job: job, url: url) else {
+            return .storageFailed
+        }
+        job.cleanUp(recordingAt: url)
+        activity = .polishing(recording: name)
+        return await polishAndSave(updated)
+    }
+
+    /// 轉的時候人可能改了標題、標籤，甚至打了字：從存檔裡最新的那份換，改過的文字稿會留一版。存不進去回 nil。
+    private func saveRetranscribed(
+        _ rawText: String,
+        of transcript: Transcript,
+        job: RecordingTranscriptionJob,
+        url: URL
+    ) -> Transcript? {
+        var updated = latest(of: transcript)
         updated.replaceRawText(
             rawText,
             possiblyMissing: job.possiblyMissingSegments(forRecordingAt: url),
             timeline: job.timeline(forRecordingAt: url)
         )
         do {
-            try store.save(updated)
+            try saveKeepingUserFields(&updated)
+            return updated
         } catch {
-            return .storageFailed
+            return nil
         }
-        job.cleanUp(recordingAt: url)
-        activity = .polishing(recording: name)
-        return await polishAndSave(updated)
     }
 }

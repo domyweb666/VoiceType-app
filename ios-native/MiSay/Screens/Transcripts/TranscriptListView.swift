@@ -60,14 +60,10 @@ struct TranscriptListView: View {
                         if isSelecting {
                             selectableRow(transcript, showsDate: showsDate)
                         } else {
-                            NavigationLink {
-                                detail(of: transcript)
-                            } label: {
-                                row(transcript, showsDate: showsDate)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                publishButton(transcript)
-                            }
+                            openableRow(transcript, showsDate: showsDate)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    publishButton(transcript)
+                                }
                         }
                     }
                     .listRowBackground(Token.Colors.rowBackground)

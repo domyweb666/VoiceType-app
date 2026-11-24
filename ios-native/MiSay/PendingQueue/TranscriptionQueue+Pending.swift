@@ -83,20 +83,22 @@ extension TranscriptionQueue {
     /// K4：有文字稿的留存 WAV 一篇一篇壓成 m4a。正在用的篇（重轉、潤飾）跳過；
     /// 壓的時候自己也算在用，別人不會同時動它。壓一小時的錄音要好幾秒，不佔畫面那條線。
     private func compressKeptRecordings(of transcripts: [Transcript]) async {
-        for transcript in transcripts where transcript.draftText != nil {
-            let key = transcript.id.uuidString
-            guard !inFlight.contains(key), let wav = try? retained.url(for: transcript.id),
+        let ids = transcripts.filter { $0.draftText != nil }.flatMap {
+            [$0.id] + ($0.mergedRecordings ?? []).map(\.id)
+        }
+        for id in ids {
+            let key = id.uuidString
+            guard !inFlight.contains(key), let wav = try? retained.url(for: id),
                   FileManager.default.fileExists(atPath: wav.path)
             else {
                 continue
             }
             inFlight.insert(key)
             let retained = retained
-            let id = transcript.id
             await Task.detached(priority: .utility) {
                 retained.compressKept(id)
             }.value
-            inFlight.remove(key)
+            finishInFlight(key)
         }
     }
 
@@ -123,9 +125,13 @@ extension TranscriptionQueue {
         let candidates = loaded.transcripts.reversed().filter {
             Self.needsPolishResume($0, since: cutoff)
         }
-        for transcript in candidates {
+        for candidate in candidates {
             // 面板或詳情頁正在潤飾這篇：不重送，同一篇不同時花兩次錢。
-            guard !inFlight.contains(transcript.id.uuidString) else {
+            // 輪到它之前可能接過錄音、整理過、刪掉了：照存檔裡最新的再判一次。
+            guard !inFlight.contains(candidate.id.uuidString),
+                  let transcript = try? store.load(id: candidate.id),
+                  Self.needsPolishResume(transcript, since: cutoff)
+            else {
                 continue
             }
             guard case .finished = await retryPolish(transcript) else {

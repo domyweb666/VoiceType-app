@@ -10,13 +10,18 @@ extension TranscriptionQueue {
         guard !inFlight.contains(name) else {
             return nil
         }
+        // 手上那份可能是舊的：別處整理好了、接過錄音，就不用再送。
+        let current = latest(of: transcript)
+        guard current.draftText == nil else {
+            return .finished(current)
+        }
         activity = .polishing(recording: name)
         inFlight.insert(name)
         defer {
-            inFlight.remove(name)
             resetActivity(ifShowing: name)
+            finishInFlight(name)
         }
-        return await polishAndSave(transcript)
+        return await polishAndSave(current)
     }
 
     /// 失敗時帶回去的那一篇已經存了做好的塊，下次拿它重試就從下一塊接著做。
@@ -60,21 +65,33 @@ extension TranscriptionQueue {
         return .finished(finished)
     }
 
+    /// 存檔裡最新的那份；讀不到、已經不在清單就用手上的。
+    func latest(of transcript: Transcript) -> Transcript {
+        let stored = try? store.load(id: transcript.id)
+        return stored ?? transcript
+    }
+
     /// 潤飾要好幾分鐘，這段時間人可能改了標題、標籤（還沒有文字稿的篇也能取標題）；流水手上的是開始時那份，
     /// 存之前把人改的換成存檔裡最新的，不然會蓋回去。讀不到存檔就照手上的存，字不能不存。
-    private func saveKeepingUserFields(_ transcript: inout Transcript) throws {
+    /// 這段時間被丟進垃圾桶的，存在垃圾桶那份，不放回清單。
+    func saveKeepingUserFields(_ transcript: inout Transcript) throws {
         let id = transcript.id
         if let stored = (try? store.loadAll())?.transcripts.first(where: { $0.id == id }) {
-            transcript.title = stored.title
-            transcript.tags = stored.tags
-            transcript.goalCharacters = stored.goalCharacters
-            transcript.publishedAt = stored.publishedAt
+            transcript.keepUserFields(from: stored)
+        } else if let trashed = try? store.loadFromTrash(id: id) {
+            transcript.keepUserFields(from: trashed)
+            try store.saveInTrash(transcript)
+            return
         }
         try store.save(transcript)
     }
 
     /// 還在等著接回去的那段，通知點下去要打開的是原本那篇：獨立那一篇等一下就併掉了。
     private func postReadyNotice(for finished: Transcript) {
+        // 整理到一半被丟進垃圾桶：點通知也打不開，不發。
+        guard finished.trashedAt == nil else {
+            return
+        }
         guard let waiting = waitingAppends.first(where: { $0.addedID == finished.id }) else {
             TranscriptReadyNotice().post(for: finished)
             return
