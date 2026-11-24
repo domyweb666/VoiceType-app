@@ -98,6 +98,9 @@ jobs:
             -destination "${SIMULATOR}" \
             -derivedDataPath DerivedData \
             CODE_SIGN_IDENTITY=-
+          # 組塊 LA：小工具擴充要真的嵌在 App 裡，沒嵌到也編得過，所以另外查。
+          APP=DerivedData/Build/Products/Debug-iphonesimulator/MiSay.app
+          test -d "$APP/PlugIns/MiSayWidgets.appex"
 
       # 編譯沒過就不跑測試：測試會再編一次、紅在同一個地方，白燒分鐘。
       - name: 跑單元測試

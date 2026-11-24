@@ -16,7 +16,9 @@ env:
   XCODEGEN_VERSION: "2.46.0"
   XCODEGEN_SHA256: "4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806"
   TEAM_ID: "3ZT74P4WM2"
-  PROFILE_NAME: "MiSay App Store"
+  # 要跟 project.yml、ExportOptions.plist 寫的一樣
+  APP_PROFILE_NAME: "MiSay App Store"
+  WIDGET_PROFILE_NAME: "MiSay Widgets App Store"
 
 jobs:
   release:
@@ -59,16 +61,53 @@ jobs:
           p12-file-base64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
           p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
 
+      # App 與小工具擴充各一張。裝之前先對名稱與 Bundle ID：secret 沒設、貼錯或兩張貼反，
+      # 在這裡就紅，不用等封裝跑完才看 xcodebuild 的錯。
       - name: 安裝 profile
+        env:
+          APP_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          WIDGET_PROFILE_BASE64: ${{ secrets.IOS_WIDGET_PROVISIONING_PROFILE_BASE64 }}
         run: |
+          set -o pipefail
           PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILE_DIR"
-          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
-          UUID=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | plutil -extract UUID raw -o - -)
-          test -n "$UUID"
-          cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${UUID}.mobileprovision"
-          echo "profile 已裝：${UUID}"
+          trap 'rm -f "$RUNNER_TEMP/profile.mobileprovision" "$RUNNER_TEMP/profile.plist"' EXIT
 
+          install_profile() { # $1 secret 名稱 $2 內容 $3 profile 名稱 $4 Bundle ID
+            local file="$RUNNER_TEMP/profile.mobileprovision" plist="$RUNNER_TEMP/profile.plist"
+            local uuid name app_id
+            if [ -z "$2" ]; then
+              echo "::error::secret $1 沒設或是空的"
+              exit 1
+            fi
+            if ! printf '%s' "$2" | base64 --decode > "$file" \
+              || ! security cms -D -i "$file" > "$plist" \
+              || ! uuid=$(plutil -extract UUID raw -o - "$plist") \
+              || ! name=$(plutil -extract Name raw -o - "$plist") \
+              || ! app_id=$(plutil -extract Entitlements.application-identifier raw -o - "$plist"); then
+              echo "::error::secret $1 解不開，不是 base64 過的 .mobileprovision"
+              exit 1
+            fi
+            if [ "$name" != "$3" ]; then
+              echo "::error::secret $1 的 profile 名稱是「${name}」，應該是「$3」"
+              exit 1
+            fi
+            # 只比 Bundle ID：前綴可能不是 Team ID，Team 對不對 xcodebuild 會自己查
+            if [ "${app_id#*.}" != "$4" ]; then
+              echo "::error::secret $1 的 Bundle ID 是 ${app_id#*.}，應該是 $4"
+              exit 1
+            fi
+            cp "$file" "$PROFILE_DIR/${uuid}.mobileprovision"
+            echo "profile 已裝：$3（${uuid}）"
+          }
+
+          install_profile IOS_PROVISIONING_PROFILE_BASE64 "$APP_PROFILE_BASE64" \
+            "$APP_PROFILE_NAME" org.domyweb.misay
+          install_profile IOS_WIDGET_PROVISIONING_PROFILE_BASE64 "$WIDGET_PROFILE_BASE64" \
+            "$WIDGET_PROFILE_NAME" org.domyweb.misay.widgets
+
+      # 描述檔不准寫在這裡：命令列設定會套到所有 target，擴充會拿到 App 那張。
+      # 各 target 的描述檔寫在 project.yml 的 Release；下面這些是兩個 target 都一樣的值。
       - name: 封裝
         run: |
           xcodebuild archive \
@@ -79,9 +118,13 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="${TEAM_ID}" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="${PROFILE_NAME}" \
             MARKETING_VERSION="${MARKETING_VERSION}" \
             CURRENT_PROJECT_VERSION="${BUILD_NUMBER}"
+          APP="$RUNNER_TEMP/MiSay.xcarchive/Products/Applications/MiSay.app"
+          if [ ! -d "$APP/PlugIns/MiSayWidgets.appex" ]; then
+            echo "::error::archive 裡沒有 MiSayWidgets.appex"
+            exit 1
+          fi
 
       - name: 匯出 IPA
         run: |
