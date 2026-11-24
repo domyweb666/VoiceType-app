@@ -1,4 +1,4 @@
-# Handoff: 文字稿不另外加密、組塊 LA 都寫完審完推上去；等 CI 綠與米決定合 main
+# Handoff: 文字稿不另外加密、組塊 LA 都寫完審完、CI 綠；等米決定合 main
 
 > 產出時間：2026-11-25。main 本機比 origin 多幾個 [交接] commit，沒推。
 
@@ -8,8 +8,8 @@
 - 帳本、待驗清單、PRD、架構藍圖、標準清單都更新了（main，本機 commit）。
 
 ## 🚧 下一步
-1. 看 CI：fix-1125 run 45457025258、live-activity run 45457049293（第一次是 GitHub 沒有 Mac 機器可分，已重跑）。失敗而沒有步驟就先看 annotation。
-2. CI 綠 → 問米要不要合 main（live-activity 已含 fix-1125，合一個就好；本機 merge-tree 試過沒有衝突）。
+1. CI 都綠（11-25 重跑）：fix-1125 run 45457025258，355 測試 0 失敗 1 略過；live-activity run 45457049293，373 測試 0 失敗 1 略過。
+2. 問米要不要合 main（live-activity 已含 fix-1125，合一個就好；本機 merge-tree 試過沒有衝突）。
 3. 出 TestFlight 要米當次明講才打 `v*` tag。簽章鏈（第二張描述檔）只有打 tag 才驗得到。
 4. 米驗 `操作清單-待驗.md` 最上面兩段。LA 最要看：鎖屏錄 15 分鐘有沒有變成「狀態沒更新」、控制中心按了有沒有真的開錄。
 
