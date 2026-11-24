@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// 文字稿的另一個編輯框（2026-11-15，寫長文第三批）：設定 → 進階「新的編輯框（試用）」打開才用。
+/// 文字稿的編輯框（2026-11-15 試用，2026-11-24 轉正、預設用這個）。
 /// 能做的事跟 `DraftEditor` 一樣（格式、在這裡接著錄、改這段、復原重做、大綱跳轉），底下換成 `PlainTextView`。
-/// 多的一樣：放了游標一定把那裡捲進畫面。鍵盤上方那排不是系統的鍵盤工具列（那個只認系統的輸入框），
-/// 是貼在鍵盤上面的一條，長相與順序照 `DraftEditor`。
+/// 多的一樣：放了游標一定把那裡捲進畫面。
 struct PlainDraftEditor: View {
     @Binding var text: String
     let canRecordHere: Bool
@@ -12,23 +11,33 @@ struct PlainDraftEditor: View {
     @Binding var isEditing: Bool
     /// 大綱與尋找要跳到第幾個字；放好游標就清掉。
     @Binding var jump: Range<Int>?
+    /// 底下那個 UITextView：整份字要換掉之前，先請它把注音選到一半的字定下來。
+    let handle: PlainTextHandle
     /// 下面這幾個 `PlainDraftEditor+Passage.swift` 要用，所以不加 private。
     @State var history = EditHistory()
     @State var selection = NSRange(location: 0, length: 0)
     @State var scrollToken = 0
     @State var request: PassagePreviewSheet.Request?
     @State var task: Task<Void, Never>?
+    @State private var linkRequest: LinkSheet.Request?
 
     var body: some View {
         PlainTextView(
             text: $text,
             selection: $selection,
             isEditing: $isEditing,
-            scrollToken: scrollToken
+            scrollToken: scrollToken,
+            handle: handle
         )
         .safeAreaInset(edge: .bottom) {
             if isEditing {
-                bar
+                FormatBar(
+                    canRecordHere: canRecordHere,
+                    onFormat: format,
+                    onLink: startLink,
+                    onRecordHere: recordHere,
+                    passageMenu: { passageMenu }
+                )
             }
         }
         .onChange(of: text) { old, new in history.record(from: old, to: new) }
@@ -47,6 +56,9 @@ struct PlainDraftEditor: View {
                 self.request = nil
             }
         }
+        .sheet(item: $linkRequest) { request in
+            LinkSheet { url in addLink(url, for: request) }
+        }
     }
 
     /// 游標或選取在第幾個字。
@@ -60,62 +72,36 @@ struct PlainDraftEditor: View {
         scrollToken += 1
     }
 
-    private var bar: some View {
-        HStack(spacing: Token.Space.xl) {
-            formatButton("標題", systemImage: "number") {
-                MarkdownFormatting.toggleLinePrefix(
-                    MarkdownFormatting.headingPrefix,
-                    in: $0,
-                    selection: $1
-                )
-            }
-            formatButton(
-                "粗體",
-                systemImage: "bold",
-                change: MarkdownFormatting.toggleBold(in:selection:)
-            )
-            formatButton("清單", systemImage: "list.bullet") {
-                MarkdownFormatting.toggleLinePrefix(
-                    MarkdownFormatting.listPrefix,
-                    in: $0,
-                    selection: $1
-                )
-            }
-            Button {
-                onRecordHere(selectionOffsets.upperBound)
-            } label: {
-                Image(systemName: "mic.badge.plus")
-            }
-            .accessibilityLabel("在這裡接著錄")
-            .disabled(!canRecordHere)
-            Spacer()
-            passageMenu
-        }
-        .font(Token.Fonts.rowTitle)
-        .tint(Token.Colors.link)
-        .padding(.horizontal, Token.Space.l)
-        .frame(height: Token.Shape.minTap)
-        .background(Token.Colors.groupedBackground)
+    /// 先把注音選到一半的字定下來，位置才算得準。
+    private func recordHere() {
+        handle.commitComposing()
+        onRecordHere(selectionOffsets.upperBound)
     }
 
-    private func formatButton(
-        _ label: String,
-        systemImage: String,
-        change: @escaping (String, Range<Int>) -> MarkdownFormatting.Edit
-    ) -> some View {
-        Button {
-            let edit = change(text, selectionOffsets)
-            text = edit.text
-            select(edit.selection)
-        } label: {
-            Image(systemName: systemImage)
+    private func format(_ change: (String, Range<Int>) -> MarkdownFormatting.Edit) {
+        handle.commitComposing()
+        let edit = change(text, selectionOffsets)
+        text = edit.text
+        select(edit.selection)
+    }
+
+    private func startLink() {
+        handle.commitComposing()
+        linkRequest = LinkSheet.Request(selection: selectionOffsets, text: text)
+    }
+
+    private func addLink(_ url: String, for request: LinkSheet.Request) {
+        guard let edit = request.adding(url, to: text) else {
+            return
         }
-        .accessibilityLabel(label)
+        text = edit.text
+        select(edit.selection)
     }
 
     @ViewBuilder
     private var historyButtons: some View {
         Button {
+            handle.commitComposing()
             restore(history.undo(current: text))
         } label: {
             Image(systemName: "arrow.uturn.backward")
@@ -123,6 +109,7 @@ struct PlainDraftEditor: View {
         .accessibilityLabel("復原")
         .disabled(!history.canUndo)
         Button {
+            handle.commitComposing()
             restore(history.redo(current: text))
         } label: {
             Image(systemName: "arrow.uturn.forward")

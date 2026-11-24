@@ -5,7 +5,7 @@ import UIKit
 /// 方塊 M2 的流水（片 D5）：停止 → 收檔 → 判斷有金鑰 → 轉錄 → 口語稿存進歷史後才刪錄音檔 → 潤飾 → 草稿存進同一篇。
 /// 條件齊了從最舊的開始自動續轉；某一筆失敗就停、不重跑（安全標準四）。同一段不會同時送兩次（inFlight）。
 /// 畫面只讀 `activity`；要觸發用 `process` 或 `processPending`。
-/// 拆成三個檔（S2-0）：本檔是一筆的轉錄與存口語稿，`+Polishing` 是潤飾，`+Pending` 是自動續轉。
+/// 拆檔（S2-0）：本檔是一筆的轉錄與存口語稿，`+Polishing` 潤飾、`+Pending` 自動續轉、`+Append` 接著錄接回去。
 @Observable
 @MainActor
 final class TranscriptionQueue {
@@ -67,8 +67,10 @@ final class TranscriptionQueue {
     var appendTargetsByTranscript: [UUID: AppendTarget] = [:]
     /// 打字時在游標處接著錄，等的時候那附近被改掉、只好接在最後面的篇；詳情頁打開時講一聲就拿掉。
     var insertionsMovedToEnd: Set<UUID> = []
-    /// 正開在詳情頁的篇（K 審查）：那頁改字自動存會拿畫面上的舊份蓋回去，所以這時不往它後面接。
-    var openForEditing: Set<UUID> = []
+    /// 正開在詳情頁的篇：往它接字要交給那頁自己接（存檔順序寫在 `TranscriptionQueue+Append.swift`）。
+    @ObservationIgnored var openEditors: [UUID: OpenEditor] = [:]
+    /// 整理好了，等編輯頁收鍵盤才接回去的那幾段。只記在記憶體：App 被殺就留成獨立的一篇。
+    @ObservationIgnored var waitingAppends: [WaitingAppend] = []
     var lastBackgroundedAt: Date?
     private let workingHold = BackgroundTimeHold()
 

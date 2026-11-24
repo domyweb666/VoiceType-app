@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// 純文字的 UIKit 編輯框（2026-11-15，寫長文第三批，設定 → 進階「新的編輯框（試用）」打開才用）。
+/// 純文字的 UIKit 編輯框（2026-11-15 寫長文第三批；2026-11-24 轉正，預設用這個）。
 /// 為什麼要有：系統的 `TextEditor` 放了游標不保證畫面會捲過去，長稿每打一個字整篇重算，手邊沒有 iPhone 量不出來；
 /// 米說繼續往下做、之後一起驗，所以兩種都放著，驗的時候可以切。
 /// 跟 v0.2.7 白畫面那個（`MarkdownTextView`，commit 6e0a31a）不一樣的地方：不換字形、不用 TextKit 1；
@@ -14,6 +14,7 @@ struct PlainTextView: UIViewRepresentable {
     @Binding var isEditing: Bool
     /// 換一個數字，就把游標那裡捲進畫面（大綱與尋找、復原、格式鈕）。
     let scrollToken: Int
+    let handle: PlainTextHandle
 
     /// 正文的樣子：字型跟著系統字級、行距照設計代號。
     static var attributes: [NSAttributedString.Key: Any] {
@@ -29,6 +30,7 @@ struct PlainTextView: UIViewRepresentable {
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
         textView.delegate = context.coordinator
+        handle.textView = textView
         textView.backgroundColor = .clear
         textView.tintColor = UIColor(Token.Colors.accent)
         textView.keyboardDismissMode = .interactive
@@ -43,6 +45,14 @@ struct PlainTextView: UIViewRepresentable {
     func updateUIView(_ textView: UITextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
+        // 注音選到一半就要收鍵盤：先定字再收。不在這裡收，畫面正在更新，定下來的字會寫不回去。
+        if !isEditing, textView.isFirstResponder, textView.markedTextRange != nil {
+            let handle = handle
+            Task { @MainActor in
+                handle.endTyping()
+            }
+            return
+        }
         // 注音還在選字時不動它：換字或移游標會把選到一半的字打斷。
         guard textView.markedTextRange == nil else {
             return
@@ -191,6 +201,29 @@ struct PlainTextView: UIViewRepresentable {
             }
             parent.isEditing = false
         }
+    }
+}
+
+/// 拿得到底下那個 UITextView 的把手。編輯框的字是畫面與 UIKit 各一份，注音選到一半時 UIKit 那份才是真的，
+/// 這時換掉整份字，下一個字會拿沒換過的蓋回來；所以要換字之前先叫這裡，把選到一半的字定下來、寫回畫面。
+final class PlainTextHandle {
+    weak var textView: UITextView?
+
+    @MainActor
+    func commitComposing() {
+        guard let textView, textView.markedTextRange != nil else {
+            return
+        }
+        textView.unmarkText()
+        textView.delegate?.textViewDidChange?(textView)
+        textView.delegate?.textViewDidChangeSelection?(textView)
+    }
+
+    /// 收鍵盤，而且馬上收完：回來時畫面上的字已經是最後的字。
+    @MainActor
+    func endTyping() {
+        commitComposing()
+        textView?.resignFirstResponder()
     }
 }
 

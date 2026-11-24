@@ -60,7 +60,7 @@ final class AppSettings {
         lastAutoVocabularyAt = defaults.object(forKey: Key.lastAutoVocabularyAt) as? Date
         learnFromEdits = defaults.bool(forKey: Key.learnFromEdits)
         learnedHabits = defaults.stringArray(forKey: Key.learnedHabits) ?? []
-        usesPlainEditor = defaults.bool(forKey: Key.usesPlainEditor)
+        usesPlainEditor = defaults.object(forKey: Key.usesPlainEditor) as? Bool ?? true
         lastLearningReport = defaults.data(forKey: Key.lastLearningReport)
             .flatMap { try? JSONDecoder().decode(LearningReport.self, from: $0) }
     }
@@ -80,7 +80,8 @@ final class AppSettings {
         didSet { defaults.set(liveTranscriptionWiFiOnly, forKey: Key.liveTranscriptionWiFiOnly) }
     }
 
-    /// 2026-11-15：文字稿用新的純文字編輯框（`PlainDraftEditor`）。試用中，預設關。
+    /// 文字稿用米說自己的編輯框（`PlainDraftEditor`）。2026-11-24 轉正，預設開；存過選擇的人照舊。
+    /// 設定裡的開關是反過來的「用舊的編輯框」。
     var usesPlainEditor: Bool {
         didSet { defaults.set(usesPlainEditor, forKey: Key.usesPlainEditor) }
     }

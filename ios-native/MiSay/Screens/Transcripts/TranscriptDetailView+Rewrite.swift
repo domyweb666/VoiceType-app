@@ -140,6 +140,7 @@ extension TranscriptDetailView {
     /// 拿手上的存會把那些蓋掉。存檔裡沒有這篇就是被刪了，不存。
     func updateStored(_ change: (inout Transcript) -> Void) throws {
         flushAutosave()
+        let keepsHand = hasUnsavedDraft
         let stored = try TranscriptStore().loadAll().transcripts.first { $0.id == transcript.id }
         guard var updated = stored else {
             throw RewriteFailure.transcriptGone
@@ -147,6 +148,9 @@ extension TranscriptDetailView {
         change(&updated)
         try TranscriptStore().save(updated)
         transcript = updated
-        draftEdit = updated.draftText ?? ""
+        // 手上的字剛才沒存進去：留在編輯框裡，不拿存檔的蓋掉。
+        if !keepsHand {
+            draftEdit = updated.draftText ?? ""
+        }
     }
 }

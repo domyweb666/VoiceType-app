@@ -14,6 +14,7 @@ struct RootTabView: View {
     /// 錄音面板「打開這篇」要推的那一篇。換一篇就重建清單頁（`.id`），讓它照 `opening` 推進去。
     @State private var openingTranscript: Transcript?
     @Environment(TranscriptionQueue.self) private var queue
+    @Environment(Recorder.self) private var recorder
     /// K7：從語音備忘錄分享進來之後要講的那句。
     @State private var importMessage: String?
 
@@ -79,6 +80,10 @@ struct RootTabView: View {
             return
         }
         NotificationRouter.shared.openTranscriptID = nil
+        // 編輯頁上也能錄（Y4）：換篇會把那頁連錄音面板一起拆掉，錄音中就不換，錄完自己點開。
+        guard !recorder.isRecording else {
+            return
+        }
         // 那篇讀不到（剛好被刪了）就停在原本的分頁，什麼都不做。
         let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
         guard let transcript = transcripts.first(where: { $0.id == id }) else {

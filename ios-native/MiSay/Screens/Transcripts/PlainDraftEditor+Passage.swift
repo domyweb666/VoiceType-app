@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 新編輯框的「改這段」（W4）：做法跟 `DraftEditor` 一樣，只有選取範圍的來源不同（這裡是 UTF-16 換成第幾個字）。
+/// `PlainDraftEditor` 的「改這段」（W4）：做法跟 `DraftEditor` 一樣，只有選取範圍的來源不同（這裡是 UTF-16 換成第幾個字）。
 /// 送出與切段落在 `PassagePreviewSheet.Request`，兩種編輯框共用。
 extension PlainDraftEditor {
     var passageMenu: some View {
@@ -21,6 +21,7 @@ extension PlainDraftEditor {
 
     /// 「自己講怎麼改」先問要求，打好按了才送；其他的直接送。
     private func startPassage(_ kind: PassageRewriteKind) {
+        handle.commitComposing()
         let offsets = selectionOffsets
         request = PassagePreviewSheet.Request(
             kind: kind,

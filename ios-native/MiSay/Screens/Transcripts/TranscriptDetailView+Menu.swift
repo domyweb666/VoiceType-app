@@ -54,7 +54,7 @@ extension TranscriptDetailView {
                     Label("聽原音與重點", systemImage: "headphones")
                 }
             }
-            // K3：接著錄，錄好的那段接在這篇後面。
+            // K3：接著錄，錄好的那段接在這篇後面（`+RecordHere`）。
             Button {
                 appendRecording()
             } label: {
@@ -81,40 +81,23 @@ extension TranscriptDetailView {
         .accessibilityLabel("更多")
     }
 
-    /// K3：先存好手上改的字、退出這頁，再請分頁列切到錄音頁開錄。退出是為了不留一份舊的在畫面上。
-    func appendRecording() {
-        flushAutosave()
-        isLeavingToRecord = true
-        RecordingLauncher.shared.request = .append(target: transcript.id, insertion: nil)
-        dismiss()
-    }
-
-    /// 2026-11-09 米：打字時按麥克風，錄好的那段插在游標的位置（中間補內容）。
-    /// 位置照存好的那份字記，所以先存；存不進去就不走（狀態條已經講了），不然位置會對不上。
-    func insertRecording(at offset: Int) {
-        flushAutosave()
-        guard draftEdit == transcript.draftText else {
-            return
-        }
-        isEditing = false
-        isLeavingToRecord = true
-        let point = InsertionPoint(offset: offset, in: draftEdit)
-        RecordingLauncher.shared.request = .append(target: transcript.id, insertion: point)
-        dismiss()
-    }
-
-    /// 這篇在存檔裡比畫面上的新（接著錄、重轉、別處整理完）：換成存檔裡的。正在打字或整理時不換。
+    /// 這頁不在畫面上時，存檔可能被換過（接著錄、重轉、別處整理完）：回來一律換成存檔裡的，再登記成正開著。
+    /// 不比 `updatedAt`：存檔只記到秒，同一秒裡接上去的會看不出來。
+    /// 手上有還沒存進去的字（上次存檔失敗）就留著手上的，存檔裡那份下次存之前先留成一版。
     func reloadFromStore() {
-        guard !isPolishing, !isEditing else {
+        guard !isPolishing else {
             return
         }
         let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
-        guard let stored = transcripts.first(where: { $0.id == transcript.id }),
-              stored.updatedAt > transcript.updatedAt
-        else {
+        guard let stored = transcripts.first(where: { $0.id == transcript.id }) else {
             return
         }
+        let keepsHand = hasUnsavedDraft
         transcript = stored
-        draftEdit = stored.draftText ?? ""
+        if keepsHand {
+            versionDueAt = nil
+        } else {
+            draftEdit = stored.draftText ?? ""
+        }
     }
 }

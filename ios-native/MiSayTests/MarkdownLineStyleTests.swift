@@ -35,6 +35,19 @@ final class MarkdownLineStyleTests: XCTestCase {
         ])
     }
 
+    func test小標_編號_引言() {
+        XCTAssertEqual(MarkdownLineStyle.spans(inLine: "### 小標").last?.kind, .heading(level: 3))
+        XCTAssertEqual(MarkdownLineStyle.spans(inLine: "12. 買牛奶"), [
+            Span(kind: .listMarker, range: NSRange(location: 0, length: 4)),
+        ])
+        XCTAssertEqual(MarkdownLineStyle.spans(inLine: "> 他說"), [
+            Span(kind: .quoteMarker, range: NSRange(location: 0, length: 2)),
+            Span(kind: .quote, range: NSRange(location: 2, length: 2)),
+        ])
+        XCTAssertEqual(MarkdownLineStyle.spans(inLine: "3.14 是圓周率"), [])
+        XCTAssertEqual(MarkdownLineStyle.spans(inLine: "2026. 年"), [])
+    }
+
     func test游標碰到這一行_含行尾_才算在這一行() {
         let line = NSRange(location: 5, length: 4)
         func active(at caret: Int?) -> Bool {

@@ -5,9 +5,11 @@ import SwiftUI
 /// 口語稿收進「⋯ → 看口語稿」，從下面升起一張唯讀的頁。改字停下來 1 秒就存（E2）；刪除走「⋯」（E3）。
 /// 重新潤飾拿掉了（會把改好的字整篇蓋掉）；只剩還沒有文字稿的那篇有「整理這篇」。
 /// 改字、整理、複製那些動作在 `TranscriptDetailView+Editing.swift`，所以狀態不加 private。
+/// 2026-11-24 Y4：正文上面有標題；錄音面板直接升在這頁上。
 struct TranscriptDetailView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(TranscriptionQueue.self) var queue
+    @Environment(Recorder.self) var recorder
     @State var transcript: Transcript
     @State var draftEdit: String
     @State var showsRawText = false
@@ -38,17 +40,24 @@ struct TranscriptDetailView: View {
     @State var copyCount = 0
     @State var showsCopied = false
     @State var saveFailed = false
-    /// 2026-11-15 寫長文：大綱與尋找那張頁、要跳到第幾個字、是不是要去錄音（空白新文稿不刪）。
+    /// 2026-11-15 寫長文：大綱與尋找那張頁、要跳到第幾個字。
     @State var showsOutline = false
     @State var jumpTarget: Range<Int>?
-    @State var isLeavingToRecord = false
     /// 版本紀錄那張頁；下次該留版的時間（nil 是這次打開還沒留過）。
     @State var showsVersions = false
     @State var versionDueAt: Date?
-    /// 2026-11-15：新的編輯框（試用）。打開這頁時讀一次，開著這頁不中途換。
+    /// 用哪一種編輯框：打開這頁時讀一次，開著這頁不中途換。
     @State var usesPlainEditor = AppSettings.shared.usesPlainEditor
     /// 鍵盤是不是升著，一種編輯框一份：系統的看焦點，新的自己回報。要讀要寫都走 `isEditing`。
     @State var isPlainEditing = false
+    @State var editorHandle = PlainTextHandle()
+    /// Y4 標題（`+Title`）、在這頁錄音（`+RecordHere`）。
+    @State var titleEdit: String
+    @State var titleTask: Task<Void, Never>?
+    @FocusState var isTitleFocused: Bool
+    @State var showsRecorder = false
+    @State var recordInsertion: InsertionPoint?
+    @State var editorToken = UUID()
     @FocusState var isSystemEditorFocused: Bool
 
     /// 刪除交給清單處理（它要顯示「已刪除・復原」）。
@@ -75,12 +84,13 @@ struct TranscriptDetailView: View {
     ) {
         _transcript = State(initialValue: transcript)
         _draftEdit = State(initialValue: transcript.draftText ?? "")
+        _titleEdit = State(initialValue: transcript.title ?? "")
         self.onDelete = onDelete
         self.onLeave = onLeave
     }
 
     var body: some View {
-        page
+        withRecording(page)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(Token.Colors.rowBackground)
             .navigationTitle("")
@@ -133,18 +143,17 @@ struct TranscriptDetailView: View {
             // 不然改字自動存會拿舊的那份蓋掉接上去的字。
             .onAppear {
                 reloadFromStore()
-                queue.openForEditing.insert(transcript.id)
+                registerEditor()
                 focusIfBlank()
                 if queue.insertionsMovedToEnd.remove(transcript.id) != nil {
-                    showNote("剛才錄的那段找不到原本的位置（那附近改過了），接在最後面。")
+                    showNote(Self.movedToEndNote)
                 }
             }
-            .onDisappear { queue.openForEditing.remove(transcript.id) }
             .onDisappear {
                 // 離開這頁就停：再打開這篇是另一份畫面，改寫完存回來會跟它互相蓋。
                 cancelRewrite()
                 cancelReview()
-                flushAutosave()
+                leaveEditor()
                 discardIfBlank()
                 // 改完離開就學這次改了什麼（自動詞彙、從修改學習；兩個都關著就不跑）。
                 EditLearningRunner.start()
@@ -160,63 +169,35 @@ struct TranscriptDetailView: View {
 
 /// 畫面的各塊：正文、頂上一排、底下一行。口語稿那張頁在 `RawTextSheet`。
 private extension TranscriptDetailView {
-    @ViewBuilder
     var page: some View {
-        if transcript.draftText == nil {
-            unpolishedPage
-        } else {
-            // iOS 18 起鍵盤上方多一排：格式（W5）、在這裡接著錄、選一段叫 AI 改（W4），在 `DraftEditor`；
-            // iOS 17 拿不到選取範圍，只能打字。
-            Group {
-                if usesPlainEditor {
-                    PlainDraftEditor(
-                        text: $draftEdit,
-                        canRecordHere: !isPolishing,
-                        onRecordHere: insertRecording(at:),
-                        isEditing: $isPlainEditing,
-                        jump: $jumpTarget
-                    )
-                } else if #available(iOS 18, *) {
-                    DraftEditor(
-                        text: $draftEdit,
-                        canRecordHere: !isPolishing,
-                        onRecordHere: insertRecording(at:),
-                        isEditing: isEditing,
-                        jump: $jumpTarget
-                    )
-                } else {
-                    TextEditor(text: $draftEdit)
-                }
+        VStack(alignment: .leading, spacing: Token.Space.xs) {
+            titleField
+            if transcript.draftText == nil {
+                unpolishedPage
+            } else {
+                editor
             }
-            .font(Token.Fonts.body)
-            .foregroundStyle(Token.Colors.textPrimary)
-            .lineSpacing(Token.Space.lineSpacing)
-            .scrollContentBackground(.hidden)
-            .scrollDismissesKeyboard(.interactively)
-            // 最後一行底下留白（米 11/17：打到最下面，字貼著鍵盤那一排）。試用的編輯框在 `PlainTextView` 自己留。
-            .contentMargins(.bottom, Token.Space.editorBottom, for: .scrollContent)
-            .focused($isSystemEditorFocused)
-            // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
-            // 上緣留一點白（米 11/09：第一行貼著頂上那排太近）。
-            .padding(.horizontal, Token.Space.m)
-            .padding(.top, Token.Space.m)
-            .accessibilityLabel("文字稿正文")
         }
     }
 
-    /// 日期放在標題位置，小小的兩行，不佔正文的地方（備忘錄也是這樣）。打字時換成字數（寫長文要看進度）。
+    /// 日期放在頂上中間，不佔正文的地方（備忘錄也是這樣）。打字時換成字數（寫長文要看進度），點了設目標。
+    @ViewBuilder
     var dateTitle: some View {
-        Text(isEditing ? progressText : TranscriptListView.subtitle(for: transcript))
-            .font(Token.Fonts.footnote)
-            .foregroundStyle(Token.Colors.textSecondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
+        if isTyping {
+            progressMenu
+        } else {
+            Text(TranscriptListView.subtitle(for: transcript))
+                .font(Token.Fonts.footnote)
+                .foregroundStyle(Token.Colors.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
     }
 
     @ToolbarContentBuilder
     var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) { dateTitle }
-        if isEditing {
+        if isTyping {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 outlineButton
                 doneButton
@@ -237,6 +218,7 @@ private extension TranscriptDetailView {
     var doneButton: some View {
         Button {
             isEditing = false
+            isTitleFocused = false
         } label: {
             Image(systemName: "checkmark")
                 .fontWeight(.semibold)
@@ -255,13 +237,10 @@ private extension TranscriptDetailView {
             TranscriptStatusStrip(kind: statusKind, onCancel: cancelPolish, onRetry: polishThis)
                 .padding(.horizontal, Token.Space.screen)
                 .padding(.bottom, Token.Space.s)
-        } else if !isEditing, !currentText.isEmpty {
-            Text(progressText)
-                .font(Token.Fonts.footnote)
-                .foregroundStyle(Token.Colors.textSecondary)
+        } else if !isTyping, !currentText.isEmpty {
+            progressMenu
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal, Token.Space.screen)
-                .padding(.vertical, Token.Space.s)
         }
     }
 

@@ -40,8 +40,10 @@ extension TranscriptDetailView {
             return
         }
         var updated = transcript
+        // 離開這頁之後才送來的字：存檔可能已經被流水接過錄音，照存檔裡的改，那份先留一版，不會少字。
+        let wasReplaced = reloadIfClosed(&updated)
         // 這次打開第一次存、或連著改超過十分鐘：先把存檔裡那份（改之前的樣子）留一版。
-        let keepsVersion = isVersionDue
+        let keepsVersion = isVersionDue || wasReplaced
         if keepsVersion {
             updated.keepVersion()
         }
@@ -58,6 +60,19 @@ extension TranscriptDetailView {
             polishFailed = false
             saveFailed = true
         }
+    }
+
+    /// 這頁還登記著就只有它會寫，不用重讀。回存檔裡的字是不是跟手上知道的不一樣。
+    private func reloadIfClosed(_ updated: inout Transcript) -> Bool {
+        guard !queue.isEditorOpen(token: editorToken, for: transcript.id) else {
+            return false
+        }
+        let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
+        guard let stored = transcripts.first(where: { $0.id == transcript.id }) else {
+            return false
+        }
+        updated = stored
+        return stored.draftText != transcript.draftText
     }
 
     /// 「整理這篇」：只有還沒有文字稿的篇會出現，所以直接存回同一篇。
@@ -89,6 +104,7 @@ extension TranscriptDetailView {
                 return
             }
             apply(outcome)
+            queue.mergeWaiting(into: transcript.id)
         }
     }
 

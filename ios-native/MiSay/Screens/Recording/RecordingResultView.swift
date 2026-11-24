@@ -25,8 +25,10 @@ struct RecordingResultView: View {
     let captureGaps: CaptureWatch.Gaps
     let onOpenTranscript: (Transcript) -> Void
     let onOpenSettings: () -> Void
+    /// Y4：在編輯頁上錄的，字要回到這一篇。有值就不給「打開這篇」「去設定」：人就在那一頁，不換頁。
+    var returningTo: UUID?
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss) var dismiss
     @State private var status = Status.processing
     @State private var hasStarted = false
     @State private var isShown = true
@@ -124,12 +126,17 @@ struct RecordingResultView: View {
             status = .draftNotSaved(transcript)
         case let .finished(transcript):
             status = .finished(transcript, isCopied: copyIfWanted(transcript))
+            // 字已經回到底下那一頁，面板自己收；中間斷過的要留著給人看。
+            if transcript.id == returningTo, captureGaps.times == 0, isShown {
+                dismiss()
+            }
         }
     }
 
     /// 面板已經收起（按了「收起來」）就不動剪貼簿：使用者可能正在別處複製東西。
+    /// 在編輯頁上錄的也不動：人還在寫，整篇還沒要拿走。
     private func copyIfWanted(_ transcript: Transcript) -> Bool {
-        guard isShown, AppSettings.shared.autoCopy else {
+        guard isShown, returningTo == nil, AppSettings.shared.autoCopy else {
             return false
         }
         DraftPasteboard.copy(transcript.displayText)
@@ -138,7 +145,7 @@ struct RecordingResultView: View {
 }
 
 /// 各狀態的內容。主要動作玉米黃膠囊、其他文字鈕金色（使用規則第 2、11 條）。
-private extension RecordingResultView {
+extension RecordingResultView {
     var processingContent: some View {
         VStack(spacing: Token.Space.m) {
             spinner
@@ -178,8 +185,10 @@ private extension RecordingResultView {
                 .foregroundStyle(Token.Colors.textPrimary)
             message("設定金鑰後會自動整理。")
             Spacer(minLength: Token.Space.s)
-            Button("去設定金鑰") { onOpenSettings() }
-                .buttonStyle(PrimaryButtonStyle())
+            if returningTo == nil {
+                Button("去設定金鑰") { onOpenSettings() }
+                    .buttonStyle(PrimaryButtonStyle())
+            }
             Button("完成") { dismiss() }
                 .buttonStyle(TextButtonStyle())
         }
@@ -196,7 +205,7 @@ private extension RecordingResultView {
             Spacer(minLength: Token.Space.s)
             Button("重試") { process() }
                 .buttonStyle(PrimaryButtonStyle())
-            if needsNewKey {
+            if needsNewKey, returningTo == nil {
                 Button("去設定") { onOpenSettings() }
                     .buttonStyle(TextButtonStyle())
             }
@@ -212,59 +221,13 @@ private extension RecordingResultView {
             Spacer(minLength: Token.Space.s)
             Button("再試一次") { retryPolish(transcript) }
                 .buttonStyle(PrimaryButtonStyle())
-            Button("打開這篇") { onOpenTranscript(transcript) }
-                .buttonStyle(TextButtonStyle())
-            Button("完成") { dismiss() }
-                .buttonStyle(TextButtonStyle())
-        }
-    }
-
-    /// 不刪的話下一輪會再整理一次這段錄音，所以叫使用者自己去待轉錄刪。
-    func recordingNotDeletedContent(_ transcript: Transcript) -> some View {
-        VStack(spacing: Token.Space.m) {
-            failureIcon
-            message("口語稿已經存好，但錄音檔刪不掉，還在待轉錄。到待轉錄把它刪掉，不然會再整理一次。")
-            Spacer(minLength: Token.Space.s)
-            Button("打開這篇") { onOpenTranscript(transcript) }
-                .buttonStyle(PrimaryButtonStyle())
-            Button("完成") { dismiss() }
-                .buttonStyle(TextButtonStyle())
-        }
-    }
-
-    func finishedContent(_ transcript: Transcript, isCopied: Bool) -> some View {
-        VStack(spacing: Token.Space.m) {
-            HStack(spacing: Token.Space.s) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(Token.Fonts.icon)
-                    .foregroundStyle(Token.Colors.accent)
-                    .accessibilityHidden(true)
-                Text(isCopied ? "好了，已經複製" : "好了")
-                    .font(Token.Fonts.sectionTitle)
-                    .foregroundStyle(Token.Colors.textPrimary)
+            if returningTo == nil {
+                Button("打開這篇") { onOpenTranscript(transcript) }
+                    .buttonStyle(TextButtonStyle())
             }
-            previewCard(transcript.displayText)
-            Button("打開這篇") { onOpenTranscript(transcript) }
-                .buttonStyle(PrimaryButtonStyle())
             Button("完成") { dismiss() }
                 .buttonStyle(TextButtonStyle())
-            Spacer(minLength: Token.Space.xs)
-            RecordingAlarmPrompt()
         }
-    }
-
-    /// 完成面板的三行預覽（03-線框）：看得到字，想細看再「打開這篇」。
-    func previewCard(_ text: String) -> some View {
-        Text(text)
-            .font(Token.Fonts.secondary)
-            .foregroundStyle(Token.Colors.textPrimary)
-            .lineLimit(Self.previewLines)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Token.Space.l)
-            .background(
-                Token.Colors.sunkenBackground,
-                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow, style: .continuous)
-            )
     }
 
     /// 跟 `IconCircle` 同一個淡金圓（domy 的空狀態圖示），裡面轉圈。
