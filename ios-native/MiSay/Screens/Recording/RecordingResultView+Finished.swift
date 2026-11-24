@@ -38,7 +38,7 @@ extension RecordingResultView {
                     .font(Token.Fonts.sectionTitle)
                     .foregroundStyle(Token.Colors.textPrimary)
             }
-            previewCard(transcript.displayText)
+            previewCard(PlainTextExport.opening(of: transcript.displayText))
             if let returningTo {
                 message(Self.returnedMessage(
                     isMerged: transcript.id == returningTo,

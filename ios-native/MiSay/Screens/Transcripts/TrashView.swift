@@ -72,9 +72,9 @@ struct TrashView: View {
         }
         let text = transcript.displayText
         guard Transcript.isBlank(text), let kept = transcript.versions?.last else {
-            return text
+            return PlainTextExport.opening(of: text)
         }
-        return kept.text
+        return PlainTextExport.opening(of: kept.text)
     }
 
     private func row(_ transcript: Transcript) -> some View {

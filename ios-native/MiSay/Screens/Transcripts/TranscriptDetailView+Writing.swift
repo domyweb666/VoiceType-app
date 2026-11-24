@@ -64,6 +64,7 @@ extension TranscriptDetailView {
             } else {
                 TextEditor(text: $draftEdit)
                     .accessibilityLabel("文字稿正文")
+                    .padding(.horizontal, Token.Space.m)
             }
         }
         .font(Token.Fonts.body)
@@ -75,8 +76,6 @@ extension TranscriptDetailView {
         .contentMargins(.bottom, Token.Space.editorBottom, for: .scrollContent)
         .focused($isSystemEditorFocused)
         .disabled(isLocked)
-        // TextEditor 自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。
-        .padding(.horizontal, Token.Space.m)
     }
 
     /// 還沒整理成文字稿：先講一句，口語稿照樣看得到、複製得到，再給「整理這篇」。

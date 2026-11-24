@@ -63,7 +63,7 @@ extension TranscriptListView {
                     .foregroundStyle(Token.Colors.textPrimary)
                     .lineLimit(1)
             }
-            Text(transcript.displayText)
+            Text(PlainTextExport.opening(of: transcript.displayText))
                 .font(Token.Fonts.body)
                 .foregroundStyle(Token.Colors.textPrimary)
                 .lineLimit(title == nil ? 2 : 1)

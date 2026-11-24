@@ -62,10 +62,11 @@ extension MarkdownFormatting.LineMark {
         }
     }
 
+    /// 不用 textformat 那一系列：中文系統會換成中文字。
     var systemImage: String {
         switch self {
-        case .heading: "textformat.size.larger"
-        case .subheading: "textformat.size.smaller"
+        case .heading: "number"
+        case .subheading: "number.square"
         case .list: "list.bullet"
         case .numbered: "list.number"
         case .quote: "text.quote"

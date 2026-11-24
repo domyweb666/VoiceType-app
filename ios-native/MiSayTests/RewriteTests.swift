@@ -100,7 +100,14 @@ final class RewriteTests: XCTestCase {
         XCTAssertEqual(TranscriptDetailView.rewriteMenuTitle(copies: 0), "改寫成其他格式…")
         XCTAssertEqual(TranscriptDetailView.rewriteMenuTitle(copies: 2), "改寫成其他格式（2 份）")
         let message = TranscriptDetailView.rewriteFailureMessage
-        XCTAssertEqual(message(OpenAIClient.Failure.missingAPIKey), "金鑰沒有用，到設定換一把。")
+        XCTAssertEqual(
+            message(OpenAIClient.Failure.missingAPIKey),
+            "還沒設定 OpenAI 金鑰，到設定貼上。"
+        )
+        XCTAssertEqual(
+            message(OpenAIClient.Failure.invalidAPIKey(statusCode: 401)),
+            "金鑰沒有用，到設定換一把。"
+        )
         XCTAssertEqual(message(OpenAIClient.Failure.timedOut), "現在沒有網路，連上後再按一次。")
         XCTAssertEqual(message(Polisher.Failure.incomplete), "改寫到一半被截掉了，沒有存。")
         XCTAssertEqual(
