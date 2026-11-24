@@ -24,6 +24,8 @@ struct FormatBar<PassageMenu: View>: View {
                     button("連結", systemImage: "link", action: onLink)
                 }
             }
+            // 編輯框底下的留白會傳到這裡，不歸零整排格式鈕會往上浮出去。
+            .contentMargins(.bottom, 0, for: .scrollContent)
             button("在這裡接著錄", systemImage: "mic.badge.plus", action: onRecordHere)
                 .disabled(!canRecordHere)
             passageMenu()
