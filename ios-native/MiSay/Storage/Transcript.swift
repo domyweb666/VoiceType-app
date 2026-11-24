@@ -39,7 +39,7 @@ struct Transcript: Codable, Identifiable, Hashable {
     var goalCharacters: Int?
     /// 改之前的樣子，舊的在前，最多 `maxVersions` 版（`DraftVersion.swift`）。沒留過是 nil。
     var versions: [DraftVersion]?
-    /// 改寫成別的格式存下來的那幾份，舊的在前（W1）。沒改寫過是 nil。
+    /// 2026-11-24 以前改寫存下來的那幾份，舊的在前（W1）；之後改寫的都是自己一篇（`sourceID`）。沒有是 nil。
     var rewrites: [TranscriptRewrite]?
     /// 使用者加的標籤（W6），清單可以照標籤篩。沒加過是 nil。
     var tags: [String]?
@@ -50,6 +50,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     /// 這篇是從哪一篇改寫來的、改成哪一種（`RewriteKind.rawValue`）（2026-11-24）。不是改寫來的是 nil。
     var sourceID: UUID?
     var sourceKind: String?
+    /// 改寫時多打的補充要求（2026-11-24）。沒打、不是改寫來的是 nil。
+    var sourceInstruction: String?
     /// 丟進垃圾桶的時間（2026-11-24）。不在垃圾桶是 nil。
     var trashedAt: Date?
     var updatedAt: Date
@@ -209,12 +211,6 @@ struct Transcript: Codable, Identifiable, Hashable {
             tags.append(tag)
         }
         return tags.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-    }
-
-    /// W1：多存一份改寫。文字稿、原稿都不動，所以不影響「改了哪裡」的比對。
-    mutating func addRewrite(_ rewrite: TranscriptRewrite) {
-        rewrites = (rewrites ?? []) + [rewrite]
-        updatedAt = Date()
     }
 
     /// 刪光了回到 nil，跟沒改寫過的篇存起來一樣。

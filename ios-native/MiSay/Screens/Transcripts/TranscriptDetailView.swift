@@ -28,6 +28,8 @@ struct TranscriptDetailView: View {
     @State var rewritingKind: RewriteKind?
     @State var rewriteTask: Task<Void, Never>?
     @State var rewriteFailure: String?
+    /// Y5：改寫好的那幾篇、要開哪一篇、逐篇複製那張頁。
+    @State var derived = DerivedPages()
     /// 請 AI 看整篇那張頁，與這次打開問到的意見（離開這頁就不留）。
     @State var showsReview = false
     @State var review = ReviewSheet.Session()
@@ -51,6 +53,8 @@ struct TranscriptDetailView: View {
     @State var isPlainEditing = false
     @FocusState var isSystemEditorFocused: Bool
 
+    /// Y5：從哪一篇點進來的（改寫稿與原篇互相開）；清單開的是 nil。
+    let openedFrom: UUID?
     /// 刪除交給清單處理（它要顯示「已刪除・復原」）。
     let onDelete: (Transcript) -> Void
     /// 離開這頁、該存該丟的都做完之後叫一次。清單靠它重讀：它自己回到畫面時讀的那次比這裡早，
@@ -70,11 +74,13 @@ struct TranscriptDetailView: View {
 
     init(
         transcript: Transcript,
+        openedFrom: UUID? = nil,
         onDelete: @escaping (Transcript) -> Void,
         onLeave: @escaping () -> Void = {}
     ) {
         _transcript = State(initialValue: transcript)
         _draftEdit = State(initialValue: transcript.draftText ?? "")
+        self.openedFrom = openedFrom
         self.onDelete = onDelete
         self.onLeave = onLeave
     }
@@ -90,7 +96,9 @@ struct TranscriptDetailView: View {
             .sheet(isPresented: $showsRawText) {
                 RawTextSheet(transcript: transcript, startsWithDiff: rawSheetStartsWithDiff)
             }
-            .sheet(isPresented: $showsRewrites) { rewritesSheet }
+            .sheet(isPresented: $showsRewrites, onDismiss: openPendingRelated) { rewritesSheet }
+            .sheet(isPresented: $derived.showsThreadsParts) { threadsPartsSheet }
+            .navigationDestination(isPresented: $derived.showsOpened) { relatedPage }
             .sheet(isPresented: $showsReview) { reviewSheet }
             .sheet(isPresented: $showsTags) { tagsSheet }
             .sheet(isPresented: $showsOutline) { outlineSheet }

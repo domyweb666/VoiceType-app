@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 串文拆開來一篇一張卡：字數、超過上限的標出來、「複製第 N 篇」（2026-11-24 Y1；Y5 接到畫面）。
+/// 串文拆開來一篇一張卡：字數、超過上限的標出來、「複製第 N 篇」（2026-11-24）。
 struct ThreadsPartsView: View {
     let parts: [ThreadsParts.Part]
 
@@ -17,6 +17,8 @@ struct ThreadsPartsView: View {
             .padding(.vertical, Token.Space.m)
         }
         .background(Token.Colors.groupedBackground)
+        .navigationTitle("逐篇複製")
+        .navigationBarTitleDisplayMode(.inline)
         .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
     }
 

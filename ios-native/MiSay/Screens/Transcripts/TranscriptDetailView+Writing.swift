@@ -75,8 +75,11 @@ extension TranscriptDetailView {
     }
 
     /// 新文稿一個字都沒寫就離開：不留一篇空白的在清單。按了「在這裡接著錄」是去錄音，不算。
+    /// 有改寫稿的原篇也不丟：跟以前改寫稿掛在底下時一樣。
     func discardIfBlank() {
-        guard !isLeavingToRecord, draftEdit == transcript.draftText, transcript.isBlankDraft else {
+        guard derived.transcripts.isEmpty, !isLeavingToRecord, draftEdit == transcript.draftText,
+              transcript.isBlankDraft
+        else {
             return
         }
         do {

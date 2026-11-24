@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// W1「⋯ → 改寫成其他格式」：送出、存回這篇、刪一份、失敗翻成人話。
-/// 改寫好的存成這篇底下的另一份（`Transcript.rewrites`），文字稿不動。一次只改寫一種。
+/// W1「⋯ → 改寫成其他格式」：送出、存成新的一篇、以前的改寫稿拿來編輯或刪掉、失敗翻成人話。
+/// Y5：改寫好的是自己的一篇，這篇不動；怎麼打開在 `TranscriptDetailView+Derived`。一次只改寫一種。
 extension TranscriptDetailView {
     enum RewriteFailure: Error {
         /// 改寫中這篇被刪了：不存，免得把刪掉的篇又存回來。
@@ -10,13 +10,43 @@ extension TranscriptDetailView {
 
     var rewritesSheet: some View {
         RewritesSheet(
+            derived: derived.transcripts,
             rewrites: transcript.rewrites ?? [],
             rewritingKind: rewritingKind,
             failure: rewriteFailure,
+            instruction: $derived.instruction,
             onRewrite: startRewrite,
             onCancel: cancelRewrite,
+            onOpen: openRelated,
+            onDeleteDerived: deleteRelated,
+            onEdit: editRewrite,
             onDelete: deleteRewrite
         )
+    }
+
+    /// 自己一篇的加上以前存的。
+    var rewriteCount: Int {
+        derived.transcripts.count + (transcript.rewrites?.count ?? 0)
+    }
+
+    /// 改寫稿在別頁可能改過、刪過，打開前重讀。上次沒成的原因照舊留著（收起來才失敗的要看得到）。
+    func openRewrites() {
+        loadDerived()
+        showsRewrites = true
+    }
+
+    private static let loadFailureNote = "改寫好的那幾篇讀不到，關掉這頁再打開一次。"
+
+    private func loadDerived() {
+        do {
+            let stored = try TranscriptStore().loadAll().transcripts
+            derived.refresh(sourceID: transcript.id, from: stored)
+            if rewriteFailure == Self.loadFailureNote {
+                rewriteFailure = nil
+            }
+        } catch {
+            rewriteFailure = Self.loadFailureNote
+        }
     }
 
     /// 「改寫成其他格式…」；改寫過就帶份數，不用點進去就知道裡面有東西。
@@ -68,10 +98,9 @@ extension TranscriptDetailView {
                 model: model,
                 instruction: instruction
             )
-            try updateStored { $0.addRewrite(rewrite) }
-            if !showsRewrites {
-                showNote("改寫好了：\(kind.title)，在「⋯ → 改寫成其他格式」裡。")
-            }
+            let rewritten = try saveAsTranscript(rewrite)
+            loadDerived()
+            showRewritten(rewritten, kind: kind)
         } catch {
             guard !Task.isCancelled else {
                 return
@@ -82,6 +111,48 @@ extension TranscriptDetailView {
             if !showsRewrites {
                 showNote(message)
             }
+        }
+    }
+
+    /// 改寫那張頁還開著就是在等這份，收起來直接打開；收起來了就講一聲。
+    private func showRewritten(_ rewritten: Transcript, kind: RewriteKind) {
+        if showsRewrites {
+            openRelated(rewritten)
+        } else {
+            showNote("改寫好了：\(kind.title)，在「⋯ → 改寫成其他格式」裡。")
+        }
+    }
+
+    /// 原篇照存檔裡的看：改寫中被刪掉、進了垃圾桶的不存。
+    /// 編號跟著那份改寫走：上次存好了但舊的沒拿掉，再按一次是同一篇，不會蓋掉改過的字、也不會多一篇。
+    private func saveAsTranscript(_ rewrite: TranscriptRewrite) throws -> Transcript {
+        let store = TranscriptStore()
+        let stored = try store.loadAll().transcripts.filter { $0.trashedAt == nil }
+        if let saved = stored.first(where: { $0.id == rewrite.id }) {
+            return saved
+        }
+        guard let source = stored.first(where: { $0.id == transcript.id }) else {
+            throw RewriteFailure.transcriptGone
+        }
+        let rewritten = Transcript.derived(from: source, rewrite: rewrite)
+        try store.save(rewritten)
+        return rewritten
+    }
+
+    /// 以前的改寫稿「拿來編輯」：新的一篇存成功，才從這篇底下拿掉舊的。沒成回要講的話。
+    private func editRewrite(_ rewrite: TranscriptRewrite) -> String? {
+        do {
+            let rewritten = try saveAsTranscript(rewrite)
+            loadDerived()
+            do {
+                try updateStored { $0.removeRewrite(id: rewrite.id) }
+            } catch {
+                return "新的一篇存好了，只是舊的這份沒拿掉。再按一次試試。"
+            }
+            openRelated(rewritten)
+            return nil
+        } catch {
+            return "沒存成新的一篇，這份還在。再按一次試試。"
         }
     }
 

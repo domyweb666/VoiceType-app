@@ -1,7 +1,7 @@
 import Foundation
 
 /// W1「改寫成…」（2026-11-09 米：定位改給知識型內容創作者，一份錄音要能變成好幾種要用的稿）。
-/// 從文字稿出發改寫，存成這篇底下的另一份，文字稿不動。提示詞全文寫死在這裡，不給改（11/08 決定照舊）。
+/// 從文字稿出發改寫，存成另外一篇，文字稿不動。提示詞全文寫死在這裡，不給改（11/08 決定照舊）。
 /// 每份存的是 `rawValue`，畫面用 `title`。
 enum RewriteKind: String, CaseIterable, Identifiable {
     case article
@@ -25,7 +25,7 @@ enum RewriteKind: String, CaseIterable, Identifiable {
         case .videoScript: "YouTube 口播稿"
         case .threads: "Threads 串文"
         case .newsletter: "電子報"
-        case .outline: "大綱與金句"
+        case .outline: "重點與金句"
         }
     }
 
@@ -43,6 +43,11 @@ enum RewriteKind: String, CaseIterable, Identifiable {
     /// 每份存的字串翻回畫面上的名字；認不得的值（以後拿掉的種類）照字串顯示。
     static func title(forStored rawValue: String) -> String {
         RewriteKind(rawValue: rawValue)?.title ?? rawValue
+    }
+
+    /// 串文要一篇一篇貼，才有「逐篇複製」。
+    static func isThreads(stored rawValue: String?) -> Bool {
+        rawValue == threads.rawValue
     }
 
     var prompt: String {

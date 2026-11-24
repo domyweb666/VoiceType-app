@@ -10,12 +10,13 @@ struct DictationStats: Equatable {
     /// 口語稿的字數（講了多少），空白換行不算。
     let spokenCharacters: Int
     /// 文字稿的字數（拿去用的那份），算「打字要打多久」用這個。自己打的新文稿不算：那些字本來就是打的，沒省到。
+    /// 改寫來的也不算：同一段話會算兩次。
     let writtenCharacters: Int
     let spokenSeconds: Double
 
     init(transcripts: [Transcript]) {
         spokenCharacters = transcripts.reduce(0) { $0 + Self.countCharacters($1.rawText) }
-        writtenCharacters = transcripts.filter { !$0.isWritten }
+        writtenCharacters = transcripts.filter { !$0.isWritten && !$0.isDerived }
             .reduce(0) { $0 + Self.countCharacters($1.displayText) }
         spokenSeconds = transcripts.reduce(0) { $0 + max($1.durationSeconds, 0) }
     }
@@ -45,14 +46,16 @@ struct DictationStats: Equatable {
         now: Date = .now,
         calendar: Calendar = .current
     ) -> String? {
-        guard !transcripts.isEmpty else {
+        // 改寫來的不是講的：這週只改寫過，不能寫成「本週講了 0 秒」。
+        let ownTranscripts = transcripts.filter { !$0.isDerived }
+        guard !ownTranscripts.isEmpty else {
             return nil
         }
-        let thisWeek = transcripts.filter {
+        let thisWeek = ownTranscripts.filter {
             calendar.isDate($0.createdAt, equalTo: now, toGranularity: .weekOfYear)
         }
         let isThisWeek = !thisWeek.isEmpty
-        let stats = DictationStats(transcripts: isThisWeek ? thisWeek : transcripts)
+        let stats = DictationStats(transcripts: isThisWeek ? thisWeek : ownTranscripts)
         var parts = [
             (isThisWeek ? "本週講了 " : "累計講了 ") + durationText(stats.spokenSeconds),
             "約 \(stats.spokenCharacters.formatted()) 字",
