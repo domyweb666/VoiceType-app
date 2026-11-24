@@ -1,36 +1,25 @@
 import SwiftUI
 
-/// K2「⋯ → 存成 Markdown」：存到選過的資料夾；還沒選過，先跳「檔案」選一個。
-/// Notion 走右上的分享（系統分享表單），不接 Notion 的帳號。
+/// 右上的「匯出」（2026-11-24 Y1）：複製、分享、存檔都收進 `ExportSheet`。
 extension TranscriptDetailView {
-    func saveMarkdown() {
-        flushAutosave()
-        guard MarkdownFolder().folderName != nil else {
-            isPickingMarkdownFolder = true
-            return
+    var exportButton: some View {
+        Button {
+            flushAutosave()
+            showsExport = true
+        } label: {
+            Image(systemName: "square.and.arrow.up")
         }
-        do {
-            let name = try MarkdownFolder().save(transcript)
-            showNote("存好了：\(name)")
-        } catch MarkdownFolder.Failure.cannotAccess, MarkdownFolder.Failure.noFolder {
-            // 資料夾不見了或權限沒了：請使用者重選。
-            isPickingMarkdownFolder = true
-        } catch {
-            showNote("沒存進去，那個資料夾可能滿了或不能寫，換一個試試。")
-        }
+        .disabled(currentText.isEmpty)
+        .accessibilityLabel("匯出")
     }
 
-    func pickedMarkdownFolder(_ result: Result<URL, Error>) {
-        guard case let .success(folder) = result else {
-            return
+    /// 帶出去的是編輯框裡現在的字：剛才那次存檔失敗，匯出的也不能是舊的。
+    var exportSheet: some View {
+        var exported = transcript
+        if transcript.draftText != nil {
+            exported.draftText = draftEdit
         }
-        do {
-            try MarkdownFolder().remember(folder)
-        } catch {
-            showNote("打不開這個資料夾，換一個試試。")
-            return
-        }
-        saveMarkdown()
+        return ExportSheet(transcript: exported)
     }
 
     /// 底下那行講一下就收：跟「已複製」一樣停 2 秒。
