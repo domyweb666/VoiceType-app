@@ -9,7 +9,7 @@
 
 ## 🚧 下一步
 1. 2026-11-25 米：「合進 main」，已用 squash 合（舊 commit 不進 main）。main 的 CI run 45567544541 綠（419 測試 0 失敗 1 略過）。出不出 TestFlight 等米當次明講。遠端分支 jtbd-345 已刪（米同意）；本機分支與 worktree 還在，**不要再推、不要再合**。
-2. 米的真音檔（10 分鐘以上、講到詞彙表的詞）放 `.vibe/local/input/`，用 `stage0.py` 的 `post` 量新舊寫法。
+2. 米的真音檔（10 分鐘以上、講到詞彙表的詞）放 `.vibe/local/input/`，旁邊放 `詞彙.txt`（一行一個），跑 `python .vibe/local/keywords_check.py 音檔 --yes`（2026-11-25 寫好、用假伺服器乾跑過，還沒送過真的；不加 --yes 只印估價）。
 3. 米驗 `操作清單-待驗.md` 最上面那段與 v0.2.16 三段。
 
 ## 📌 決定（別再爭）
