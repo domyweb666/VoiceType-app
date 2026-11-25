@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// 鍵盤上方那一排（2026-11-24 抽出來，兩種編輯框共用）：左邊格式可以橫滑，右邊「在這裡接著錄」「改這段」固定。
+/// 鍵盤上方那一排（2026-11-24 抽出來，兩種編輯框共用）：左邊格式可以橫滑，右邊「在這裡接著錄」「改這段」固定，
+/// 中間隔一條直線、右邊放淡金膠囊（2026-11-26）。
 /// 格式只插 Markdown 記號（`MarkdownFormatting`），文字稿還是純文字。圖示配無障礙標籤，不只靠圖。
 struct FormatBar<PassageMenu: View>: View {
     let canRecordHere: Bool
@@ -26,9 +27,19 @@ struct FormatBar<PassageMenu: View>: View {
             }
             // 編輯框底下的留白會傳到這裡，不歸零整排格式鈕會往上浮出去。
             .contentMargins(.bottom, 0, for: .scrollContent)
-            button("在這裡接著錄", systemImage: "mic.badge.plus", action: onRecordHere)
-                .disabled(!canRecordHere)
-            passageMenu()
+            // 2026-11-26 米（QC-0014）：左右兩組分得不明顯。中間一條直線，右邊兩個動作放進淡金膠囊，
+            // 一看就知道左邊是排版、右邊是叫錄音和 AI。
+            Rectangle()
+                .fill(Token.Colors.separator)
+                .frame(width: Token.Shape.hairline, height: Token.Space.xl)
+                .accessibilityHidden(true)
+            HStack(spacing: Token.Space.xs) {
+                button("在這裡接著錄", systemImage: "mic.badge.plus", action: onRecordHere)
+                    .disabled(!canRecordHere)
+                passageMenu()
+            }
+            .padding(.trailing, Token.Space.m)
+            .background(Token.Colors.accentTint, in: Capsule())
         }
         .font(Token.Fonts.rowTitle)
         .tint(Token.Colors.link)

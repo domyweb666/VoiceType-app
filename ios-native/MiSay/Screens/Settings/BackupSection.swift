@@ -60,19 +60,24 @@ struct BackupSection: View {
         } header: {
             Text("資料")
         } footer: {
-            Text(footerText)
-                .font(Token.Fonts.footnote)
+            if let footerText {
+                Text(footerText)
+                    .font(Token.Fonts.footnote)
+            }
         }
         .font(Token.Fonts.body)
         .listRowBackground(Token.Colors.rowBackground)
     }
 
-    private var footerText: String {
-        let lead = loadFailed
-            ? "文字稿一時讀不到，檔案都還在，等一下再打開這頁。"
-            : Self.lead(count: transcriptCount, unreadable: unreadableCount)
-        return lead + "備份檔沒有加密，存在只有自己拿得到的地方。"
-            + Self.newPhoneNote + AutoBackupRows.note
+    /// 2026-11-26 米（QC-0014）：進階的說明都拿掉。只在出狀況時講一句（讀不到、按鈕變灰的原因、有幾篇讀不到）。
+    private var footerText: String? {
+        if loadFailed {
+            return "文字稿一時讀不到，檔案都還在，等一下再打開這頁。"
+        }
+        guard transcriptCount == 0 || unreadableCount > 0 else {
+            return nil
+        }
+        return Self.lead(count: transcriptCount, unreadable: unreadableCount)
     }
 
     /// 沒東西時按鈕變灰，這裡說為什麼。
@@ -85,11 +90,6 @@ struct BackupSection: View {
         let scope = unreadable > 0 ? "讀得到的" : "全部"
         return "備份是一個檔，裡面是\(scope) \(count) 篇文字稿，不含金鑰、錄音和垃圾桶；新手機要重貼金鑰。"
     }
-
-    /// 文字稿不另外加密（米 2026-11-25），iCloud 還原就帶得過去。
-    /// 更新前做的 iCloud 備份裡還是加密檔，還原到新手機解不開。
-    static let newPhoneNote = "換新手機用 iCloud 還原，文字稿會一起過去。"
-        + "更新後先開一次米說，等 iCloud 備份做完再換。沒開 iCloud 備份的，用備份檔匯入。"
 
     private var lastBackupText: String {
         let latest = BackupHistory.latest(

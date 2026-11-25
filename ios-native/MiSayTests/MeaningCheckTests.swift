@@ -164,10 +164,10 @@ final class MeaningCheckTests: XCTestCase {
         XCTAssertEqual(finding?.after, "去 " + String(repeating: "後", count: 12) + "…")
     }
 
-    func test畫面上的說明() {
-        XCTAssertEqual(SourceSheetMeaning.summary(count: 0), SourceSheetMeaning.nothingFound)
-        XCTAssertTrue(SourceSheetMeaning.summary(count: 3).hasPrefix("3 處。"))
-        XCTAssertEqual(SourceSheetMeaning.summary(count: nil), SourceSheetMeaning.notCompared)
+    func test沒找到或沒比就不出現() {
+        XCTAssertFalse(SourceSheetMeaning.shows(nil))
+        XCTAssertFalse(SourceSheetMeaning.shows([]))
+        XCTAssertTrue(SourceSheetMeaning.shows(check("我不會去", "我會去。").findings))
     }
 
     private func check(_ raw: String, _ polished: String) -> MeaningCheck {

@@ -2,17 +2,17 @@ import SwiftUI
 
 /// 「AI 改了什麼」最上面的「可能改了意思」（片 J2）：一列一處，寫種類跟口語稿那附近的原話。
 /// 錄音還能播的篇，點一列就從那附近聽；不能播的照列，不能點。
+/// 2026-11-26 米（QC-0014）：不要解釋。沒找到、沒比的時候整塊不出現（`shows`），有找到只列出來。
 struct SourceSheetMeaning: View {
-    /// nil 是沒有比（接著錄過的篇）。
-    let findings: [MeaningCheck.Finding]?
+    let findings: [MeaningCheck.Finding]
     let timeline: [TimelineSpan]
     /// 從錄音的第幾秒附近聽；不能播的篇是 nil。
     let onListen: ((Double) -> Void)?
 
-    static let nothingFound = "沒看到可能改了意思的地方。"
-        + "只看否定字（不、沒、別、未、無）、大部分的數字和詞彙表的名字，不保證全部抓到。"
-    static let explanation = "這些字在文字稿對應的地方不見了，或換掉了。是不是真的改了意思，要你看一下。"
-    static let notCompared = "這篇是好幾段錄音接起來的，口語稿跟文字稿的順序可能對不上，這裡沒有比。"
+    /// nil 是沒有比（接著錄過的篇）。
+    static func shows(_ findings: [MeaningCheck.Finding]?) -> Bool {
+        !(findings ?? []).isEmpty
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Token.Space.m) {
@@ -20,11 +20,8 @@ struct SourceSheetMeaning: View {
                 .font(Token.Fonts.rowTitle)
                 .foregroundStyle(Token.Colors.textPrimary)
                 .accessibilityAddTraits(.isHeader)
-            Text(Self.summary(count: findings?.count))
-                .font(Token.Fonts.footnote)
-                .foregroundStyle(Token.Colors.textSecondary)
             LazyVStack(alignment: .leading, spacing: Token.Space.m) {
-                ForEach(findings ?? []) { finding in
+                ForEach(findings) { finding in
                     row(finding)
                 }
             }
@@ -35,13 +32,6 @@ struct SourceSheetMeaning: View {
             Token.Colors.sunkenBackground,
             in: RoundedRectangle(cornerRadius: Token.Shape.radiusField, style: .continuous)
         )
-    }
-
-    static func summary(count: Int?) -> String {
-        guard let count else {
-            return notCompared
-        }
-        return count < 1 ? nothingFound : "\(count.formatted()) 處。" + explanation
     }
 
     static func listenLabel(_ seconds: Double) -> String {

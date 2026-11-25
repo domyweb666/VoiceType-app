@@ -81,12 +81,16 @@ struct SourceSheetText: View {
             if transcript.originalDraft == nil {
                 note("這篇是比較早整理的，沒存 AI 剛整理好的那份，比的是你改過之後的字，你自己改的也會算進去。")
             }
-            SourceSheetMeaning(
-                findings: comparison.meaning?.findings,
-                timeline: SpokenTimeline.spans(of: transcript),
-                onListen: onListen
-            )
-            note(Self.summary(comparison.diff))
+            if let findings = comparison.meaning?.findings, SourceSheetMeaning.shows(findings) {
+                SourceSheetMeaning(
+                    findings: findings,
+                    timeline: SpokenTimeline.spans(of: transcript),
+                    onListen: onListen
+                )
+            }
+            if let summary = Self.summary(comparison.diff) {
+                note(summary)
+            }
             bodyText(Text(Self.attributed(comparison.diff)))
         } else {
             ProgressView("比對中")
@@ -94,13 +98,12 @@ struct SourceSheetText: View {
         }
     }
 
-    /// 字跟樣子一起講（使用規則第 4 條）：刪掉的畫線、加上的底下有線，不只靠顏色分。
-    static func summary(_ diff: PolishDiff) -> String {
+    /// 2026-11-26 米（QC-0014）：不要解釋，畫線跟底色自己看得出來。只在一個字都沒改時講一句，不然底下看起來像沒比。
+    static func summary(_ diff: PolishDiff) -> String? {
         guard diff.removedCount > 0 || diff.addedCount > 0 else {
             return "AI 一個字都沒改。"
         }
-        return "跟口語稿比，AI 刪了 \(diff.removedCount.formatted()) 字、加了 \(diff.addedCount.formatted()) 字"
-            + "（空白不算）。紅色畫線的是刪掉的，底下有線、有底色的是加上的。"
+        return nil
     }
 
     /// 刪掉的：紅字加刪除線（紅色只給刪除，使用規則第 11 條）；加上的：凹槽底色加底線。

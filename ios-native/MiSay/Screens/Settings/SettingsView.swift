@@ -76,9 +76,6 @@ struct SettingsView: View {
             }
             Toggle("整理好自動複製", isOn: $settings.autoCopy)
                 .tint(Token.Colors.link)
-        } footer: {
-            Text(Self.styleNote)
-                .font(Token.Fonts.footnote)
         }
         .listRowBackground(Token.Colors.rowBackground)
     }
@@ -100,9 +97,6 @@ struct SettingsView: View {
         let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
         stats = transcripts.isEmpty ? nil : DictationStats(transcripts: transcripts)
     }
-
-    /// 兩種潤飾一句話講完。改了只影響之後錄的，整理好的不會被重做（11/08 重新潤飾拿掉了）。
-    static let styleNote = "保留原聲只刪卡詞和重講，留住你講話的節奏；改得好讀會刪贅字、補上前後句的連接、重新分段，沒聽過你講話的人也讀得順。"
 
     /// 「0.1.4（5）」：版本號＋建置號，回報問題時對得上 TestFlight 那一版。
     static var versionText: String {

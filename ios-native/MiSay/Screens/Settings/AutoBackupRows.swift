@@ -76,6 +76,4 @@ struct AutoBackupRows: View {
     private func backUpNow() {
         Task { await autoBackup.runIfDue() }
     }
-
-    static let note = "打開後，內容有變的那天會自動多存一份，一天最多一份，留最近 7 份。"
 }

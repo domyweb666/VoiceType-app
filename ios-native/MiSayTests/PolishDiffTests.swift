@@ -34,6 +34,7 @@ final class PolishDiffTests: XCTestCase {
         XCTAssertEqual(shown, "所以我就先把它關掉。")
         XCTAssertEqual(diff.removedCount, 4)
         XCTAssertEqual(diff.addedCount, 3)
+        XCTAssertNil(SourceSheetText.summary(diff))
     }
 
     func test太長的不比() {

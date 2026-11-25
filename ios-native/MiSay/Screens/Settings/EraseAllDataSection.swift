@@ -31,8 +31,10 @@ struct EraseAllDataSection: View {
                 Text(Self.confirmNote)
             }
         } footer: {
-            Text(footerText)
-                .font(Token.Fonts.footnote)
+            if let footerText {
+                Text(footerText)
+                    .font(Token.Fonts.footnote)
+            }
         }
         .font(Token.Fonts.body)
         .listRowBackground(Token.Colors.rowBackground)
@@ -46,11 +48,12 @@ struct EraseAllDataSection: View {
             || !queue.inFlight.isEmpty
     }
 
-    private var footerText: String {
+    /// 2026-11-26 米（QC-0014）：不放說明，只講結果和按鈕為什麼按不了。
+    private var footerText: String? {
         if let resultMessage {
             return resultMessage
         }
-        return isBusy ? "正在錄音或整理，等它做完才能刪。" : "要先匯出備份的話，在上面。"
+        return isBusy ? "正在錄音或整理，等它做完才能刪。" : nil
     }
 
     private func erase() {
