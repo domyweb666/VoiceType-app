@@ -48,10 +48,7 @@ struct RecordingTranscriptionJob {
             let request = try SegmentRequest(
                 audio: WAVSegmenter.read(segment, from: recordingURL),
                 filename: String(format: "%@-%02d.wav", baseName, index + 1),
-                prompt: TranscriptionPrompt.build(
-                    vocabulary: vocabulary,
-                    previousText: previousText
-                ),
+                prompt: TranscriptionPrompt.build(previousText: previousText),
                 label: "轉錄第 \(index + 1)/\(segments.count) 段"
             )
             var text = try await send(request)
@@ -125,7 +122,8 @@ struct RecordingTranscriptionJob {
             text = try await transcriber.transcribe(
                 audio: compressed ?? request.audio,
                 filename: filename,
-                prompt: request.prompt
+                prompt: request.prompt,
+                keywords: TranscriptionKeywords.usable(from: vocabulary)
             )
         } catch {
             let waited = Int(Date().timeIntervalSince(startedAt))

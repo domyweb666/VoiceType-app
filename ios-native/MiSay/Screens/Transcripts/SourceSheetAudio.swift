@@ -13,6 +13,8 @@ struct SourceSheetAudio: View {
     private let blocks: [SpokenTimeline.Block]
     private let passages: [SpokenTimeline.Passage]
     private let markedSentences: Set<Int>
+    /// 片 J2：從「可能改了意思」點過來的，一打開就從這附近播；平常是 nil。
+    @Binding private var listenSeconds: Double?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var player: AVAudioPlayer?
@@ -28,9 +30,10 @@ struct SourceSheetAudio: View {
     static let preciseNote = "位置是照每 5 分鐘一段估的，可能差幾秒。畫底線的是你錄音時標的重點。"
     static let roughNote = "這篇錄的時候還沒記下每一段的時間，位置是照整篇字數估的，可能差幾十秒。"
 
-    init(transcript: Transcript, audioURL: URL?) {
+    init(transcript: Transcript, audioURL: URL?, listenSeconds: Binding<Double?>) {
         self.transcript = transcript
         self.audioURL = audioURL
+        _listenSeconds = listenSeconds
         let sentences = SpokenTimeline.sentences(of: transcript)
         let passages = SpokenTimeline.passages(marks: transcript.marks ?? [], in: sentences)
         self.sentences = sentences
@@ -69,7 +72,10 @@ struct SourceSheetAudio: View {
             }
         }
         .safeAreaInset(edge: .bottom) { controls }
-        .task { await tick() }
+        .task {
+            playIfAsked()
+            await tick()
+        }
         .onDisappear { player?.stop() }
     }
 
@@ -193,6 +199,15 @@ extension SourceSheetAudio {
             .frame(maxWidth: .infinity)
             .background(Token.Colors.rowBackground)
         }
+    }
+
+    /// 播了就清掉，自己切回這頁不會又播一次。
+    private func playIfAsked() {
+        guard let seconds = listenSeconds else {
+            return
+        }
+        listenSeconds = nil
+        play(from: seconds - Self.leadInSeconds)
     }
 
     private func play(from seconds: Double) {

@@ -20,6 +20,7 @@ extension TranscriptDetailView {
         VersionsSheet(
             current: draftEdit,
             aiDraft: transcript.originalDraft,
+            aiDraftTitle: transcript.isSplit ? "剛拆出來的那一版" : "AI 剛整理好的那一版",
             versions: transcript.versions ?? [],
             onRestore: restoreVersion
         )

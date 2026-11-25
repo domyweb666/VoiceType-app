@@ -3,12 +3,49 @@ import Foundation
 /// 2026-11-24 Y5：改寫好的不再是掛在原篇底下的一份唯讀文字，存成自己的一篇，能改、能匯出、有版本。
 /// 沒有錄音也沒有口語稿；`sourceID` 記原篇，原篇刪了它照樣在。
 extension Transcript {
+    /// 拆出來的那篇 `sourceKind` 存這個（片 J3），跟 `RewriteKind.rawValue` 放同一欄，不能撞名。
+    static let splitKind = "split"
     private static let headingMark = "# "
     private static let boldMark = "**"
 
-    /// 從別篇改寫來的。
+    /// 從別篇改寫來的、拆出來的。
     var isDerived: Bool {
         sourceID != nil
+    }
+
+    /// 從別篇拆出來的，字是原篇的，沒有改寫。
+    var isSplit: Bool {
+        sourceKind == Self.splitKind
+    }
+
+    /// 「改寫：Threads 串文」「從別篇拆出來的」
+    static func originTitle(forStored kind: String) -> String {
+        kind == splitKind ? "從別篇拆出來的" : "改寫：" + RewriteKind.title(forStored: kind)
+    }
+
+    /// 拆出來的一件事存成新的一篇。編號由叫的人給：重試是同一篇。
+    static func split(
+        from source: Transcript,
+        id: UUID,
+        title: String,
+        text: String,
+        now: Date = Date()
+    ) -> Transcript {
+        var piece = Transcript(
+            id: id,
+            createdAt: now,
+            durationSeconds: 0,
+            rawText: "",
+            draftText: text,
+            originalDraft: text,
+            learnedDraft: text,
+            updatedAt: now
+        )
+        piece.title = title
+        piece.tags = source.tags
+        piece.sourceID = source.id
+        piece.sourceKind = splitKind
+        return piece
     }
 
     /// 改寫的結果存成新的一篇。三份文字稿一樣：還沒被人改過，版本紀錄留得住 AI 給的那份。
@@ -38,7 +75,7 @@ extension Transcript {
         return derived
     }
 
-    /// 從這篇改寫來的那些，新的在前；垃圾桶裡的不算。
+    /// 從這篇改寫來的、拆出來的那些，新的在前；垃圾桶裡的不算。
     static func derived(of sourceID: UUID, in transcripts: [Transcript]) -> [Transcript] {
         transcripts
             .filter { $0.sourceID == sourceID && $0.trashedAt == nil }

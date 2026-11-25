@@ -97,7 +97,23 @@ struct Polisher {
         return try ReviewResult.parse(content, kind: kind)
     }
 
-    /// 潤飾、改寫、看整篇共用：送一次 chat completions，可重試的錯誤重試，回來的當純文字。
+    /// 這趟講了幾件事：文字稿切成編號的單位送出去，只收標題、摘要、段號；正文從原稿接回來。
+    func splitTopics(
+        text: String,
+        model: String,
+        vocabulary: [String]
+    ) async throws -> TopicSplit {
+        let units = TopicUnits.cut(text)
+        let content = try await complete(
+            system: Self.systemContent(prompt: TopicSplit.prompt, vocabulary: vocabulary),
+            user: RewriteKind.userContent(text: TopicUnits.numbered(units)),
+            model: model,
+            responseFormat: TopicSplit.responseFormat
+        )
+        return try TopicSplit.parse(content, units: units)
+    }
+
+    /// 潤飾、改寫、看整篇、拆篇共用：送一次 chat completions，可重試的錯誤重試，回來的當純文字。
     private func complete(
         system: String,
         user: String,

@@ -10,7 +10,7 @@ extension TranscriptDetailView {
 
     var rewritesSheet: some View {
         RewritesSheet(
-            derived: derived.transcripts,
+            derived: derived.rewritten,
             rewrites: transcript.rewrites ?? [],
             rewritingKind: rewritingKind,
             failure: rewriteFailure,
@@ -26,7 +26,7 @@ extension TranscriptDetailView {
 
     /// 自己一篇的加上以前存的。
     var rewriteCount: Int {
-        derived.transcripts.count + (transcript.rewrites?.count ?? 0)
+        derived.rewritten.count + (transcript.rewrites?.count ?? 0)
     }
 
     /// 改寫稿在別頁可能改過、刪過，打開前重讀。上次沒成的原因照舊留著（收起來才失敗的要看得到）。

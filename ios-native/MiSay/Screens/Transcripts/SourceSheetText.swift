@@ -5,7 +5,22 @@ import SwiftUI
 struct SourceSheetText: View {
     let transcript: Transcript
     let showsDiff: Bool
-    @State private var diff: PolishDiff?
+    /// 比完的結果，放在 `SourceSheet`。
+    @Binding private var comparison: SourceComparison?
+    /// 片 J2：從錄音的第幾秒附近聽；不能播的篇是 nil。
+    private let onListen: ((Double) -> Void)?
+
+    init(
+        transcript: Transcript,
+        showsDiff: Bool,
+        comparison: Binding<SourceComparison?> = .constant(nil),
+        onListen: ((Double) -> Void)? = nil
+    ) {
+        self.transcript = transcript
+        self.showsDiff = showsDiff
+        _comparison = comparison
+        self.onListen = onListen
+    }
 
     var body: some View {
         ScrollView {
@@ -36,14 +51,23 @@ struct SourceSheetText: View {
 
     /// 一小時的稿子要比幾萬個字，放到背景算，畫面先轉圈。
     private func compare() async {
-        guard showsDiff, diff == nil, let polished = polishedForCompare,
+        guard showsDiff, comparison == nil, let polished = polishedForCompare,
               !PolishDiff.isTooLong(raw: transcript.rawText, polished: polished)
         else {
             return
         }
         let raw = transcript.rawText
-        diff = await Task.detached(priority: .userInitiated) {
-            PolishDiff(from: raw, to: polished)
+        let vocabulary = AppSettings.shared.vocabulary
+        // 接著錄的口語稿接在最後、文字稿可能插在中間，順序對不上，比了會標一堆假的。
+        let comparesMeaning = transcript.combinedAt == nil
+        // 兩個比對一個接一個，不同時跑：長稿的比對都吃記憶體。
+        comparison = await Task.detached(priority: .userInitiated) {
+            SourceComparison(
+                diff: PolishDiff(from: raw, to: polished),
+                meaning: comparesMeaning
+                    ? MeaningCheck(raw: raw, polished: polished, vocabulary: vocabulary)
+                    : nil
+            )
         }.value
     }
 
@@ -53,14 +77,17 @@ struct SourceSheetText: View {
             note("這篇太長，手機比不動。可以切到「口語稿」自己對照。")
         } else if polishedForCompare == nil {
             note("這篇還沒整理成文字稿，沒有東西可以比。")
-        } else if let diff {
-            VStack(alignment: .leading, spacing: Token.Space.s) {
-                note(Self.summary(diff))
-                if transcript.originalDraft == nil {
-                    note("這篇是比較早整理的，沒存 AI 剛整理好的那份，比的是你改過之後的字，你自己改的也會算進去。")
-                }
+        } else if let comparison {
+            if transcript.originalDraft == nil {
+                note("這篇是比較早整理的，沒存 AI 剛整理好的那份，比的是你改過之後的字，你自己改的也會算進去。")
             }
-            bodyText(Text(Self.attributed(diff)))
+            SourceSheetMeaning(
+                findings: comparison.meaning?.findings,
+                timeline: SpokenTimeline.spans(of: transcript),
+                onListen: onListen
+            )
+            note(Self.summary(comparison.diff))
+            bodyText(Text(Self.attributed(comparison.diff)))
         } else {
             ProgressView("比對中")
                 .frame(maxWidth: .infinity)

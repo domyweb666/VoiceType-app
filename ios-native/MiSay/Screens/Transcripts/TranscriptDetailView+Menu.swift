@@ -6,7 +6,7 @@ extension TranscriptDetailView {
     var moreMenu: some View {
         Menu {
             // 片 F4：看得出這篇用哪種潤飾、哪個模型。只是說明，按不下去。
-            // Y5：改寫來的講改寫成哪一種、當時的補充要求。
+            // Y5：改寫來的講改寫成哪一種、當時的補充要求；拆出來的也講一聲。
             if transcript.isDerived {
                 derivedNoteSection
             } else if let model = transcript.polishModel {
@@ -43,6 +43,7 @@ extension TranscriptDetailView {
             }
             .disabled(isPolishing || currentText.isEmpty)
             threadsPartsMenuItem
+            splitMenuItem
             Divider()
             sourceMenuItem
             openSourceMenuItem

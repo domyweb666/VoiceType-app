@@ -30,7 +30,11 @@ struct Transcriber {
         self.retryBaseDelaySeconds = retryBaseDelaySeconds
     }
 
-    func transcribe(fileURL: URL, prompt: String) async throws -> String {
+    func transcribe(
+        fileURL: URL,
+        prompt: String,
+        keywords: [String]
+    ) async throws -> String {
         let audio: Data
         do {
             audio = try Data(contentsOf: fileURL)
@@ -40,17 +44,30 @@ struct Transcriber {
         return try await transcribe(
             audio: audio,
             filename: fileURL.lastPathComponent,
-            prompt: prompt
+            prompt: prompt,
+            keywords: keywords
         )
     }
 
     /// 長錄音的一段（S2-1）：直接從原檔讀出來的那一段，不落地成檔。
-    func transcribe(audio: Data, filename: String, prompt: String) async throws -> String {
+    /// 詞彙與語言走專門的欄位（片 J1）；詞彙先過 `TranscriptionKeywords.usable`。
+    func transcribe(
+        audio: Data,
+        filename: String,
+        prompt: String,
+        keywords: [String]
+    ) async throws -> String {
         var form = MultipartForm()
         form.addField(name: "model", value: model)
         form.addField(name: "response_format", value: "json")
         if !prompt.isEmpty {
             form.addField(name: "prompt", value: prompt)
+        }
+        for language in TranscriptionKeywords.languages {
+            form.addField(name: "languages[]", value: language)
+        }
+        for keyword in keywords {
+            form.addField(name: "keywords[]", value: keyword)
         }
         form.addFile(
             name: "file",

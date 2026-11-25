@@ -31,6 +31,9 @@ struct TranscriptDetailView: View {
     /// 請 AI 看整篇那張頁，與這次打開問到的意見（離開這頁就不留）。
     @State var showsReview = false
     @State var review = ReviewSheet.Session()
+    /// 「這趟講了幾件事」那張頁，與這次打開分到的結果（`+Split`）。
+    @State var showsSplit = false
+    @State var split = SplitSheet.Session()
     /// W6：編這篇標籤的那張頁。
     @State var showsTags = false
     /// 底下那行一下就收的一句話。
@@ -97,7 +100,7 @@ struct TranscriptDetailView: View {
     }
 
     var body: some View {
-        withRecording(page)
+        withSplit(withRecording(page))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(Token.Colors.rowBackground)
             .navigationTitle("")
@@ -132,6 +135,7 @@ struct TranscriptDetailView: View {
                 // 離開這頁就停：再打開這篇是另一份畫面，改寫完存回來會跟它互相蓋。
                 cancelRewrite()
                 cancelReview()
+                cancelSplit()
                 leaveEditor()
                 discardIfBlank()
                 // 這次改對的詞加進自訂詞彙（開關關著就不跑）。

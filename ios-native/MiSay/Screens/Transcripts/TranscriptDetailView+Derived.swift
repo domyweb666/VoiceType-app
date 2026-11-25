@@ -4,7 +4,7 @@ import SwiftUI
 extension TranscriptDetailView {
     /// 這一塊的狀態收在一起，主檔只放一個欄位。
     struct DerivedPages {
-        /// 從這篇改寫來的，新的在前。
+        /// 從這篇改寫來的、拆出來的，新的在前。
         private(set) var transcripts: [Transcript] = []
         /// 這頁上剛刪的：清單要等復原的時間過了才動存檔，那之前不能又列出來。
         private var deletedIDs: Set<UUID> = []
@@ -16,6 +16,15 @@ extension TranscriptDetailView {
         var showsThreadsParts = false
         /// 補充要求：改寫完不清掉，同一句常常想再換一種格式用。
         var instruction = ""
+
+        var rewritten: [Transcript] {
+            transcripts.filter { !$0.isSplit }
+        }
+
+        /// 拆出來的（片 J3）。
+        var pieces: [Transcript] {
+            transcripts.filter(\.isSplit)
+        }
 
         mutating func refresh(sourceID: UUID, from stored: [Transcript]) {
             transcripts = Transcript.derived(of: sourceID, in: stored)
@@ -32,9 +41,9 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 「改寫：Threads 串文・gpt-6-luna」
+    /// 「改寫：Threads 串文・gpt-6-luna」；拆出來的沒有模型，是「從別篇拆出來的」。
     static func derivedNote(kind: String?, model: String?) -> String {
-        let title = "改寫：" + RewriteKind.title(forStored: kind ?? "")
+        let title = Transcript.originTitle(forStored: kind ?? "")
         return model.map { title + "・" + $0 } ?? title
     }
 
@@ -48,14 +57,14 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 改寫中先不給看原篇：離開這頁會停掉改寫。
+    /// 改寫中、分主題中先不給看原篇：離開這頁會停掉。
     @ViewBuilder
     var openSourceMenuItem: some View {
         if transcript.isDerived {
             Button(action: openSource) {
                 Label("看原篇", systemImage: "arrow.uturn.backward")
             }
-            .disabled(rewritingKind != nil)
+            .disabled(rewritingKind != nil || split.isRunning)
         }
     }
 
@@ -98,11 +107,13 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 改寫那張頁開著就先收，收好了（`onDismiss`）再開。
+    /// 改寫、拆篇那張頁開著就先收，收好了（`onDismiss`）再開。
     func openRelated(_ target: Transcript) {
         derived.pending = target
         if showsRewrites {
             showsRewrites = false
+        } else if showsSplit {
+            showsSplit = false
         } else {
             openPendingRelated()
         }

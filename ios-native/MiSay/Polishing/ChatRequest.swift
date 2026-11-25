@@ -5,7 +5,7 @@ struct ChatRequest: Encodable {
     let model: String
     let messages: [ChatMessage]
     let reasoningEffort: String
-    /// 要 JSON 的才帶（請 AI 看整篇）；nil 時整個欄位不送（Encodable 合成的會略過 nil）。
+    /// 要 JSON 的才帶（請 AI 看整篇、拆篇）；nil 時整個欄位不送（Encodable 合成的會略過 nil）。
     let responseFormat: ChatResponseFormat?
 
     private enum CodingKeys: String, CodingKey {

@@ -47,7 +47,8 @@ struct Transcript: Codable, Identifiable, Hashable {
     var title: String?
     /// 標成已發布的時間（2026-11-24）。nil 是草稿。（用時間不用可選的布林：規矩不准。）
     var publishedAt: Date?
-    /// 這篇是從哪一篇改寫來的、改成哪一種（`RewriteKind.rawValue`）（2026-11-24）。不是改寫來的是 nil。
+    /// 這篇是從哪一篇來的、怎麼來的（2026-11-24）：改寫的存 `RewriteKind.rawValue`，
+    /// 拆出來的存 `Transcript.splitKind`。都不是就是 nil。
     var sourceID: UUID?
     var sourceKind: String?
     /// 改寫時多打的補充要求（2026-11-24）。沒打、不是改寫來的是 nil。

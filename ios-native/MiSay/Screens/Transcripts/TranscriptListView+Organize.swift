@@ -24,10 +24,10 @@ extension TranscriptListView {
         return date + "・" + lengthNote(for: transcript)
     }
 
-    /// 錄了多久；自己打的新文稿沒有錄音，寫「自己打的」（2026-11-15）；改寫來的寫改成哪一種。
+    /// 錄了多久；自己打的新文稿沒有錄音，寫「自己打的」（2026-11-15）；改寫來的寫改成哪一種，拆出來的也講一聲。
     static func lengthNote(for transcript: Transcript) -> String {
         if let kind = transcript.sourceKind {
-            return "改寫：" + RewriteKind.title(forStored: kind)
+            return Transcript.originTitle(forStored: kind)
         }
         return transcript.isWritten
             ? "自己打的"

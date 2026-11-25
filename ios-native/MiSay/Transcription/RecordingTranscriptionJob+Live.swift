@@ -26,10 +26,7 @@ extension RecordingTranscriptionJob {
                 let request = try SegmentRequest(
                     audio: WAVSegmenter.read(segment, from: liveURL),
                     filename: String(format: "%@-%02d.wav", baseName, index + 1),
-                    prompt: TranscriptionPrompt.build(
-                        vocabulary: vocabulary,
-                        previousText: previousText
-                    ),
+                    prompt: TranscriptionPrompt.build(previousText: previousText),
                     label: "錄音中先轉第 \(index + 1) 段"
                 )
                 let text = try await send(request)

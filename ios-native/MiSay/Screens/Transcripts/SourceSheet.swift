@@ -17,6 +17,10 @@ struct SourceSheet: View {
     let recordingURL: URL?
     let onRetranscribe: () -> Void
     @State private var mode: Mode
+    /// 放在這裡，聽完切回「AI 改了什麼」不用重比。
+    @State private var comparison: SourceComparison?
+    /// 點了「可能改了意思」的一列：切到聽原音後從這裡開始播，播了就清掉。
+    @State private var listenSeconds: Double?
     @State private var isConfirmingRetranscribe = false
     @Environment(\.dismiss) private var dismiss
 
@@ -75,13 +79,33 @@ struct SourceSheet: View {
     @ViewBuilder
     private var content: some View {
         if mode == .audio {
-            // 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
             SourceSheetAudio(
                 transcript: transcript,
-                audioURL: transcript.combinedAt != nil ? nil : recordingURL
+                audioURL: playableURL,
+                listenSeconds: $listenSeconds
             )
         } else {
-            SourceSheetText(transcript: transcript, showsDiff: mode == .diff)
+            SourceSheetText(
+                transcript: transcript,
+                showsDiff: mode == .diff,
+                comparison: $comparison,
+                onListen: listenAction
+            )
+        }
+    }
+
+    /// 接著錄過的篇，留著的錄音只對得上第一段，位置會估錯，不給播。
+    private var playableURL: URL? {
+        transcript.combinedAt != nil ? nil : recordingURL
+    }
+
+    private var listenAction: ((Double) -> Void)? {
+        guard playableURL != nil else {
+            return nil
+        }
+        return { seconds in
+            listenSeconds = seconds
+            mode = .audio
         }
     }
 

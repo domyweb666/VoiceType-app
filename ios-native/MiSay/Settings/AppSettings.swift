@@ -23,8 +23,9 @@ final class AppSettings {
         static let usesPlainEditor = "usesPlainEditor"
     }
 
-    /// 自動加入的詞最多留幾個：轉錄提示詞整段只能 200 字，詞太多會被截掉。
-    static let maxAutoVocabulary = 20
+    /// 自動加入的詞最多留幾個。2026-11-25 起詞彙不佔轉錄提示詞的 200 字，從 20 放寬；
+    /// 轉錄一次最多送 300 個（`TranscriptionKeywords`），留位子給手動加的。
+    static let maxAutoVocabulary = 100
 
     private let defaults: UserDefaults
 
@@ -78,7 +79,7 @@ final class AppSettings {
         didSet { defaults.set(keepsRecordingsForever, forKey: Key.keepsRecordingsForever) }
     }
 
-    /// 自訂詞彙（F2）：進轉錄提示詞與潤飾提示詞。
+    /// 自訂詞彙（F2）：進轉錄的 keywords 與潤飾提示詞。
     var vocabulary: [String] {
         didSet { defaults.set(vocabulary, forKey: Key.vocabulary) }
     }

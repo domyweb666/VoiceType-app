@@ -6,6 +6,8 @@ struct VersionsSheet: View {
     let current: String
     /// AI 剛整理好、還沒被改過的那份；自己打的新文稿與舊的篇沒有。
     let aiDraft: String?
+    /// 拆出來的那篇，這一份是從原篇搬來的字，不能寫成 AI 整理的。
+    let aiDraftTitle: String
     let versions: [DraftVersion]
     let onRestore: (String) -> Void
 
@@ -21,7 +23,7 @@ struct VersionsSheet: View {
             List {
                 if let aiDraft, aiDraft != current {
                     Section {
-                        row(title: "AI 剛整理好的那一版", text: aiDraft)
+                        row(title: aiDraftTitle, text: aiDraft)
                     }
                 }
                 if !versions.isEmpty {
