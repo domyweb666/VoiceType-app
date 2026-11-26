@@ -50,6 +50,7 @@ extension TranscriptDetailView {
 
     /// 照存檔裡最新的那份改：標題、補錄、學到哪都可能是別人剛寫的，手上的不蓋過去。
     /// 已經在垃圾桶的不存，免得又回到清單；存檔裡找不到（壞檔被搬走）就存手上的，不掉字。
+    /// 但這頁開著時刪過全部資料就不存：存手上的會讓刪掉的那篇跑回來。
     private func saveDraftEdit() throws {
         undoDiscard()
         let store = TranscriptStore()
@@ -70,7 +71,7 @@ extension TranscriptDetailView {
         }
         updated.draftText = draftEdit
         updated.updatedAt = Date()
-        try store.save(updated)
+        try store.save(updated, openedInGeneration: openedEraseGeneration)
         transcript = updated
         if keepsVersion {
             markVersionKept()

@@ -82,6 +82,8 @@ struct EraseAllDataSection: View {
     /// 垃圾桶是 Transcripts 裡的子資料夾，整個一起刪。
     /// 一個檔刪不掉不停，其他照刪，最後才說有沒有漏；舊鑰匙最後刪，沒有鑰匙也算成功。
     static func eraseAll() throws {
+        // 先記下刪過：還開著的編輯頁之後再打字，不會把刪掉的那篇存回來。刪到一半失敗也一樣不准存回來。
+        TranscriptStore.markErased()
         let fileManager = FileManager.default
         let directories = try [
             TranscriptStore().directoryURL(),

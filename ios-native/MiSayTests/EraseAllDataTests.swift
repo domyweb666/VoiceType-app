@@ -61,4 +61,32 @@ final class EraseAllDataTests: XCTestCase {
         XCTAssertNoThrow(try legacyKeyStore.saveForTesting(SymmetricKey(size: .bits256)))
         try legacyKeyStore.deleteForTesting()
     }
+
+    /// 刪光之前就開著的編輯頁，刪光之後再打字：存檔被擋下來，刪掉的那篇不會跑回來。
+    func test刪除全部資料後_之前開著的編輯頁存不回去() throws {
+        let store = TranscriptStore()
+        let transcript = Transcript(durationSeconds: 60, rawText: "開著編輯頁的那篇")
+        let opened = TranscriptStore.eraseGeneration
+        try store.save(transcript, openedInGeneration: opened)
+
+        try EraseAllDataSection.eraseAll()
+
+        XCTAssertThrowsError(try store.save(transcript, openedInGeneration: opened)) { error in
+            XCTAssertEqual(error as? TranscriptStore.Failure, .notFound)
+        }
+        XCTAssertNil(try store.load(id: transcript.id), "刪掉的那篇不准跑回來")
+        XCTAssertEqual(try store.loadAll().transcripts, [])
+    }
+
+    /// 刪光之後才開的篇照常存得進去。
+    func test刪除全部資料後_新開的篇照常能存() throws {
+        try EraseAllDataSection.eraseAll()
+        let store = TranscriptStore()
+        let draft = Transcript.blankDraft()
+
+        try store.save(draft, openedInGeneration: TranscriptStore.eraseGeneration)
+
+        XCTAssertEqual(try store.load(id: draft.id)?.id, draft.id)
+        try EraseAllDataSection.eraseAll()
+    }
 }

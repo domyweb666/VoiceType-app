@@ -49,6 +49,8 @@ struct TranscriptDetailView: View {
     /// Y6：打開時是一篇空白新文稿，離開時還是空的就不留；這頁自己收掉了沒（`+Leaving`）。
     @State var openedBlank: Bool
     @State var wasDiscarded = false
+    /// 打開這頁時是第幾次刪光之後（`TranscriptStore+Erase`）：中間刪過全部資料，這頁的字就不存回去。
+    @State var openedEraseGeneration: Int
     /// 版本紀錄那張頁；下次該留版的時間（nil 是這次打開還沒留過）。
     @State var showsVersions = false
     @State var versionDueAt: Date?
@@ -95,6 +97,7 @@ struct TranscriptDetailView: View {
         _transcript = State(initialValue: transcript)
         _draftEdit = State(initialValue: transcript.draftText ?? "")
         _openedBlank = State(initialValue: transcript.isBlankDraft)
+        _openedEraseGeneration = State(initialValue: TranscriptStore.eraseGeneration)
         _titleEdit = State(initialValue: transcript.title ?? "")
         self.openedFrom = openedFrom
         self.onDelete = onDelete
