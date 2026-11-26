@@ -1,8 +1,11 @@
 import SwiftUI
+import UIKit
 
 /// 三個分頁：左「文字稿」、中「錄音」、右「設定」，打開停在中間。每個分頁有自己的 NavigationStack。
 /// 2026-11-02 米選左右滑＋頁面小點；2026-11-08 米改成原生底部分頁列（iOS 26 是浮在底部的玻璃列）。
 /// 左右滑的結構讓系統大標貼左緣、錄音鈕置中不準、大標上面空一塊，換成系統分頁列這三個一起沒了。
+/// 2026-11-26 米（QC-0014）：原生分頁列太低，改成自畫的懸浮膠囊（`FloatingTabBar`）。還是一般的 `TabView`，
+/// 只把系統列藏起來，照準則 4-2：膠囊疊在最上層、不跟鍵盤走（鍵盤出來就收起來）、每頁底下讓出同高的空白。
 struct RootTabView: View {
     enum Page: Hashable {
         case transcripts
@@ -18,6 +21,8 @@ struct RootTabView: View {
     @Environment(Recorder.self) private var recorder
     /// K7：從語音備忘錄分享進來之後要講的那句。
     @State private var importMessage: String?
+    /// 鍵盤出來時分頁列收起來、每頁也不再讓出底下的高度，不然編輯框會被多墊一截。
+    @State private var isKeyboardShown = false
 
     var body: some View {
         TabView(selection: $page) {
@@ -25,6 +30,7 @@ struct RootTabView: View {
                 TranscriptListView(opening: openingTranscript, onOpenHome: { page = .home })
                     .id(openingTranscript?.id)
             }
+            .modifier(TabPageChrome(clearsTabBar: !isKeyboardShown))
             .tabItem { Label("文字稿", systemImage: "doc.text") }
             .tag(Page.transcripts)
 
@@ -36,16 +42,31 @@ struct RootTabView: View {
                     onShowHome: { page = .home }
                 )
             }
+            .modifier(TabPageChrome(clearsTabBar: !isKeyboardShown))
             .tabItem { Label("錄音", systemImage: "mic") }
             .tag(Page.home)
 
             NavigationStack {
                 SettingsView()
             }
+            .modifier(TabPageChrome(clearsTabBar: !isKeyboardShown))
             .tabItem { Label("設定", systemImage: "gearshape") }
             .tag(Page.settings)
         }
         .tint(Token.Colors.link)
+        .overlay(alignment: .bottom) {
+            if !isKeyboardShown {
+                FloatingTabBar(page: $page)
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
+                    .transition(.opacity)
+            }
+        }
+        .onReceive(keyboard(UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardShown = true
+        }
+        .onReceive(keyboard(UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardShown = false
+        }
         // S4-3：點了「文字稿好了」通知。冷啟動時 id 在畫面出來前就到了，onChange 看不到，要 onAppear 補。
         .onAppear { openFromNotification(NotificationRouter.shared.openTranscriptID) }
         // 2026-11-24：打開、回到前景時清一次過期的垃圾桶，再看要不要自動備份。
@@ -85,6 +106,10 @@ struct RootTabView: View {
                 RecordingLauncher.shared.forgetRequest()
             }
         }
+    }
+
+    private func keyboard(_ name: Notification.Name) -> NotificationCenter.Publisher {
+        NotificationCenter.default.publisher(for: name)
     }
 
     private func showHomeIfRequested() {
@@ -127,5 +152,21 @@ struct RootTabView: View {
     private func open(_ transcript: Transcript) {
         openingTranscript = transcript
         page = .transcripts
+    }
+}
+
+/// 每個分頁的外框：藏系統分頁列，底下墊一塊跟懸浮膠囊同高的透明色塊，捲到底看得到最後一筆。
+/// 墊在 NavigationStack 外面，推進去的頁（文字稿頁、子設定頁）也一起讓。
+private struct TabPageChrome: ViewModifier {
+    let clearsTabBar: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar(.hidden, for: .tabBar)
+            .safeAreaInset(edge: .bottom, spacing: .zero) {
+                Color.clear
+                    .frame(height: clearsTabBar ? Token.Shape.tabClearance : 0)
+                    .allowsHitTesting(false)
+            }
     }
 }
