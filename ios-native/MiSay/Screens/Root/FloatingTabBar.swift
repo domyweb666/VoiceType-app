@@ -10,7 +10,9 @@ struct FloatingTabBar: View {
         let page: RootTabView.Page
         let title: String
         let systemImage: String
-        var id: RootTabView.Page { page }
+        var id: RootTabView.Page {
+            page
+        }
     }
 
     private let tabs = [
