@@ -85,7 +85,7 @@ extension TranscriptDetailView {
                 if try store.trashedIDs().contains(transcript.id) {
                     try store.restoreFromTrash(id: transcript.id)
                 } else if transcript.isBlankDraft {
-                    try store.save(transcript)
+                    try store.save(transcript, openedInGeneration: openedEraseGeneration)
                 }
             }
             wasDiscarded = false
