@@ -1,7 +1,28 @@
-<!-- overnight: running -->
+<!-- overnight: done -->
 # Overnight 報告
 ## 早上摘要
-（全部做完才寫）
+五項都做完了，每項都有測試，CI 全綠（最後一次 45754860439：439 個測試，0 失敗，1 略過）。都在分支 `overnight-20261126-1105`，還沒合進 main，也沒出 TestFlight。
+
+1. 刪除全部資料後，還開著的編輯頁打字不會再把刪掉的篇存回去。改在 `Storage/TranscriptStore+Erase.swift`（新檔）、`EraseAllDataSection.swift`、`TranscriptDetailView` 三個檔。舊頁會出現「存不進去」，頁面不會自己關。
+2. 垃圾桶三件：永久刪掉的讀不到篇不會再回清單；同一篇重複份只算一次，橫幅不會一直在；垃圾桶有讀不到的篇時，最上面多一句灰字。改在 `TranscriptStore+Unreadable.swift`、`+Trash.swift`、`TrashView.swift`。
+3. 認詞：「Open AI」改「OpenAI」認得了；曾、單、解這類姓氏多音字算讀音像；三字人名在斷詞拆成單字時會連姓收。改在 `Learning/EditDiff.swift`、`SoundAlike.swift`、`CorrectedWords.swift`。
+4. 拿掉沒人用的 `RecordingLauncher` 接著錄請求，連帶首頁兩個只在那裡用到的變數。
+5. 長稿「AI 改了什麼」：超過 2 萬字也比得出來，上限放到 12 萬字。2 萬字以內結果跟以前一模一樣。新檔 `Polishing/ChunkedDifference.swift`。
+
+要你決定的事在下面「待確認」，最要緊的是第一條：永久刪除時會連另存的壞檔一起刪，刪了救不回。
+
+早上建議先測：
+- 設定 → 進階 → 刪除全部資料，刪之前先開著一篇，刪完回那篇打幾個字，再看清單有沒有東西跑回來。
+- 垃圾桶畫面那句灰字（要有讀不到的篇才會出現，平常看不到）。
+- 拿一篇很長的稿打開「AI 改了什麼」，看順不順。
+- 在一篇稿裡把「Open AI」改成「OpenAI」，看詞庫有沒有收。
+
+這些要出新版才能在手機上測。要出 TestFlight 跟我說一聲。
+
+另外，專案外面多了一個 0 位元組空檔 `E:\c_tmp_ed5.py`，是夜裡打錯指令留下的，我沒權限刪，要請你刪掉。
+
+合併（在 E:\VoiceType-overnight 裡快轉推上 main）：`git -C E:\VoiceType-overnight push origin HEAD:main`
+丟棄：`git worktree remove E:\VoiceType-overnight; git branch -D overnight-20261126-1105; git push origin --delete overnight-20261126-1105`
 
 ## 任務清單
 - [x] 1. 「刪除全部資料」後還開著的編輯頁再打字不會存回來｜完成：有單元測試證明刪除後的寫入被擋、CI 綠
@@ -31,3 +52,4 @@
 - 12:10 第 3 項完成（3bad85a）：改 ios-native/MiSay/Learning/EditDiff.swift（拼回拆開的英文詞算改用詞）、SoundAlike.swift（姓氏地名多音字表）、CorrectedWords.swift（三字名連姓）；CorrectedWordsTests 加六個測試。CI 45752440293 綠（434 測試、0 失敗、1 略過），六個新測試都 passed。
 - 12:15 第 4 項完成（674c5e9）：改 ios-native/MiSay/App/RecordingLauncher.swift（拿掉 Request.append，註解改 K1）、Screens/Home/HomeView.swift（拿掉 appendTarget／appendInsertion 與接收那段）、Screens/Root/RootTabView.swift（註解）。CI 45753922851 綠（434 測試、0 失敗、1 略過）。
 - 12:30 第 5 項完成（d51bc90）：新增 ios-native/MiSay/Polishing/ChunkedDifference.swift；改 PolishDiff.swift（改用分段比、上限 12 萬）、MeaningAlignment.swift（改用分段比）；新增 MiSayTests/ChunkedDifferenceTests.swift 五個測試。CI 45754860439 綠（439 測試、0 失敗、1 略過），五個新測試都 passed。
+- 12:40 寫早上摘要，整晚模式收工。
