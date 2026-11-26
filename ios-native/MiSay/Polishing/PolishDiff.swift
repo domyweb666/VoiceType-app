@@ -15,9 +15,11 @@ struct PolishDiff: Equatable, Sendable {
         let text: String
     }
 
-    /// 兩邊加起來超過這麼多字就不比：比對的時間與記憶體跟長度相乘，兩小時以上的稿子手機會卡。
-    /// 2026-11-26 性能檢查 H1：6 萬字時改得多的稿要吃到 1 GB 以上、可能被系統關掉，先降到 2 萬（一邊約 1 萬字）。
-    static let maxCompareCharacters = 20000
+    /// 兩邊加起來超過這麼多字就不比。
+    /// 2026-11-26 性能檢查 H1：6 萬字時改得多的稿要吃到 1 GB 以上、可能被系統關掉，第 1 步先降到 2 萬。
+    /// 第 2 步改成 2 萬字以上分段比（`ChunkedDifference`），記憶體只跟最大的一段空隙有關，
+    /// 上限放到 12 萬（一邊約 6 萬字、四小時上下的稿），只擋極長的。
+    static let maxCompareCharacters = 120_000
 
     let runs: [Run]
     /// 刪掉、加上了幾個字，空白換行不算。
@@ -28,7 +30,7 @@ struct PolishDiff: Equatable, Sendable {
     init(from raw: String, to polished: String) {
         let old = Array(raw)
         let new = Array(polished)
-        let (removed, inserted) = Self.changedOffsets(from: old, to: new)
+        let (removed, inserted) = ChunkedDifference.changedOffsets(from: old, to: new)
         var builder = Builder()
         var oldIndex = 0
         var newIndex = 0
@@ -55,24 +57,6 @@ struct PolishDiff: Equatable, Sendable {
 
     static func isTooLong(raw: String, polished: String) -> Bool {
         raw.count + polished.count > maxCompareCharacters
-    }
-
-    /// 口語稿被刪掉的字在第幾個、文字稿新加的字在第幾個。
-    private static func changedOffsets(
-        from old: [Character],
-        to new: [Character]
-    ) -> (removed: Set<Int>, inserted: Set<Int>) {
-        var removed = Set<Int>()
-        var inserted = Set<Int>()
-        for change in new.difference(from: old) {
-            switch change {
-            case let .remove(offset, _, _):
-                removed.insert(offset)
-            case let .insert(offset, _, _):
-                inserted.insert(offset)
-            }
-        }
-        return (removed, inserted)
     }
 
     /// 一個字一個字收，同一種的接成一段。
