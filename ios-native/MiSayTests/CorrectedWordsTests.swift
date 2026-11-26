@@ -120,6 +120,45 @@ final class CorrectedWordsTests: XCTestCase {
         XCTAssertEqual(words("平果好吃，平果便宜", "蘋果好吃，蘋果便宜"), ["蘋果"])
     }
 
+    // MARK: - 2026-11-26 補漏：拼回拆開的英文詞、多音字、三字名
+
+    func test拆開的英文詞拼回來會收() {
+        let hunks = EditDiff.hunks(from: "我用Open AI寫", to: "我用OpenAI寫")
+        XCTAssertEqual(hunks.first?.before, "Open AI")
+        XCTAssertEqual(words("我用Open AI寫", "我用OpenAI寫"), ["OpenAI"])
+        XCTAssertEqual(words("問Chat GPT就好", "問ChatGPT就好"), ["ChatGPT"])
+    }
+
+    func test拿掉空白但不是拼英文詞的不收() {
+        XCTAssertEqual(words("I can not go", "I cannot go"), [])
+        XCTAssertEqual(words("買iPhone 15了", "買iPhone15了"), [])
+        XCTAssertEqual(words("用 OpenAI 寫", "用OpenAI寫"), [])
+        XCTAssertEqual(EditDiff.hunks(from: "用 Claude 寫", to: "用Claude寫"), [])
+    }
+
+    func test多音字照姓氏地名的讀音也算像() {
+        XCTAssertTrue(SoundAlike.matches("增", "曾"))
+        XCTAssertTrue(SoundAlike.matches("善", "單"))
+        XCTAssertTrue(SoundAlike.matches("下門", "廈門"))
+        XCTAssertEqual(words("我去下門玩", "我去廈門玩"), ["廈門"])
+    }
+
+    func test多音字表沒列的字照舊不像() {
+        XCTAssertFalse(SoundAlike.matches("從", "重"))
+        XCTAssertFalse(SoundAlike.matches("張", "曾"))
+        XCTAssertFalse(SoundAlike.matches("蛋", "曾"))
+    }
+
+    func test三個字的人名連姓一起收() {
+        XCTAssertEqual(words("今天陳秉章來了", "今天陳炳彰來了"), ["陳炳彰"])
+        XCTAssertEqual(words("今天陳炳章來了", "今天陳炳彰來了"), ["陳炳彰"])
+    }
+
+    func test左邊是姓但改的是認得的詞不往外撐() {
+        XCTAssertEqual(words("這張平果的照片", "這張蘋果的照片"), ["蘋果"])
+        XCTAssertEqual(words("下午去全連買東西。", "下午去全聯買東西。"), ["全聯"])
+    }
+
     // MARK: - 詞彙
 
     func test自動詞彙不重複_刪過的不再加回來() throws {

@@ -15,6 +15,11 @@ enum CorrectedWords {
             + "嗎嘛吧呢啊喔我你妳您他她它牠祂們做作對從用說想還找叫問看買吃喝賣帶請約等見寫聽"
     )
 
+    /// 台灣最常見的三十個姓：三個字的人名斷詞多半拆成單字，只有左邊是這些字才連姓一起收。
+    private static let commonSurnames = Set<Character>(
+        "陳林黃張李王吳劉蔡楊許鄭謝郭洪曾邱廖賴周徐蘇葉莊呂江何蕭羅高"
+    )
+
     static func find(from old: String, to new: String) -> [String] {
         var words: [String] = []
         for hunk in EditDiff.hunks(from: old, to: new) {
@@ -70,6 +75,7 @@ enum CorrectedWords {
         if span.count == 1 {
             span = joinedWithNeighbor(span, tokens: tokens, text: text)
         }
+        span = withSurname(span, tokens: tokens, text: text)
         let candidates = [span, changed].map { String(text[$0]) }
         return candidates.first { SoundAlike.isAllHan($0) && hanLengths.contains($0.count) }
     }
@@ -90,6 +96,24 @@ enum CorrectedWords {
             }
         }
         return span
+    }
+
+    /// 2026-11-26：陳炳彰斷成陳、炳、彰三個單字，上面只併到「炳彰」。
+    /// 兩個字都是斷詞不認得的單字、左邊緊貼的也是單字而且是常見的姓，就把姓併進來。
+    /// 斷詞認得的詞不往外撐：「這張蘋果」收「蘋果」，不收「張蘋果」。
+    private static func withSurname(
+        _ span: Range<Int>,
+        tokens: [Range<Int>],
+        text: [Character]
+    ) -> Range<Int> {
+        let isUnknownWord = tokens.filter { $0.overlaps(span) }.allSatisfy { $0.count == 1 }
+        guard span.count == 2, isUnknownWord,
+              let left = tokens.first(where: { $0.upperBound == span.lowerBound }),
+              left.count == 1, commonSurnames.contains(text[left.lowerBound])
+        else {
+            return span
+        }
+        return left.lowerBound ..< span.upperBound
     }
 
     private static func tokenRanges(in characters: [Character]) -> [Range<Int>] {

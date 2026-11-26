@@ -9,6 +9,24 @@ enum SoundAlike {
     private static let minConsonants = 3
     /// 全中文的：每三個字容許一個字不像（整個名字重打，其中一個字讀音差一點）。
     private static let syllablesPerMiss = 3
+    /// 2026-11-26：系統轉拼音一個字只給一個讀音，多音字當姓氏、地名時常讀另一個（曾、單、廈），
+    /// 聽錯改對會被當成不像。這裡把兩個讀音都列上，任一個像就算像。
+    /// 只列姓氏與地名用得到的；虛字（了、得、地）與一般詞的多音字（重、行、調）不列，免得一般錯字也被收。
+    private static let nameReadings: [Character: [String]] = [
+        "曾": ["zeng", "ceng"],
+        "單": ["shan", "dan", "chan"],
+        "解": ["xie", "jie"],
+        "仇": ["qiu", "chou"],
+        "區": ["ou", "qu"],
+        "查": ["zha", "cha"],
+        "沈": ["shen", "chen"],
+        "翟": ["zhai", "di"],
+        "朴": ["piao", "pu"],
+        "樸": ["piao", "pu"],
+        "尉": ["yu", "wei"],
+        "繆": ["miao", "mou", "miu"],
+        "廈": ["xia", "sha"],
+    ]
 
     static func matches(_ heard: String, _ written: String) -> Bool {
         if isAllHan(heard), isAllHan(written) {
@@ -46,13 +64,19 @@ enum SoundAlike {
             return false
         }
         let pairs = zip(heard, written)
-        let misses = pairs.filter { looseSyllable($0.0) != looseSyllable($0.1) }.count
-        return misses * syllablesPerMiss <= written.count
+        let misses = pairs.filter { looseSyllables($0.0).isDisjoint(with: looseSyllables($0.1)) }
+        return misses.count * syllablesPerMiss <= written.count
+    }
+
+    /// 這個字所有讀得出來的音：系統給的那個，多音字再加上 `nameReadings` 列的。
+    private static func looseSyllables(_ character: Character) -> Set<String> {
+        let readings = [pinyin(of: character)] + (nameReadings[character] ?? [])
+        return Set(readings.map(loosened))
     }
 
     /// 不帶聲調的拼音，再把台灣口音常混的併成同一個：ㄓㄔㄕ與ㄗㄘㄙ、ㄋㄌㄖ、ㄣ與ㄥ。
-    private static func looseSyllable(_ character: Character) -> String {
-        var syllable = pinyin(of: character)
+    private static func loosened(_ plainSyllable: String) -> String {
+        var syllable = plainSyllable
         let initials = [("zh", "z"), ("ch", "c"), ("sh", "s"), ("n", "l"), ("r", "l")]
         if let initial = initials.first(where: { syllable.hasPrefix($0.0) }) {
             syllable = initial.1 + syllable.dropFirst(initial.0.count)
