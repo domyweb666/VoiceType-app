@@ -14,7 +14,7 @@
 - 性能檢查（另開工作階段做的報告 `.vibe/性能檢查-2026-11-26.md`，3 高 5 中 6 低），米說「先改這三處」：H1 比對上限 6 萬→2 萬字；H2 去掉四處重複 `loadAll`；H3 清單搜尋一次重畫只算一次。報告最後有「已改」段。
 
 ## 🚧 還沒做完 / 待決定
-- 出 TestFlight：要米當次明講（見記憶 testflight-needs-consent）。這次所有改動都還沒上手機。
+- 已出 TestFlight：v0.2.18 build 28（米 2026-11-26：出 TestFlight），release run 45741922142 綠。等米真機回報。
 - 真機驗：`.vibe/操作清單-待驗.md` 最上面「芹查 QC-0014」段（分頁列被不被鍵盤推、推進去的頁有沒有藏乾淨系統列、清單 A 擠不擠）。v0.2.16、v0.2.17 的段也還在等。
 - 性能報告剩下的：H1 第 2 步（分段比，讓長稿也比得動）、H2 第 2、3 步（版本搬出主檔、清單摘要快取，動資料格式，要米決定）。報告「建議的順序」第 4 條建議先在真機量。
 - 清單右上工具列要不要照設計稿 A 收成「⋯」：等米看真機。
@@ -33,12 +33,12 @@
 - `ios-native/MiSay/Screens/Transcripts/TranscriptListView.swift`、`+Organize.swift`、`+Filter.swift`
 
 ## ⏭️ 下一步從哪繼續
-1. 問米要不要「出 TestFlight」（v0.2.18）；米明講才打 tag。
+1. v0.2.18 build 28 已上 TestFlight，等米真機結果。下一版要米再明講才打 tag。
 2. 米回真機結果後，照操作清單逐條修；分頁列若被鍵盤推或推進去的頁還看到系統列，先查 `RootTabView` 的 `TabPageChrome`。
 3. 米沒有新回報時，可提性能報告的 H1 第 2 步，等米選。
 
 ## 🧩 剩下的工作（工作包）
-- [ ] A：出 v0.2.18 到 TestFlight｜release run 綠｜tag｜等米明講
+- [x] A：出 v0.2.18 到 TestFlight｜release run 綠｜tag｜等米明講
 - [x] B：性能 M4 錄音計時拆成小 view｜錄音面板只有計時那塊每秒重畫｜`Screens/Recording/*`｜等米選
 - [ ] C：性能 H1 第 2 步分段比｜一小時稿比得動、記憶體跟最大段有關｜`Polishing/PolishDiff.swift`、`MeaningAlignment.swift`｜等米選
 
