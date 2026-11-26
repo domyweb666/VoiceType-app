@@ -112,7 +112,7 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 打字時頂上那顆、「⋯」裡那一列都開同一張頁。
+    /// 打字時頂上那顆（2026-11-26 起「⋯」裡不再放，選單太長）。
     var outlineButton: some View {
         Button {
             showsOutline = true
@@ -172,16 +172,11 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 「⋯」裡寫長文用的兩列：大綱與尋找、版本紀錄。只有已經有文字稿的篇有。
+    /// 「⋯ → 其他」裡的版本紀錄。只有已經有文字稿的篇有。
+    /// 大綱與尋找 2026-11-26 拿掉（米：選單太複雜），打字時右上那顆照樣開得到。
     @ViewBuilder
     var writingMenuItems: some View {
         if transcript.draftText != nil {
-            Button {
-                showsOutline = true
-            } label: {
-                Label("大綱與尋找", systemImage: "list.bullet.indent")
-            }
-            .disabled(currentText.isEmpty)
             Button {
                 showsVersions = true
             } label: {

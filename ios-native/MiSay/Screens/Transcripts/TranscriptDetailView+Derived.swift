@@ -47,7 +47,7 @@ extension TranscriptDetailView {
         return model.map { title + "・" + $0 } ?? title
     }
 
-    /// 「⋯」最上面的說明，按不下去。
+    /// 「⋯ → 其他」最下面的說明，按不下去。
     var derivedNoteSection: some View {
         Section {
             Text(Self.derivedNote(kind: transcript.sourceKind, model: transcript.polishModel))

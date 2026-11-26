@@ -52,7 +52,7 @@ struct RewritesSheet: View {
             .scrollContentBackground(.hidden)
             .background(Token.Colors.groupedBackground)
             .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
-            .navigationTitle("改寫成其他格式")
+            .navigationTitle("改寫成…")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: TranscriptRewrite.self) { rewrite in
                 RewriteTextView(

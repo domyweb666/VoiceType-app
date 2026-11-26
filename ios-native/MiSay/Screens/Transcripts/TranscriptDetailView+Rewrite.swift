@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// W1「⋯ → 改寫成其他格式」：送出、存成新的一篇、以前的改寫稿拿來編輯或刪掉、失敗翻成人話。
+/// W1「⋯ → 改寫成…」：送出、存成新的一篇、以前的改寫稿拿來編輯或刪掉、失敗翻成人話。
 /// Y5：改寫好的是自己的一篇，這篇不動；怎麼打開在 `TranscriptDetailView+Derived`。一次只改寫一種。
 extension TranscriptDetailView {
     enum RewriteFailure: Error {
@@ -50,9 +50,9 @@ extension TranscriptDetailView {
         }
     }
 
-    /// 「改寫成其他格式…」；改寫過就帶份數，不用點進去就知道裡面有東西。
+    /// 「改寫成…」；改寫過就帶份數，不用點進去就知道裡面有東西（2026-11-26 縮短：米嫌選單太複雜）。
     static func rewriteMenuTitle(copies: Int) -> String {
-        copies > 0 ? "改寫成其他格式（\(copies) 份）" : "改寫成其他格式…"
+        copies > 0 ? "改寫（\(copies) 份）" : "改寫成…"
     }
 
     /// 從現在畫面上的字出發（有文字稿就是改過的文字稿）。太長不送：一次改寫整篇會被截斷，半篇不存。
@@ -120,7 +120,7 @@ extension TranscriptDetailView {
         if showsRewrites {
             openRelated(rewritten)
         } else {
-            showNote("改寫好了：\(kind.title)，在「⋯ → 改寫成其他格式」裡。")
+            showNote("改寫好了：\(kind.title)，在「⋯ → 改寫成…」裡。")
         }
     }
 

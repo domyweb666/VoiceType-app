@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 「⋯ → 這趟講了幾件事」（片 J3）：送出、收結果、存成幾篇、失敗翻成人話。
+/// 「⋯ → 其他 → 拆成幾篇」（片 J3）：送出、收結果、存成幾篇、失敗翻成人話。
 /// 按了才送；結果不存，離開這頁就沒了。存的字從文字稿照搬，這篇不動。
 extension TranscriptDetailView {
     /// 還沒有文字稿的篇沒有稿可以拆。
@@ -8,7 +8,7 @@ extension TranscriptDetailView {
     var splitMenuItem: some View {
         if transcript.draftText != nil {
             Button(action: openSplit) {
-                Label("這趟講了幾件事", systemImage: "scissors")
+                Label("拆成幾篇", systemImage: "scissors")
             }
             .disabled(isPolishing || currentText.isEmpty)
         }
@@ -88,7 +88,7 @@ extension TranscriptDetailView {
             loadPieces()
             split.show(result, from: source, hasEarlierPieces: !derived.pieces.isEmpty)
             if !showsSplit {
-                showNote("分好了，在「⋯ → 這趟講了幾件事」裡。")
+                showNote("分好了，在「⋯ → 其他 → 拆成幾篇」裡。")
             }
         } catch {
             guard !Task.isCancelled else {

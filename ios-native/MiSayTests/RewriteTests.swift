@@ -97,8 +97,8 @@ final class RewriteTests: XCTestCase {
     }
 
     func test選單標題與失敗講的話() {
-        XCTAssertEqual(TranscriptDetailView.rewriteMenuTitle(copies: 0), "改寫成其他格式…")
-        XCTAssertEqual(TranscriptDetailView.rewriteMenuTitle(copies: 2), "改寫成其他格式（2 份）")
+        XCTAssertEqual(TranscriptDetailView.rewriteMenuTitle(copies: 0), "改寫成…")
+        XCTAssertEqual(TranscriptDetailView.rewriteMenuTitle(copies: 2), "改寫（2 份）")
         let message = TranscriptDetailView.rewriteFailureMessage
         XCTAssertEqual(
             message(OpenAIClient.Failure.missingAPIKey),

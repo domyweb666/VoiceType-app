@@ -3,7 +3,7 @@ import Foundation
 extension PassagePreviewSheet {
     /// 一次改一段的請求，兩種編輯框共用。位置記第幾個字：等的時候字可能被改過，舊的 String.Index 不能再用。
     struct Request: Identifiable {
-        static let tooLongNote = "選的太長了，一次改 3,000 字以內。整篇要改，用「⋯ → 改寫成其他格式」。"
+        static let tooLongNote = "選的太長了，一次改 3,000 字以內。整篇要改，用「⋯ → 改寫成…」。"
         static let movedNote = "這段在等的時候被改過了，找不到原本那段，沒有換上。"
 
         let id = UUID()

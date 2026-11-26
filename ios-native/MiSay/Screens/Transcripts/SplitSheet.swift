@@ -95,7 +95,7 @@ struct SplitSheet: View {
             .scrollContentBackground(.hidden)
             .background(Token.Colors.groupedBackground)
             .safeAreaInset(edge: .bottom) { saveBar }
-            .navigationTitle("這趟講了幾件事")
+            .navigationTitle("拆成幾篇")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
         }

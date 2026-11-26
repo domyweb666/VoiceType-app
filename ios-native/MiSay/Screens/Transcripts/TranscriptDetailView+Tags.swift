@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// W6「⋯ → 標籤」：升起 `TagEditorSheet`，按「完成」存回這篇。存法跟改寫一樣先讀存檔裡最新的那份。
+/// W6「⋯ → 其他 → 標籤」：升起 `TagEditorSheet`，按「完成」存回這篇。存法跟改寫一樣先讀存檔裡最新的那份。
 extension TranscriptDetailView {
     var tagsSheet: some View {
         TagEditorSheet(
