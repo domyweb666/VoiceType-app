@@ -50,18 +50,12 @@ struct MeaningAlignment {
         return (before, after)
     }
 
-    /// 跟 `PolishDiff` 同一種比法。字先換成數字再比，長文快很多。
+    /// 跟 `PolishDiff` 同一種比法（兩萬字以上分段比，`ChunkedDifference`）。字先換成數字再比，長文快很多。
     private static func align(from old: [Character], to new: [Character]) -> [Int?] {
-        var removed = Set<Int>()
-        var inserted = Set<Int>()
-        for change in codes(of: new).difference(from: codes(of: old)) {
-            switch change {
-            case let .remove(offset, _, _):
-                removed.insert(offset)
-            case let .insert(offset, _, _):
-                inserted.insert(offset)
-            }
-        }
+        let (removed, inserted) = ChunkedDifference.changedOffsets(
+            from: codes(of: old),
+            to: codes(of: new)
+        )
         var aligned: [Int?] = []
         var newIndex = 0
         for oldIndex in old.indices {
