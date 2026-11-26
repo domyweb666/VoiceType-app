@@ -51,7 +51,7 @@ struct RewritesSheet: View {
             .font(Token.Fonts.body)
             .scrollContentBackground(.hidden)
             .background(Token.Colors.groupedBackground)
-            .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
+            .sensoryFeedbackIfEnabled(Token.Haptics.deleted, trigger: deleteCount)
             .navigationTitle("改寫成…")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: TranscriptRewrite.self) { rewrite in

@@ -14,6 +14,12 @@ settings:
     MARKETING_VERSION: "0.0.0"
     CURRENT_PROJECT_VERSION: "1"
 
+# 蔬菜家族設定頁的共用元件（自家公開 repo，不連網、沒有別人的程式）。版本鎖在 tag，升版要自己改這裡。
+packages:
+  VeggieKit:
+    url: https://github.com/domyweb666/VeggieKit
+    exactVersion: 1.0.2
+
 targets:
   MiSay:
     type: application
@@ -23,6 +29,7 @@ targets:
       - MiSayShared
     dependencies:
       - target: MiSayWidgets
+      - package: VeggieKit
     # Info.plist 由 XcodeGen 每次產生（不進 repo）。
     info:
       path: MiSay/Info.plist

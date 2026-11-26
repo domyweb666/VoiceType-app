@@ -33,6 +33,21 @@ final class EraseAllDataTests: XCTestCase {
         XCTAssertEqual(try keyStore.read(), fakeKey, "金鑰另有鈕，不准一起刪")
     }
 
+    /// 測試不直接 import VeggieKit（它只連在 App 上），用 App 那邊列好的兩個鍵。
+    func test清除所有資料外觀與觸覺回饋回到預設() throws {
+        let keys = EraseAllDataSection.resetPreferenceKeys
+        XCTAssertEqual(keys.count, 2, "外觀、觸覺回饋各一個")
+        for key in keys {
+            UserDefaults.standard.set("改過的值", forKey: key)
+        }
+
+        try EraseAllDataSection.eraseAll()
+
+        for key in keys {
+            XCTAssertNil(UserDefaults.standard.object(forKey: key), "\(key) 要回到預設")
+        }
+    }
+
     func test沒有舊金鑰也刪得乾淨_有舊金鑰會一起刪() throws {
         let legacyKeyStore = TranscriptEncryptionKeyStore()
         try legacyKeyStore.deleteForTesting()

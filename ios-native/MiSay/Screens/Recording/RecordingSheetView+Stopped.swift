@@ -40,7 +40,7 @@ extension RecordingSheetView {
                 .multilineTextAlignment(.center)
             Spacer(minLength: Token.Space.s)
             Button("完成") {
-                dismiss()
+                close()
             }
             .buttonStyle(TextButtonStyle())
         }

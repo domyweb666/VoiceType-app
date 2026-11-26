@@ -1,6 +1,8 @@
 import SwiftUI
+import VeggieKit
 
-/// 設定 →「資料」（片 G1、G2）：匯出備份、匯入備份。
+/// 設定 →「資料」（片 G1、G2）：匯出、匯入備份。2026-11-26 照蔬菜家族規格從進階搬到設定頁第一層，
+/// 列名改用全家共用的「匯出資料」「匯入資料」；「清除所有資料」是這區最後一列（`EraseAllDataSection`）。
 /// 自動備份那幾列在 `AutoBackupRows`。
 /// 匯入合併不覆蓋：同一篇（同 id）已經在手機上就跳過；先講清楚會加幾篇，按了才寫（安全標準六）。
 struct BackupSection: View {
@@ -24,16 +26,20 @@ struct BackupSection: View {
                 item: BackupFile(),
                 preview: SharePreview(BackupFile.fileName)
             ) {
-                Text("匯出備份")
+                VeggieRow(icon: "square.and.arrow.up", title: VeggieText.exportData)
             }
-            .tint(Token.Colors.link)
-            .disabled(transcriptCount == 0 || loadFailed)
+            .buttonStyle(.plain)
+            .disabled(isExportDisabled)
+            // 自己畫的列不會跟著停用變淡，要自己淡下去，不然看不出按不了。
+            .opacity(isExportDisabled ? Token.Motion.disabledOpacity : 1)
             // 讀篇數、選檔、確認框掛在這顆鈕上：掛在 Section 上，SwiftUI 可能每一列各套一次。
-            Button("匯入備份") {
+            Button {
                 resultMessage = nil
                 isImporting = true
+            } label: {
+                VeggieRow(icon: "square.and.arrow.down", title: VeggieText.importData)
             }
-            .tint(Token.Colors.link)
+            .buttonStyle(.plain)
             .task { reloadCount() }
             .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json]) { result in
                 prepareImport(result)
@@ -58,7 +64,7 @@ struct BackupSection: View {
             LabeledContent("上次產生備份", value: lastBackupText)
             AutoBackupRows()
         } header: {
-            Text("資料")
+            Text(VeggieText.data)
         } footer: {
             if let footerText {
                 Text(footerText)
@@ -67,6 +73,10 @@ struct BackupSection: View {
         }
         .font(Token.Fonts.body)
         .listRowBackground(Token.Colors.rowBackground)
+    }
+
+    private var isExportDisabled: Bool {
+        transcriptCount == 0 || loadFailed
     }
 
     /// 2026-11-26 米（QC-0014）：進階的說明都拿掉。只在出狀況時講一句（讀不到、按鈕變灰的原因、有幾篇讀不到）。

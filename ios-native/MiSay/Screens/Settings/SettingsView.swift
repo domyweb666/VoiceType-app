@@ -1,10 +1,11 @@
 import SwiftUI
+import VeggieKit
 
 /// 設定（片 B3、F1～F5、G）。2026-11-08 米：設定頁要簡潔，照 iPhone 設定 App 的做法。
-/// 第一層只留短短幾列、右邊帶現況，細節和說明都在子頁：金鑰（`APIKeySettingsView`）、
-/// 自訂詞彙（`VocabularyView`）、進階（`AdvancedSettingsView`：備份、診斷紀錄）。
-/// 口述統計在最下面、版本上面（2026-11-24 主力編輯器）。改了馬上存（M7），下一筆整理就照新的走。
-/// 2026-11-14 照 domy-design：統計卡淡金底、潤飾方式改淡金膠囊；列與箭頭還是系統的。
+/// 2026-11-26 米：補上蔬菜家族共用的幾區，順序照準則 3-3：米說自己的（金鑰、潤飾、進階、口述統計）→
+/// 一般 → 資料 → 支援 → 關於 → 頁尾。沒有內購所以沒有購買區；頁尾取代原本的「版本」列。
+/// 家族那幾區用 VeggieKit 的列（圖示＋名稱），米說自己的列還是系統的。改了馬上存（M7）。
+/// 2026-11-14 照 domy-design：統計卡淡金底、潤飾方式改淡金膠囊。
 struct SettingsView: View {
     @Bindable private var settings = AppSettings.shared
     @State private var hasAPIKey = false
@@ -35,11 +36,14 @@ struct SettingsView: View {
                 }
                 .listRowBackground(Color.clear)
             }
-            Section {
-                detailRow("版本", value: Self.versionText)
-            }
-            .listRowBackground(Token.Colors.rowBackground)
+            SettingsGeneralSection()
+            BackupSection()
+            // 準則 3-3：清除所有資料是「資料」區最後一列。自己一組，按不了時的那句話才不會跟備份的混在一起。
+            EraseAllDataSection()
+            SettingsSupportSection()
+            SettingsAboutSection()
         }
+        .veggieStyle(.misay)
         .font(Token.Fonts.body)
         .scrollContentBackground(.hidden)
         .background(Token.Colors.groupedBackground)
@@ -96,13 +100,5 @@ struct SettingsView: View {
         hasAPIKey = !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
         stats = transcripts.isEmpty ? nil : DictationStats(transcripts: transcripts)
-    }
-
-    /// 「0.1.4（5）」：版本號＋建置號，回報問題時對得上 TestFlight 那一版。
-    static var versionText: String {
-        let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
-        let build = info?["CFBundleVersion"] as? String ?? "—"
-        return "\(version)（\(build)）"
     }
 }

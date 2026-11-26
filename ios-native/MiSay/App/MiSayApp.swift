@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import VeggieKit
 
 @main
 struct MiSayApp: App {
@@ -19,6 +20,8 @@ struct MiSayApp: App {
             RootTabView()
                 .environment(transcriptionQueue)
                 .environment(recorder)
+                // 設定頁選的外觀（準則 3-10）。套在視窗上，所以要等第一個畫面出來、視窗在了才套得上。
+                .onAppear { Appearance.stored.apply() }
         }
     }
 }

@@ -130,7 +130,7 @@ struct TranscriptDetailView: View {
                 }
                 Button("取消", role: .cancel) {}
             }
-            .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
+            .sensoryFeedbackIfEnabled(Token.Haptics.copied, trigger: copyCount)
             .onChange(of: draftEdit) { _, _ in scheduleAutosave() }
             .onAppear(perform: pageAppeared)
             .onDisappear {

@@ -39,7 +39,7 @@ struct TrashView: View {
                     .padding(.bottom, Token.Space.s)
             }
         }
-        .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
+        .sensoryFeedbackIfEnabled(Token.Haptics.deleted, trigger: deleteCount)
         .navigationTitle("垃圾桶")
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(

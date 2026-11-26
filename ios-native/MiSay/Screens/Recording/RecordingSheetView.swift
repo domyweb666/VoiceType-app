@@ -5,6 +5,7 @@ import SwiftUI
 /// 組塊 S：錄音狀態在 App 層的 `Recorder`，這裡只讀；被打斷時換字，接回來就換回去。
 /// 2026-11-07 統一風格：面板白底、計時 56、「正在聽」帶紅點、主要按鈕玉米黃膠囊、文字鈕金色；
 /// 給人唸的字串搬到 `RecordingSheetView+Text.swift`。
+/// 2026-11-26 米：首頁錄音不彈窗。首頁傳 `onClose` 進來就是原地版（`+Inline`），編輯頁「接著錄」照舊是半頁。
 struct RecordingSheetView: View {
     enum Phase: Equatable {
         case starting
@@ -26,51 +27,46 @@ struct RecordingSheetView: View {
     var insertingAt: InsertionPoint?
     /// Y4：在編輯頁上開的。整理好就收起來，字回到那一頁。
     var isInEditor = false
+    /// 首頁原地版收起來時叫它；nil 是半頁面板，收起來用系統的 dismiss。
+    var onClose: (() -> Void)?
 
     @Environment(\.dismiss) var dismiss
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var phase = Phase.starting
-    @State private var isPulsing = false
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @State var phase = Phase.starting
+    @State var isPulsing = false
     /// 按「繼續錄」沒成功時那一句；留在同一個畫面，等一下還能再按。
     @State var resumeFailure: String?
     /// 按了停止、正在收掉邊錄邊轉（最多一兩秒）：停止與繼續錄都不給再按（S4 審查）。
     @State var isStopping = false
     /// K6：這段錄音標了幾個重點（觸覺回饋也跟著它）。
-    @State private var markCount = 0
+    @State var markCount = 0
     /// 面板開著時，別處要開錄的請求先等（`RecordingLauncher`）。
     @State private var panelID = UUID()
+    /// 原地版切到別的分頁再回來，畫面會重新出現；已經開錄過就不再開一次。
+    @State private var hasStarted = false
+
+    var isInline: Bool {
+        onClose != nil
+    }
 
     var body: some View {
-        VStack(spacing: Token.Space.xl) {
-            switch phase {
-            case .starting, .recording:
-                recordingContent
-            case .interrupted:
-                interruptedContent
-            case .microphoneDenied:
-                MicrophoneDeniedContent { dismiss() }
-            case let .failed(message):
-                failedContent(message)
-            case let .processing(recordingURL):
-                RecordingResultView(
-                    queue: queue,
-                    recordingURL: recordingURL,
-                    captureGaps: recorder.lastGaps,
-                    onOpenTranscript: onOpenTranscript,
-                    onOpenSettings: onOpenSettings,
-                    returningTo: isInEditor ? appendingTo : nil
-                )
+        Group {
+            if isInline {
+                inlineBody
+            } else {
+                sheetBody
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, Token.Space.xl)
-        .padding(.vertical, Token.Space.xl)
-        .background(Token.Colors.rowBackground)
-        .interactiveDismissDisabled()
-        .sensoryFeedback(trigger: phase) { old, new in
+        .sensoryFeedbackIfEnabled(trigger: phase) { old, new in
             Self.feedback(from: old, to: new)
         }
-        .task { await startRecording() }
+        .task {
+            guard !hasStarted else {
+                return
+            }
+            hasStarted = true
+            await startRecording()
+        }
         .onAppear { RecordingLauncher.shared.panelOpened(panelID) }
         .onDisappear { RecordingLauncher.shared.panelClosed(panelID) }
         .onChange(of: recorder.isPaused) { _, paused in
@@ -80,6 +76,55 @@ struct RecordingSheetView: View {
                 resumeFailure = nil
                 phase = .recording
             }
+        }
+    }
+
+    private var sheetBody: some View {
+        VStack(spacing: Token.Space.xl) {
+            phaseContent
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, Token.Space.xl)
+        .padding(.vertical, Token.Space.xl)
+        .background(Token.Colors.rowBackground)
+        .interactiveDismissDisabled()
+    }
+
+    /// 各階段的內容；錄音中原地版另有長相（`+Inline`）。
+    @ViewBuilder
+    var phaseContent: some View {
+        switch phase {
+        case .starting, .recording:
+            if isInline {
+                inlineRecordingContent
+            } else {
+                recordingContent
+            }
+        case .interrupted:
+            interruptedContent
+        case .microphoneDenied:
+            MicrophoneDeniedContent { close() }
+        case let .failed(message):
+            failedContent(message)
+        case let .processing(recordingURL):
+            RecordingResultView(
+                queue: queue,
+                recordingURL: recordingURL,
+                captureGaps: recorder.lastGaps,
+                onOpenTranscript: onOpenTranscript,
+                onOpenSettings: onOpenSettings,
+                returningTo: isInEditor ? appendingTo : nil,
+                onClose: onClose
+            )
+        }
+    }
+
+    /// 收起來：原地版回到待機，半頁面板收下去。
+    func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
         }
     }
 
@@ -163,97 +208,5 @@ struct RecordingSheetView: View {
                 insertion: insertingAt
             )
         }
-    }
-}
-
-/// 錄音中的內容。被打斷、失敗在 `RecordingSheetView+Stopped.swift`。
-private extension RecordingSheetView {
-    var recordingContent: some View {
-        VStack(spacing: Token.Space.m) {
-            RecordingTimer(recorder: recorder)
-            listeningLine
-            Spacer(minLength: Token.Space.s)
-            RecordingWaveform(recorder: recorder)
-            Spacer(minLength: Token.Space.s)
-            stopButton
-            markButton
-            spaceNote
-        }
-    }
-
-    /// K6：講到重點按一下，記下第幾秒；整理完在詳情頁「⋯ → 錄音與原稿」看得到。
-    var markButton: some View {
-        Button(markCount == 0 ? "標記重點" : "標記重點（已標 \(markCount) 個）") {
-            guard let name = recorder.liveRecordingURL?.lastPathComponent else {
-                return
-            }
-            // 記不進去只是少一個標記，錄音照常；不跳錯。
-            let seconds = recorder.elapsedSeconds
-            if (try? RecordingMarks().add(seconds, forRecordingNamed: name)) != nil {
-                markCount += 1
-            }
-        }
-        .buttonStyle(TextButtonStyle())
-        .disabled(phase != .recording || isStopping)
-        .sensoryFeedback(Token.Haptics.copied, trigger: markCount)
-    }
-
-    /// 錄音中＝圓點＋計時在跳＋「正在聽」三樣一起（使用規則第 4 條）。
-    /// 2026-11-14 照 domy 的錄音畫面：圓點和字一起放進淡金膠囊，圓點用金棕不用紅。
-    var listeningLine: some View {
-        AccentCapsule {
-            Circle()
-                .fill(Token.Colors.recordingFill)
-                .frame(width: Token.Space.s, height: Token.Space.s)
-                .accessibilityHidden(true)
-            Text(recorder.isWaitingForSound ? "接回去了，還沒聽到聲音" : "正在聽")
-        }
-    }
-
-    @ViewBuilder
-    var spaceNote: some View {
-        if let minutes = recorder.minutesLeftOnDisk {
-            Text("手機空間只夠再錄約 \(minutes) 分鐘")
-                .font(Token.Fonts.footnote)
-                .foregroundStyle(Token.Colors.danger)
-        } else {
-            Text("鎖住螢幕也會繼續錄")
-                .font(Token.Fonts.footnote)
-                .foregroundStyle(Token.Colors.textSecondary)
-        }
-    }
-
-    /// 80pt 金棕鈕（domy：進行中用產品色實心＋方塊）；外圈 1.4 秒呼吸一次（4pt → 12pt）。
-    /// 減少動態時不呼吸，圓點本來就在「正在聽」旁邊。
-    var stopButton: some View {
-        Button {
-            stopRecording()
-        } label: {
-            RoundedRectangle(cornerRadius: Token.Shape.radiusStopGlyph, style: .continuous)
-                .fill(Token.Colors.recordingGlyph)
-                .frame(width: Token.Shape.stopGlyph, height: Token.Shape.stopGlyph)
-                .frame(width: Token.Shape.stopTap, height: Token.Shape.stopTap)
-                .background(Token.Colors.recordingFill, in: Circle())
-                .background {
-                    if !reduceMotion {
-                        Circle()
-                            .stroke(Token.Colors.recordingFill)
-                            .padding(isPulsing ? -Token.Space.m : -Token.Space.xs)
-                    }
-                }
-        }
-        .accessibilityLabel("停止錄音")
-        .disabled(phase != .recording || isStopping)
-        .onAppear {
-            guard !reduceMotion else {
-                return
-            }
-            let breathing = Animation.easeInOut(duration: Token.Motion.recordingPulse)
-            withAnimation(breathing.repeatForever(autoreverses: true)) {
-                isPulsing = true
-            }
-        }
-        // 被打斷再接回時這顆鈕會重新出現；不歸零的話值沒變，外圈就不再呼吸。
-        .onDisappear { isPulsing = false }
     }
 }

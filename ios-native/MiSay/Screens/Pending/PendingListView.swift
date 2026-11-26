@@ -64,7 +64,7 @@ struct PendingListView: View {
                     .padding(.bottom, Token.Space.s)
             }
         }
-        .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
+        .sensoryFeedbackIfEnabled(Token.Haptics.deleted, trigger: deleteCount)
         .navigationTitle("待轉錄")
         .confirmationDialog(
             "這段還沒轉成文字，刪了就沒有了。",

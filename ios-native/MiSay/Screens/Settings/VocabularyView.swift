@@ -76,7 +76,7 @@ struct VocabularyView: View {
         } message: {
             Text("常講的人名、品牌、專有名詞。整理時會照這裡的寫法。")
         }
-        .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
+        .sensoryFeedbackIfEnabled(Token.Haptics.deleted, trigger: deleteCount)
         .navigationTitle("自訂詞彙")
     }
 

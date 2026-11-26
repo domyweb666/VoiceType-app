@@ -31,7 +31,7 @@ struct FloatingTabBar: View {
         .frame(width: Token.Shape.tabBarWidth, height: Token.Shape.tabBar)
         .background { plate }
         .padding(.bottom, Token.Shape.tabBarBottom)
-        .sensoryFeedback(.selection, trigger: page)
+        .sensoryFeedbackIfEnabled(.selection, trigger: page)
     }
 
     private func button(_ tab: Tab) -> some View {

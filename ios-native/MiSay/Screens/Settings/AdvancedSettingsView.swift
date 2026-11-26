@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// 設定 →「進階」子頁：錄音、編輯框、備份、診斷紀錄、刪除全部資料（S2-9）。2026-11-08 設定頁簡化時從第一層收進來，
+/// 設定 →「進階」子頁：錄音、編輯框、診斷紀錄。2026-11-08 設定頁簡化時從第一層收進來，
 /// 平常不用碰的放這裡。2026-11-26 米（QC-0014）：說明都拿掉。
+/// 2026-11-26 照蔬菜家族規格：備份與清除所有資料搬到設定頁第一層的「資料」區。
 struct AdvancedSettingsView: View {
     @Bindable private var settings = AppSettings.shared
 
@@ -25,8 +26,6 @@ struct AdvancedSettingsView: View {
             .font(Token.Fonts.body)
             .listRowBackground(Token.Colors.rowBackground)
 
-            BackupSection()
-
             Section {
                 ShareLink(
                     item: DiagnosticFile(),
@@ -38,8 +37,6 @@ struct AdvancedSettingsView: View {
             }
             .font(Token.Fonts.body)
             .listRowBackground(Token.Colors.rowBackground)
-
-            EraseAllDataSection()
         }
         .scrollContentBackground(.hidden)
         .background(Token.Colors.groupedBackground)

@@ -9,6 +9,8 @@ import SwiftUI
 /// 2026-11-09 米：提示改成長錄音的講法。
 /// 2026-11-14 照 domy-design 的錄音畫面：提示第一行升一級、左右邊距 20。
 /// 2026-11-24 主力編輯器：上緣那行口述統計拿掉，只留在設定頁。
+/// 2026-11-26 米：錄音不彈窗，按下去這頁原地換成錄音中（`RecordingSheetView` 傳 `onClose` 的原地版）；
+/// 待機的鈕後面加呼吸光暈（`RecordHalo`）。
 struct HomeView: View {
     /// 外層的三頁現在停在首頁。從設定頁滑回來時要重看金鑰在不在。
     let isCurrentPage: Bool
@@ -21,7 +23,8 @@ struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(TranscriptionQueue.self) private var queue
     @Environment(Recorder.self) private var recorder
-    @State private var isRecordingSheetShown = false
+    /// 這頁現在是錄音那一套（錄音中、整理中、完成…），不是待機的大鈕。
+    @State private var isRecordingShown = false
     /// K3：這次打開面板是要接在哪一篇後面。
     @State private var appendTarget: UUID?
     /// 要插在那篇的哪裡；nil 是接在最後面。
@@ -31,37 +34,28 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            // 鈕對整個螢幕置中（米 11/08：要在正中央）。這層忽略安全區，上面的標題列、下面的分頁列都不影響它。
-            // 之前對「剩下的空間」置中：第一版被下面的 Spacer 擠到頂，第二版因為上面扣得比下面多而偏下。
-            Color.clear
-                .overlay { recordButton }
-                .overlay { hintBelowButton }
-                .ignoresSafeArea()
-            // 金鑰卡貼上緣、待轉錄列貼下緣，中間空著的地方點得到後面的鈕。
-            VStack {
-                if !hasAPIKey {
-                    noKeyCard
-                }
-                Spacer()
-                if pendingCount > 0 {
-                    pendingRow
-                }
+            if isRecordingShown {
+                RecordingSheetView(
+                    queue: queue,
+                    recorder: recorder,
+                    onOpenTranscript: openFromSheet,
+                    onOpenSettings: openSettingsFromSheet,
+                    appendingTo: appendTarget,
+                    insertingAt: appendInsertion,
+                    onClose: { isRecordingShown = false }
+                )
+                .transition(.opacity)
+            } else {
+                idleContent
+                    .transition(.opacity)
             }
         }
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: Token.Motion.modeSwitch),
+            value: isRecordingShown
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Token.Colors.groupedBackground)
-        .sheet(isPresented: $isRecordingSheetShown) {
-            RecordingSheetView(
-                queue: queue,
-                recorder: recorder,
-                onOpenTranscript: openFromSheet,
-                onOpenSettings: openSettingsFromSheet,
-                appendingTo: appendTarget,
-                insertingAt: appendInsertion
-            )
-            .presentationDetents([.medium])
-            .presentationCornerRadius(Token.Shape.radiusSheet)
-        }
         // K1、K3：捷徑或「接著錄」丟來的開錄請求。冷啟動時請求在畫面出來前就到了，onAppear 補。
         .onAppear { takeRecordingRequest() }
         .onChange(of: RecordingLauncher.shared.request) { _, _ in takeRecordingRequest() }
@@ -88,7 +82,7 @@ struct HomeView: View {
                 reloadKey()
             }
         }
-        .onChange(of: isRecordingSheetShown) { _, shown in
+        .onChange(of: isRecordingShown) { _, shown in
             if !shown {
                 appendTarget = nil
                 appendInsertion = nil
@@ -109,7 +103,7 @@ struct HomeView: View {
     private func takeRecordingRequest() {
         let taken = RecordingLauncher.shared.take(
             isRecording: recorder.isRecording,
-            isPanelOpening: isRecordingSheetShown
+            isPanelOpening: isRecordingShown
         )
         guard let request = taken else {
             return
@@ -119,17 +113,17 @@ struct HomeView: View {
             appendTarget = target
             appendInsertion = insertion
         }
-        isRecordingSheetShown = true
+        isRecordingShown = true
     }
 
     /// 面板先收起，再請外層換到「文字稿」那頁、推到這一篇。
     private func openFromSheet(_ transcript: Transcript) {
-        isRecordingSheetShown = false
+        isRecordingShown = false
         onOpenTranscript(transcript)
     }
 
     private func openSettingsFromSheet() {
-        isRecordingSheetShown = false
+        isRecordingShown = false
         onOpenSettings()
     }
 
@@ -160,17 +154,42 @@ private extension HomeView {
     @ViewBuilder
     var recordButton: some View {
         let button = Button {
-            isRecordingSheetShown = true
+            isRecordingShown = true
         } label: {
             RecordButtonLabel()
         }
         .accessibilityLabel("開始錄音")
 
-        // 減少動態時不縮放，用系統預設的按壓回饋（變淡）。
-        if reduceMotion {
-            button
-        } else {
-            button.buttonStyle(RecordButtonStyle())
+        ZStack {
+            RecordHalo()
+            // 減少動態時不縮放，用系統預設的按壓回饋（變淡）。
+            if reduceMotion {
+                button
+            } else {
+                button.buttonStyle(RecordButtonStyle())
+            }
+        }
+    }
+
+    /// 待機：大鈕、提示、金鑰卡、待轉錄列。
+    var idleContent: some View {
+        ZStack {
+            // 鈕對整個螢幕置中（米 11/08：要在正中央）。這層忽略安全區，上面的標題列、下面的分頁列都不影響它。
+            // 之前對「剩下的空間」置中：第一版被下面的 Spacer 擠到頂，第二版因為上面扣得比下面多而偏下。
+            Color.clear
+                .overlay { recordButton }
+                .overlay { hintBelowButton }
+                .ignoresSafeArea()
+            // 金鑰卡貼上緣、待轉錄列貼下緣，中間空著的地方點得到後面的鈕。
+            VStack {
+                if !hasAPIKey {
+                    noKeyCard
+                }
+                Spacer()
+                if pendingCount > 0 {
+                    pendingRow
+                }
+            }
         }
     }
 

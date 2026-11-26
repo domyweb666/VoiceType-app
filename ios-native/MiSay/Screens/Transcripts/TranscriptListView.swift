@@ -104,7 +104,7 @@ struct TranscriptListView: View {
                 undoBanner
             }
         }
-        .sensoryFeedback(Token.Haptics.deleted, trigger: deleteCount)
+        .sensoryFeedbackIfEnabled(Token.Haptics.deleted, trigger: deleteCount)
         .navigationTitle(pageTitle)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { newDraftButton }

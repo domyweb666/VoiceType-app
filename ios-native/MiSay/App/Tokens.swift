@@ -55,6 +55,8 @@ enum Token {
         static let recordingFill = Color("強調-可點")
         static let recordingGlyph = Color("強調-上字")
         static let waveform = Color("強調-可點")
+        /// 待機光暈與光圈：玉米黃，透明度在 `Halo`
+        static let halo = Color("動作-底玉米")
         /// 0E2206，底是 9CC46A→6E9C3E 漸層（白字只有 2.00:1）
         static let pendingTileInk = Color("方塊-待轉字")
     }
@@ -108,6 +110,18 @@ enum Token {
         static let recordDisc = DomyTokens.Size.heroButton // 180：裡面那顆玉米黃圓盤
         static let recordRing = DomyTokens.Size.heroRingWidth // 3：外環線寬
         static let recordGlyph: CGFloat = 64 // 圓盤中間的麥克風（domy 錄音畫面）
+        /// 2026-11-26 米：待機光暈的直徑，比外環大一圈，光才散得開
+        static let haloDiameter: CGFloat = 320
+        /// 首頁錄音中：圓盤中間的停止方塊（比面板的 28 大，圓盤也大）
+        static let heroStopGlyph: CGFloat = 52
+        /// 首頁錄音中：環繞圓盤的聲波整塊大小；擴散的聲波環走到這裡淡掉
+        static let soundRing: CGFloat = 320
+        static let soundBarCount = 64 // 繞一圈幾根音量條
+        static let soundBarWidth: CGFloat = 3
+        static let soundBarMin: CGFloat = 4 // 沒聲音時也留一點，看得出是一圈
+        static let soundBarMax: CGFloat = 34 // 最大聲時多長
+        static let soundWaveCount = 2 // 同時往外擴散幾圈
+        static let soundWaveLine: CGFloat = 2
         static let cornWidth: CGFloat = 88 // 空清單那根玉米
         static let cornHeight: CGFloat = 112
         /// 自畫的懸浮分頁列（2026-11-26 米 QC-0014：原生的太低，改照 domy／番茄帳的膠囊）
@@ -145,6 +159,12 @@ enum Token {
 
         static let waveformHz: Double = 20 // 減少動態時改成固定位置的音量條
         static let recordingPulse: Double = 1.4 // 秒；減少動態時不脈動
+        /// 2026-11-26 米：待機光暈脹縮一次的秒數。要慢，像在等人開口，不像在閃
+        static let haloBreath: Double = 3.6
+        static let haloRingScale: CGFloat = 1.08 // 外圈光圈脹到多大
+        static let haloInnerScale: CGFloat = 1.04 // 內圈脹得少一點，兩圈才有層次
+        static let soundWaveSeconds: Double = 2.4 // 聲波環從圓盤走到外緣要幾秒
+        static let modeSwitch: Double = 0.25 // 首頁待機與錄音中互換的淡入淡出
         static let pressedOpacity = DomyTokens.Motion.pressedOpacity // 膠囊與文字鈕按下去變淡
         static let disabledOpacity: Double = 0.4 // 停用的鈕
         /// 按鈕樣式共用：停用最淡，按下次之，平常不透明
@@ -157,6 +177,14 @@ enum Token {
     }
 
     /// 觸覺（事件命名；每種事件只對應一種）
+    /// 首頁大鈕的光暈與聲波透明度（2026-11-26 米：鈕要讓人想按、錄音時看得出在收聲音）。裝飾，不入對比表。
+    enum Halo {
+        static let glowOpacity: Double = 0.55 // 圓盤後面那團光最亮處
+        static let ringOpacity: Double = 0.22 // 外面兩圈光圈
+        static let waveBase: Double = 0.25 // 聲波環沒聲音時的濃度
+        static let waveLevel: Double = 0.45 // 越大聲越濃，加在 waveBase 上
+    }
+
     enum Haptics {
         static let recordStart: SensoryFeedback = .start
         static let recordStop: SensoryFeedback = .stop

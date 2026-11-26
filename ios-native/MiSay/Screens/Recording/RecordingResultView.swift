@@ -27,6 +27,8 @@ struct RecordingResultView: View {
     let onOpenSettings: () -> Void
     /// Y4：在編輯頁上錄的，字要回到這一篇。有值就不給「打開這篇」「去設定」：人就在那一頁，不換頁。
     var returningTo: UUID?
+    /// 首頁原地版（2026-11-26）收起來時叫它；nil 是半頁面板，用系統的 dismiss。
+    var onClose: (() -> Void)?
 
     @Environment(\.dismiss) var dismiss
     @State private var status = Status.processing
@@ -78,7 +80,7 @@ struct RecordingResultView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sensoryFeedback(trigger: status) { _, new in
+        .sensoryFeedbackIfEnabled(trigger: status) { _, new in
             Self.feedback(for: new)
         }
         .onAppear {
@@ -88,7 +90,18 @@ struct RecordingResultView: View {
             hasStarted = true
             process()
         }
+        // 原地版切到別的分頁再回來會再出現一次：看得到就照常複製、照常收。
+        .onAppear { isShown = true }
         .onDisappear { isShown = false }
+    }
+
+    /// 收起來：原地版回到待機，半頁面板收下去。
+    func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
     }
 
     private func process() {
@@ -115,7 +128,7 @@ struct RecordingResultView: View {
         switch outcome {
         case nil:
             // 背景那一輪已經在整理這一筆，交給它；面板收起，好了會出現在文字稿。
-            dismiss()
+            close()
         case .noAPIKey:
             status = .noAPIKey
         case let .transcriptionFailed(failure):
@@ -139,7 +152,7 @@ struct RecordingResultView: View {
     /// 字已經回到底下那一頁，面板自己收；中間斷過的要留著給人看。
     private func dismissIfReturned(_ transcript: Transcript) {
         if transcript.id == returningTo, captureGaps.times == 0, isShown {
-            dismiss()
+            close()
         }
     }
 
@@ -182,7 +195,7 @@ extension RecordingResultView {
                 .foregroundStyle(Token.Colors.textSecondary)
                 .multilineTextAlignment(.center)
             Spacer(minLength: Token.Space.s)
-            Button("收起來") { dismiss() }
+            Button("收起來") { close() }
                 .buttonStyle(TextButtonStyle())
         }
     }
@@ -199,7 +212,7 @@ extension RecordingResultView {
                 Button("去設定金鑰") { onOpenSettings() }
                     .buttonStyle(PrimaryButtonStyle())
             }
-            Button("完成") { dismiss() }
+            Button("完成") { close() }
                 .buttonStyle(TextButtonStyle())
         }
     }
@@ -219,7 +232,7 @@ extension RecordingResultView {
                 Button("去設定") { onOpenSettings() }
                     .buttonStyle(TextButtonStyle())
             }
-            Button("完成") { dismiss() }
+            Button("完成") { close() }
                 .buttonStyle(TextButtonStyle())
         }
     }
@@ -235,7 +248,7 @@ extension RecordingResultView {
                 Button("打開這篇") { onOpenTranscript(transcript) }
                     .buttonStyle(TextButtonStyle())
             }
-            Button("完成") { dismiss() }
+            Button("完成") { close() }
                 .buttonStyle(TextButtonStyle())
         }
     }

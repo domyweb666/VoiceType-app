@@ -42,7 +42,7 @@ struct RewriteTextView: View {
         }
         .toolbar { toolbarContent }
         .tint(Token.Colors.link)
-        .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
+        .sensoryFeedbackIfEnabled(Token.Haptics.copied, trigger: copyCount)
     }
 
     @ToolbarContentBuilder

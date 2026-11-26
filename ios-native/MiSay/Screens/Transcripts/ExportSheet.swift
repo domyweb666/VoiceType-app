@@ -55,7 +55,7 @@ struct ExportSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationCornerRadius(Token.Shape.radiusSheet)
-        .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
+        .sensoryFeedbackIfEnabled(Token.Haptics.copied, trigger: copyCount)
         .onAppear { folderName = MarkdownFolder().folderName }
         .fileImporter(
             isPresented: $isPickingFolder,

@@ -12,7 +12,7 @@ extension RecordingResultView {
                 Button("打開這篇") { onOpenTranscript(transcript) }
                     .buttonStyle(PrimaryButtonStyle())
             }
-            Button("完成") { dismiss() }
+            Button("完成") { close() }
                 .buttonStyle(TextButtonStyle())
         }
     }
@@ -48,7 +48,7 @@ extension RecordingResultView {
                 Button("打開這篇") { onOpenTranscript(transcript) }
                     .buttonStyle(PrimaryButtonStyle())
             }
-            Button("完成") { dismiss() }
+            Button("完成") { close() }
                 .buttonStyle(TextButtonStyle())
             Spacer(minLength: Token.Space.xs)
             RecordingAlarmPrompt()

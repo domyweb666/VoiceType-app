@@ -40,7 +40,7 @@ struct OutlineSheet: View {
                 prompt: "在這篇裡找"
             )
             .overlay { emptyNote }
-            .sensoryFeedback(Token.Haptics.reordered, trigger: moveCount)
+            .sensoryFeedbackIfEnabled(Token.Haptics.reordered, trigger: moveCount)
             .navigationTitle("大綱與尋找")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

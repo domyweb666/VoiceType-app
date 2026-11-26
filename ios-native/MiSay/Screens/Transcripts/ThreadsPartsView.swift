@@ -19,7 +19,7 @@ struct ThreadsPartsView: View {
         .background(Token.Colors.groupedBackground)
         .navigationTitle("逐篇複製")
         .navigationBarTitleDisplayMode(.inline)
-        .sensoryFeedback(Token.Haptics.copied, trigger: copyCount)
+        .sensoryFeedbackIfEnabled(Token.Haptics.copied, trigger: copyCount)
     }
 
     /// 「320／500 字」；超過寫「520／500 字，多了 20 字」。
