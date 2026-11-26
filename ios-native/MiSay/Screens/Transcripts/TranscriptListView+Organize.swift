@@ -34,16 +34,50 @@ extension TranscriptListView {
             : RecordingSheetView.formatSpoken(transcript.durationSeconds)
     }
 
-    /// 列上面那行：最後改的時間（清單照它排），「今天」那一組只講時間。「14:32・3 分 48 秒・已發布」。
-    static func rowSubtitle(for transcript: Transcript, showsDate: Bool) -> String {
-        let time = transcript.updatedAt.formatted(
-            date: showsDate ? .abbreviated : .omitted,
-            time: .shortened
-        )
-        let parts = [time, lengthNote(for: transcript)]
-        let status = transcript.publishedAt == nil ? [] : [PublishFilter.published.title]
-        return (parts + status).joined(separator: "・")
+    /// 列右上角的日期，越近越短（2026-11-26 米選設計稿 A）：今天「07:39」、本週「週二」、
+    /// 今年「11/17」、更早的年份「2025/11/17」。看的是最後改的時間（清單照它排）。
+    static func rowDate(
+        for date: Date,
+        group: String,
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) -> String {
+        let style = Date.FormatStyle(calendar: calendar, timeZone: calendar.timeZone)
+        switch group {
+        case todayTitle:
+            return date.formatted(style.hour().minute())
+        case weekTitle:
+            return date.formatted(style.weekday(.abbreviated))
+        default:
+            let sameYear = calendar.isDate(date, equalTo: now, toGranularity: .year)
+            let monthDay = style.month(.defaultDigits).day()
+            return date.formatted(sameYear ? monthDay : monthDay.year())
+        }
     }
+
+    /// 第二行開頭：多長、是不是發布了。「3 分 48 秒・已發布」。
+    static func rowDetail(for transcript: Transcript) -> String {
+        let status = transcript.publishedAt == nil ? [] : [PublishFilter.published.title]
+        return ([lengthNote(for: transcript)] + status).joined(separator: "・")
+    }
+
+    /// 沒取標題的篇：開頭第一句當粗體那行，剩下的接在第二行。第一句太長（找不到句號）就整段給第一行，截掉。
+    static func splitOpening(_ opening: String) -> (head: String, rest: String) {
+        let stops: Set<Character> = ["。", "？", "！", "?", "!", "\n"]
+        let window = opening.prefix(headlineSearchLength)
+        guard let stop = window.firstIndex(where: { stops.contains($0) }) else {
+            return (opening, "")
+        }
+        var head = String(opening[...stop]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if head.hasSuffix("。") {
+            head.removeLast()
+        }
+        let rest = opening[opening.index(after: stop)...]
+        return (head, rest.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// 第一句在這麼多字內結束才切，不然切出來的第一行也是被截掉的。
+    static let headlineSearchLength = 40
 
     /// 有取標題才有；只有空白不算。
     static func rowTitle(of transcript: Transcript) -> String? {
@@ -51,22 +85,29 @@ extension TranscriptListView {
         return title.isEmpty ? nil : title
     }
 
-    func row(_ transcript: Transcript, showsDate: Bool) -> some View {
-        let title = Self.rowTitle(of: transcript)
+    /// 設計稿 A（2026-11-26）：第一行粗體（標題或第一句）＋右邊短日期，第二行灰字「多長・接下去的字」，
+    /// 沒有卡片、沒有箭頭，列之間一條細線。
+    func row(_ transcript: Transcript, group: String) -> some View {
+        let opening = PlainTextExport.opening(of: transcript.displayText)
+        let lines = Self.rowTitle(of: transcript).map { (head: $0, rest: opening) }
+            ?? Self.splitOpening(opening)
+        let second = [Self.rowDetail(for: transcript), lines.rest].filter { !$0.isEmpty }
         return VStack(alignment: .leading, spacing: Token.Space.xs) {
-            Text(Self.rowSubtitle(for: transcript, showsDate: showsDate))
-                .font(Token.Fonts.footnote)
-                .foregroundStyle(Token.Colors.textSecondary)
-            if let title {
-                Text(title)
+            HStack(alignment: .firstTextBaseline, spacing: Token.Space.m) {
+                Text(lines.head.isEmpty ? Self.emptyHeadline : lines.head)
                     .font(Token.Fonts.rowTitle)
                     .foregroundStyle(Token.Colors.textPrimary)
                     .lineLimit(1)
+                Spacer(minLength: .zero)
+                Text(Self.rowDate(for: transcript.updatedAt, group: group))
+                    .font(Token.Fonts.footnote)
+                    .foregroundStyle(Token.Colors.textSecondary)
+                    .fixedSize()
             }
-            Text(PlainTextExport.opening(of: transcript.displayText))
-                .font(Token.Fonts.body)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .lineLimit(title == nil ? 2 : 1)
+            Text(second.joined(separator: "・"))
+                .font(Token.Fonts.secondary)
+                .foregroundStyle(Token.Colors.textSecondary)
+                .lineLimit(1)
             if let tags = transcript.tags, !tags.isEmpty {
                 Text(Self.tagLine(tags))
                     .font(Token.Fonts.footnote)
@@ -76,21 +117,17 @@ extension TranscriptListView {
         }
     }
 
+    static let emptyHeadline = "沒有字"
+
     /// 不用 NavigationLink：編輯頁開著時清單會照最後改的重排，那一列換了位置，推出去的頁會被收掉。
-    func openableRow(_ transcript: Transcript, showsDate: Bool) -> some View {
+    /// 設計稿 A 拿掉右邊的箭頭，整列還是點得到。
+    func openableRow(_ transcript: Transcript, group: String) -> some View {
         Button {
             openedTranscript = transcript
         } label: {
-            HStack(spacing: Token.Space.s) {
-                row(transcript, showsDate: showsDate)
-                    .multilineTextAlignment(.leading)
-                Spacer(minLength: Token.Space.s)
-                Image(systemName: "chevron.forward")
-                    .font(Token.Fonts.footnote)
-                    .foregroundStyle(Token.Colors.textSecondary)
-                    .accessibilityHidden(true)
-            }
-            .contentShape(Rectangle())
+            row(transcript, group: group)
+                .multilineTextAlignment(.leading)
+                .contentShape(Rectangle())
         }
     }
 
@@ -100,7 +137,7 @@ extension TranscriptListView {
     }
 
     /// 選取模式的列：整列點了勾起來或取消，左邊一個圈。勾的狀態字也講（無障礙），不只靠圖。
-    func selectableRow(_ transcript: Transcript, showsDate: Bool) -> some View {
+    func selectableRow(_ transcript: Transcript, group: String) -> some View {
         let isSelected = selectedIDs.contains(transcript.id)
         return Button {
             if isSelected {
@@ -114,7 +151,7 @@ extension TranscriptListView {
                     .font(Token.Fonts.icon)
                     .foregroundStyle(isSelected ? Token.Colors.link : Token.Colors.textSecondary)
                     .accessibilityHidden(true)
-                row(transcript, showsDate: showsDate)
+                row(transcript, group: group)
             }
         }
         .accessibilityValue(isSelected ? "已選" : "沒選")

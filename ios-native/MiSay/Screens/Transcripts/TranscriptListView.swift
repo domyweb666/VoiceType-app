@@ -7,11 +7,19 @@ import SwiftUI
 /// 2026-11-14 照 domy-design：列本來就是 domy 的 ListRow（日期在上、內容兩行），顏色與圓角跟著代號換。
 /// W6：照標籤篩、選幾篇合併成一篇，在 `TranscriptListView+Organize.swift`。
 /// 2026-11-24：照最後改的時間排、分草稿與已發布（`+Filter`）；刪掉的進垃圾桶（`+Deletion`）。
+/// 2026-11-26 米（QC-0014）嫌擠，選設計稿 A「清爽列表」：不放卡片和箭頭、日期縮短放右邊、一列兩行。
 struct TranscriptListView: View {
     static let todayTitle = "今天"
     static let weekTitle = "本週"
     static let olderTitle = "更早"
     static let loadFailedNote = "文字稿一時讀不到，檔案都還在。這裡是上次讀到的。"
+
+    static let rowInsets = EdgeInsets(
+        top: Token.Space.m, leading: .zero, bottom: Token.Space.m, trailing: .zero
+    )
+    static let headerInsets = EdgeInsets(
+        top: Token.Space.l, leading: .zero, bottom: Token.Space.xs, trailing: .zero
+    )
 
     /// 「已刪除・復原」留多久（PRD：5 秒內可復原）。
     static let undoWindowSeconds: Double = 5
@@ -57,22 +65,26 @@ struct TranscriptListView: View {
             ForEach(groups, id: \.title) { group in
                 Section {
                     ForEach(group.transcripts) { transcript in
-                        let showsDate = group.title != Self.todayTitle
                         if isSelecting {
-                            selectableRow(transcript, showsDate: showsDate)
+                            selectableRow(transcript, group: group.title)
                         } else {
-                            openableRow(transcript, showsDate: showsDate)
+                            openableRow(transcript, group: group.title)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     publishButton(transcript)
                                 }
                         }
                     }
-                    .listRowBackground(Token.Colors.rowBackground)
+                    // 設計稿 A：列不放白卡，直接在底色上，左右貼齊大標題，中間一條細線。
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(Self.rowInsets)
+                    .listRowSeparatorTint(Token.Colors.separator)
                 } header: {
                     Text(group.title)
-                        .font(Token.Fonts.sectionTitle)
-                        .foregroundStyle(Token.Colors.textPrimary)
+                        .font(Token.Fonts.footnote)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Token.Colors.textSecondary)
                         .textCase(nil)
+                        .listRowInsets(Self.headerInsets)
                 }
             }
             trashRow

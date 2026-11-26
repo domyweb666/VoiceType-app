@@ -61,11 +61,11 @@ final class TranscriptListViewTests: XCTestCase {
     func test草稿與已發布() {
         var transcript = Transcript(durationSeconds: 0, rawText: "", draftText: "寫的")
         XCTAssertTrue(TranscriptListView.PublishFilter.draft.includes(transcript))
-        XCTAssertFalse(rowSubtitle(transcript).contains("已發布"))
+        XCTAssertEqual(TranscriptListView.rowDetail(for: transcript), "自己打的")
         transcript.publishedAt = Date()
         XCTAssertTrue(TranscriptListView.PublishFilter.published.includes(transcript))
         XCTAssertFalse(TranscriptListView.PublishFilter.draft.includes(transcript))
-        XCTAssertTrue(rowSubtitle(transcript).hasSuffix("・自己打的・已發布"))
+        XCTAssertEqual(TranscriptListView.rowDetail(for: transcript), "自己打的・已發布")
     }
 
     func test改寫來的寫改成哪一種_標題只有空白不算() {
@@ -80,8 +80,30 @@ final class TranscriptListViewTests: XCTestCase {
         XCTAssertEqual(TranscriptListView.rowTitle(of: transcript), "標題")
     }
 
-    private func rowSubtitle(_ transcript: Transcript) -> String {
-        TranscriptListView.rowSubtitle(for: transcript, showsDate: true)
+    func test列右邊的日期越近越短() throws {
+        let now = try date(month: 11, day: 7, hour: 15)
+        let older = try date(month: 10, day: 31, hour: 23)
+        XCTAssertFalse(rowDate(older, group: "更早", now: now).contains("2026"))
+        let lastYear = try XCTUnwrap(calendar.date(byAdding: .year, value: -1, to: older))
+        XCTAssertTrue(rowDate(lastYear, group: "更早", now: now).contains("2025"))
+        let weekday = rowDate(older, group: "本週", now: now)
+        XCTAssertNotEqual(weekday, rowDate(older, group: "更早", now: now))
+    }
+
+    func test沒標題的篇_第一句當第一行() {
+        let split = TranscriptListView.splitOpening("我再測試一下。第一點是什麼東西？")
+        XCTAssertEqual(split.head, "我再測試一下")
+        XCTAssertEqual(split.rest, "第一點是什麼東西？")
+        let question = TranscriptListView.splitOpening("要念書嗎？等一下吃藥")
+        XCTAssertEqual(question.head, "要念書嗎？")
+        XCTAssertEqual(question.rest, "等一下吃藥")
+        let long = String(repeating: "字", count: 50) + "。後面"
+        XCTAssertEqual(TranscriptListView.splitOpening(long).head, long)
+        XCTAssertEqual(TranscriptListView.splitOpening(long).rest, "")
+    }
+
+    private func rowDate(_ date: Date, group: String, now: Date) -> String {
+        TranscriptListView.rowDate(for: date, group: group, now: now, calendar: calendar)
     }
 
     private func date(month: Int, day: Int, hour: Int) throws -> Date {
