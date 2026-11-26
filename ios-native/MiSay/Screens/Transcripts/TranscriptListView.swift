@@ -34,6 +34,8 @@ struct TranscriptListView: View {
     @State private var loadFailed = false
     @State var deleteFailed = false
     @State var query = ""
+    /// 真的拿去搜的字：停手 `searchDelayMilliseconds` 才跟上 `query`，清空時馬上跟上（性能檢查 H3）。
+    @State var searchKeyword = ""
     @State var pendingDeletion: Transcript?
     @State var deletionTask: Task<Void, Never>?
     @State var deleteCount = 0
@@ -115,6 +117,7 @@ struct TranscriptListView: View {
             reload()
             openInitialTranscriptOnce()
         }
+        .task(id: query) { await settleSearchKeyword() }
         .onDisappear { commitDeletionNow() }
         .alert("新文稿沒開成，再按一次。", isPresented: $newDraftFailed) {
             Button("好") {}
@@ -180,7 +183,8 @@ private extension TranscriptListView {
 
     @ViewBuilder
     func emptyOverlay(isEmpty: Bool) -> some View {
-        let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 跟清單同一個字：打字中還沒搜的那 0.3 秒，不先講「沒有找到」。
+        let keyword = searchKeyword
         // 2026-11-08 米選原生：空狀態都用系統的 ContentUnavailableView（圖示、標題、說明、按鈕）。
         // 2026-11-14 照 domy 的 EmptyState：下一步那顆是小的主要按鈕（這頁沒有別的主要按鈕）。
         // 不用系統內建的搜尋空狀態：它的字跟著 App 語系走，可能跑出英文。

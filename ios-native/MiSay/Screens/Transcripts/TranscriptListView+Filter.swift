@@ -62,8 +62,25 @@ extension TranscriptListView {
             .contains { $0.localizedCaseInsensitiveContains(keyword) }
     }
 
-    var visibleTranscripts: [Transcript] {
+    /// 停手這麼久才搜：每打一個字都把每篇全文搜一次，一百篇長稿會卡（性能檢查 H3）。
+    static let searchDelayMilliseconds = 300
+
+    /// `query` 一變就叫（`.task(id:)`，再打字會取消上一次）。清空不用等，清單馬上回來。
+    func settleSearchKeyword() async {
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else {
+            searchKeyword = ""
+            return
+        }
+        try? await Task.sleep(for: .milliseconds(Self.searchDelayMilliseconds))
+        guard !Task.isCancelled else {
+            return
+        }
+        searchKeyword = keyword
+    }
+
+    var visibleTranscripts: [Transcript] {
+        let keyword = searchKeyword
         return transcripts.filter { transcript in
             let hasTag = selectedTag.map { (transcript.tags ?? []).contains($0) } ?? true
             let hasStatus = publishFilter?.includes(transcript) ?? true

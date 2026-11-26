@@ -29,8 +29,6 @@ struct RecordingSheetView: View {
 
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// 計時字級跟著系統字級放大（使用規則第 5 條）。
-    @ScaledMetric(relativeTo: .largeTitle) private var timerSize = Token.Fonts.timerSize
     @State private var phase = Phase.starting
     @State private var isPulsing = false
     /// 按「繼續錄」沒成功時那一句；留在同一個畫面，等一下還能再按。
@@ -172,10 +170,7 @@ struct RecordingSheetView: View {
 private extension RecordingSheetView {
     var recordingContent: some View {
         VStack(spacing: Token.Space.m) {
-            Text(Self.formatElapsed(recorder.elapsedSeconds))
-                .font(Token.Fonts.timer(timerSize))
-                .foregroundStyle(Token.Colors.textPrimary)
-                .accessibilityLabel("已錄 \(Self.formatElapsed(recorder.elapsedSeconds))")
+            RecordingTimer(recorder: recorder)
             listeningLine
             Spacer(minLength: Token.Space.s)
             RecordingWaveform(recorder: recorder)
