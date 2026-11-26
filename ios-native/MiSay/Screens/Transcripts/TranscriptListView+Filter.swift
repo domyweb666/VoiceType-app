@@ -73,9 +73,9 @@ extension TranscriptListView {
     }
 
     /// 照清單順序把每篇塞進它的組，組的順序跟著第一篇出現的順序（最新在上）。
-    var groups: [TranscriptGroup] {
+    static func groups(of visible: [Transcript]) -> [TranscriptGroup] {
         var groups: [TranscriptGroup] = []
-        for transcript in visibleTranscripts {
+        for transcript in visible {
             let title = Self.groupTitle(for: transcript.updatedAt)
             if let index = groups.firstIndex(where: { $0.title == title }) {
                 groups[index].transcripts.append(transcript)

@@ -5,7 +5,7 @@ extension TranscriptDetailView {
     var tagsSheet: some View {
         TagEditorSheet(
             tags: transcript.tags ?? [],
-            knownTags: Self.knownTags(),
+            knownTags: knownTags,
             onSave: saveTags
         )
     }
@@ -16,7 +16,7 @@ extension TranscriptDetailView {
     }
 
     /// 讀不到存檔就只是沒有可以點選的舊標籤，自己打照樣能加。
-    private static func knownTags() -> [String] {
+    static func loadKnownTags() -> [String] {
         let transcripts = (try? TranscriptStore().loadAll().transcripts) ?? []
         return Transcript.tagsInUse(transcripts)
     }

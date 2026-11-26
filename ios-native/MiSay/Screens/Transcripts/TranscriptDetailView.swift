@@ -36,6 +36,8 @@ struct TranscriptDetailView: View {
     @State var split = SplitSheet.Session()
     /// W6：編這篇標籤的那張頁。
     @State var showsTags = false
+    /// 打開標籤頁那一下讀的舊標籤；放在頁的內容裡算的話，頁每重畫一次就讀一次全部文字稿（性能檢查 H2）。
+    @State var knownTags: [String] = []
     /// 底下那行一下就收的一句話。
     @State var note: String?
     @State var copyCount = 0
@@ -139,7 +141,8 @@ struct TranscriptDetailView: View {
                 leaveEditor()
                 discardIfBlank()
                 // 這次改對的詞加進自訂詞彙（開關關著就不跑）。
-                CorrectedWordsRunner.start()
+                // 只看這一篇，不為了一篇把全部文字稿讀一次（性能檢查 H2）。
+                CorrectedWordsRunner.start(only: transcript.id)
                 onLeave()
             }
     }

@@ -25,8 +25,8 @@ extension TranscriptListView {
 
     /// 清單最底下的垃圾桶。選取、搜尋時不出現；清單空了由空狀態那顆鈕帶去。
     @ViewBuilder
-    var trashRow: some View {
-        let hasRows = !visibleTranscripts.isEmpty || unreadableCount > 0
+    func trashRow(hasVisible: Bool) -> some View {
+        let hasRows = hasVisible || unreadableCount > 0
         if trashCount > 0, hasRows, !isSelecting, query.isEmpty {
             Section {
                 Button(action: openTrash) {

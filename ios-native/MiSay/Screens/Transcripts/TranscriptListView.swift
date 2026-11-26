@@ -58,11 +58,13 @@ struct TranscriptListView: View {
     }
 
     var body: some View {
+        // 篩選＋全文搜尋只算一次，分組、空狀態、垃圾桶那列共用；之前一次重畫要搜到五次（性能檢查 H3）。
+        let visible = visibleTranscripts
         List {
             if let bannerText {
                 unreadableBanner(bannerText)
             }
-            ForEach(groups, id: \.title) { group in
+            ForEach(Self.groups(of: visible), id: \.title) { group in
                 Section {
                     ForEach(group.transcripts) { transcript in
                         if isSelecting {
@@ -87,12 +89,12 @@ struct TranscriptListView: View {
                         .listRowInsets(Self.headerInsets)
                 }
             }
-            trashRow
+            trashRow(hasVisible: !visible.isEmpty)
         }
         .scrollContentBackground(.hidden)
         .background(Token.Colors.groupedBackground)
         .searchable(text: $query, prompt: "搜尋文字稿")
-        .overlay { emptyOverlay }
+        .overlay { emptyOverlay(isEmpty: visible.isEmpty) }
         .safeAreaInset(edge: .bottom) {
             if isSelecting {
                 mergeBar
@@ -123,7 +125,8 @@ struct TranscriptListView: View {
     }
 
     private func detail(of transcript: Transcript) -> some View {
-        TranscriptDetailView(transcript: transcript, onDelete: softDelete, onLeave: reload)
+        // 返回時清單的 `.task` 會重讀，這裡不再多讀一次（性能檢查 H2）。
+        TranscriptDetailView(transcript: transcript, onDelete: softDelete)
     }
 
     /// `.task` 每次回到這頁都會跑，所以要記住已經推過，不然從詳情返回又被推回去。
@@ -176,12 +179,12 @@ private extension TranscriptListView {
     }
 
     @ViewBuilder
-    var emptyOverlay: some View {
+    func emptyOverlay(isEmpty: Bool) -> some View {
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
         // 2026-11-08 米選原生：空狀態都用系統的 ContentUnavailableView（圖示、標題、說明、按鈕）。
         // 2026-11-14 照 domy 的 EmptyState：下一步那顆是小的主要按鈕（這頁沒有別的主要按鈕）。
         // 不用系統內建的搜尋空狀態：它的字跟著 App 語系走，可能跑出英文。
-        if visibleTranscripts.isEmpty, !keyword.isEmpty {
+        if isEmpty, !keyword.isEmpty {
             ContentUnavailableView {
                 Label("沒有找到", systemImage: "magnifyingglass")
             } description: {
@@ -192,7 +195,7 @@ private extension TranscriptListView {
                 }
                 .buttonStyle(PrimaryButtonStyle(isCompact: true))
             }
-        } else if visibleTranscripts.isEmpty, let selectedTag {
+        } else if isEmpty, let selectedTag {
             ContentUnavailableView {
                 Label("沒有這個標籤的文字稿", systemImage: "tag")
             } description: {
@@ -200,7 +203,7 @@ private extension TranscriptListView {
             } actions: {
                 showAllButton
             }
-        } else if visibleTranscripts.isEmpty, let publishFilter {
+        } else if isEmpty, let publishFilter {
             ContentUnavailableView {
                 Label(publishFilter.emptyTitle, systemImage: publishFilter.emptyImage)
             } description: {
@@ -208,7 +211,7 @@ private extension TranscriptListView {
             } actions: {
                 showAllButton
             }
-        } else if visibleTranscripts.isEmpty, unreadableCount == 0 {
+        } else if isEmpty, unreadableCount == 0 {
             emptyState
         }
     }

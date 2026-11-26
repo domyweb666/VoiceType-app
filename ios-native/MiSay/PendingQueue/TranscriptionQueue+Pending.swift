@@ -55,7 +55,8 @@ extension TranscriptionQueue {
         }
         isProcessingPending = true
         defer { isProcessingPending = false }
-        if let loaded = try? store.loadAll() {
+        let loaded = try? store.loadAll()
+        if let loaded {
             let keepsForever = settings.keepsRecordingsForever
             retained.purge(loaded: loaded, excluding: inFlight, keepsForever: keepsForever)
             if keepsForever {
@@ -63,12 +64,15 @@ extension TranscriptionQueue {
             }
         }
         retryWaitingAppends()
+        // 這輪真的整理了錄音，存檔裡就多了新的篇，補潤飾要重讀；沒有的話用開頭讀到的就好（性能檢查 H2）。
+        var processedAny = false
         for recording in recordings.reversed() {
             // 清單是開跑時拍的照：這段時間面板可能已經整理完那一筆、錄音檔已刪。
             let exists = FileManager.default.fileExists(atPath: recording.url.path)
             guard exists, !refusedRecordings.contains(recording.id) else {
                 continue
             }
+            processedAny = true
             let outcome = await process(recordingAt: recording.url)
             switch outcome {
             case .finished, .polishFailed, .draftNotSaved, .progressUnreadable, nil:
@@ -79,7 +83,7 @@ extension TranscriptionQueue {
                 return
             }
         }
-        await resumeUnfinishedPolishing()
+        await resumeUnfinishedPolishing(loaded: processedAny ? nil : loaded)
     }
 
     /// K4：有文字稿的留存 WAV 一篇一篇壓成 m4a。正在用的篇（重轉、潤飾）跳過；
@@ -119,8 +123,9 @@ extension TranscriptionQueue {
     }
 
     /// 從最舊的開始補；哪一篇失敗就停（跟錄音同一條規矩），下次回到前景再來。
-    private func resumeUnfinishedPolishing() async {
-        guard let loaded = try? store.loadAll() else {
+    /// `loaded` 是這輪開頭讀到的；nil 就重讀。候選篇輪到時還會各自再讀一次最新的，所以舊一點也不會送錯。
+    private func resumeUnfinishedPolishing(loaded earlier: TranscriptStore.LoadResult?) async {
+        guard let loaded = earlier ?? (try? store.loadAll()) else {
             return
         }
         let cutoff = Date().addingTimeInterval(-Self.resumePolishWithinSeconds)

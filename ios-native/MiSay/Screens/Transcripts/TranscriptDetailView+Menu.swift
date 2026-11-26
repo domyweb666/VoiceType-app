@@ -27,6 +27,7 @@ extension TranscriptDetailView {
             reviewMenuItem
             // W6：標籤，清單可以照標籤篩。
             Button {
+                knownTags = Self.loadKnownTags()
                 showsTags = true
             } label: {
                 Label(Self.tagMenuTitle(transcript.tags ?? []), systemImage: "tag")

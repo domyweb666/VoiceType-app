@@ -16,7 +16,8 @@ struct PolishDiff: Equatable, Sendable {
     }
 
     /// 兩邊加起來超過這麼多字就不比：比對的時間與記憶體跟長度相乘，兩小時以上的稿子手機會卡。
-    static let maxCompareCharacters = 60000
+    /// 2026-11-26 性能檢查 H1：6 萬字時改得多的稿要吃到 1 GB 以上、可能被系統關掉，先降到 2 萬（一邊約 1 萬字）。
+    static let maxCompareCharacters = 20000
 
     let runs: [Run]
     /// 刪掉、加上了幾個字，空白換行不算。
