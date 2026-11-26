@@ -55,9 +55,14 @@ extension TranscriptStore {
     }
 
     /// 真的刪掉垃圾桶裡的一篇。回 true 表示這篇從此哪裡都沒有了，錄音可以跟著刪。
+    /// 哪裡都沒有了才連另存的同一篇一起刪；先刪另存的，刪不掉時垃圾桶那份還在，畫面說沒刪掉才是真的。
     func deleteFromTrash(id: UUID) throws -> Bool {
+        let isGone = try !isInList(id)
+        if isGone {
+            try removeSetAside(id: id)
+        }
         try remove(trashURL(for: id))
-        return try !isInList(id)
+        return isGone
     }
 
     /// 垃圾桶裡看得到的篇，剛丟的在前。清單裡也有的不算；解不開的另存到 Unreadable/，不刪；一時讀不到的跳過。
@@ -66,6 +71,12 @@ extension TranscriptStore {
         return visible.sorted {
             ($0.trashedAt ?? .distantPast) > ($1.trashedAt ?? .distantPast)
         }
+    }
+
+    /// 垃圾桶裡有、`shown` 沒列出來的篇數（一時讀不到的留在原位）。只看檔名；清單也有的本來就不列，不算。
+    func unlistedTrashCount(shown: [Transcript]) throws -> Int {
+        let hiddenIDs = try trashedIDs().subtracting(shown.map(\.id))
+        return try hiddenIDs.filter { try !isInList($0) }.count
     }
 
     /// 放超過 30 天的真的刪掉，回從此哪裡都沒有了的那幾篇。沒有記丟進來時間的不自動刪。

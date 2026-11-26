@@ -167,7 +167,7 @@ extension BlockedTranscriptTests {
 
         let loaded = try store.loadAll()
         XCTAssertEqual(loaded.transcripts.map(\.rawText), ["清單那份"])
-        XCTAssertEqual(loaded.unreadableCount, 2)
+        XCTAssertEqual(loaded.unreadableCount, 0, "那兩篇好好的，留著的重複份不算讀不到")
         XCTAssertEqual(try store.loadTrash().map(\.rawText), ["垃圾桶那份"])
     }
 
@@ -182,7 +182,7 @@ extension BlockedTranscriptTests {
 
         let loaded = try store.loadAll()
         XCTAssertEqual(loaded.transcripts.map(\.rawText), ["新的"])
-        XCTAssertEqual(loaded.unreadableCount, 1)
+        XCTAssertEqual(loaded.unreadableCount, 0, "留著的那份清單已經有，不算讀不到")
     }
 
     func test另存的加密檔_鑰匙圈讀不到就留著_不影響別篇_讀得到了才搬() throws {
