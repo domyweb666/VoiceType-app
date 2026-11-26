@@ -4,7 +4,7 @@
 （全部做完才寫）
 
 ## 任務清單
-- [ ] 1. 「刪除全部資料」後還開著的編輯頁再打字不會存回來｜完成：有單元測試證明刪除後的寫入被擋、CI 綠
+- [x] 1. 「刪除全部資料」後還開著的編輯頁再打字不會存回來｜完成：有單元測試證明刪除後的寫入被擋、CI 綠
 - [ ] 2. 垃圾桶三個小毛病：永久刪掉的篇若讀不到不再回清單；同 id 重複份不讓橫幅一直算；垃圾桶部分讀不到時有一句提示｜完成：各有測試、CI 綠
 - [ ] 3. 認詞補漏：「Open AI→OpenAI」這類空格拆開的英文詞、多音字、三字名｜完成：對應測試案例過、CI 綠（做不到的寫原因）
 - [ ] 4. 移除沒人呼叫的 `RecordingLauncher.append`｜完成：全專案搜不到呼叫、CI 綠
@@ -19,3 +19,4 @@
 
 ## 執行紀錄
 - 11:05 開分支 overnight-20261126-1105（worktree E:\VoiceType-overnight，從 origin/main 2ee5d25）。共用資料夾 E:\VoiceType 留在 main 不動。
+- 11:30 第 1 項完成（ded1dde）：新增 ios-native/MiSay/Storage/TranscriptStore+Erase.swift（記憶體裡的抹除代數＋save(_:openedInGeneration:)）；改 EraseAllDataSection.swift（刪光前先遞增）、TranscriptDetailView.swift（開頁記代數）、+Editing.swift（改字自動存帶代數）、+Leaving.swift（放回空白新文稿帶代數）；EraseAllDataTests 加兩個測試。CI 45747050928 綠，兩個新測試都 passed。
