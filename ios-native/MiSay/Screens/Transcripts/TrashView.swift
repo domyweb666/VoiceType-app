@@ -9,6 +9,7 @@ struct TrashView: View {
     @Environment(TranscriptionQueue.self) private var queue
     @State private var transcripts: [Transcript] = []
     @State private var loadFailed = false
+    @State private var unlistedCount = 0
     @State private var problem: String?
     @State private var doomed: Transcript?
     @State private var isConfirmingDelete = false
@@ -17,8 +18,19 @@ struct TrashView: View {
     static let note = "放 \(TranscriptStore.trashKeepDays) 天後自動刪掉，留著的錄音也一起刪。"
         + "垃圾桶裡的篇不會進備份，也不算在統計裡。"
 
+    /// 2026-11-26 overnight 2：有幾篇一時讀不到時才出現，平常不說。
+    static func unlistedNote(_ count: Int) -> String {
+        "有 \(count) 篇讀不到，沒列在這裡。"
+    }
+
     var body: some View {
         List {
+            if unlistedCount > 0 {
+                Text(Self.unlistedNote(unlistedCount))
+                    .font(Token.Fonts.secondary)
+                    .foregroundStyle(Token.Colors.textSecondary)
+                    .listRowBackground(Token.Colors.rowBackground)
+            }
             if !transcripts.isEmpty {
                 Section {
                     ForEach(transcripts) { row($0) }
@@ -122,7 +134,7 @@ struct TrashView: View {
             } description: {
                 Text("檔案都還在，等一下再打開這頁。")
             }
-        } else if transcripts.isEmpty {
+        } else if transcripts.isEmpty, unlistedCount == 0 {
             ContentUnavailableView {
                 Label("垃圾桶是空的", systemImage: "trash")
             } description: {
@@ -133,10 +145,14 @@ struct TrashView: View {
 
     private func reload() {
         do {
-            transcripts = try TranscriptStore().loadTrash()
+            let store = TranscriptStore()
+            let loaded = try store.loadTrash()
+            unlistedCount = try store.unlistedTrashCount(shown: loaded)
+            transcripts = loaded
             loadFailed = false
         } catch {
             transcripts = []
+            unlistedCount = 0
             loadFailed = true
         }
     }
