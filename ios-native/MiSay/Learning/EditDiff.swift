@@ -149,8 +149,35 @@ enum EditDiff {
     }
 
     /// 只動了標點、空白、換行的不算：那是排版，不是用詞。
+    /// 2026-11-26 例外：把拆開的英文詞拼回來（Open AI 改成 OpenAI）算改用詞。
     static func isMeaningful(_ hunk: EditHunk) -> Bool {
-        stripped(hunk.before) != stripped(hunk.after)
+        stripped(hunk.before) != stripped(hunk.after) || joinsEnglishWord(hunk)
+    }
+
+    /// 改前有「英文字母、空白、英文字母」，改後同樣的字只是沒了那個空白。
+    /// 中英之間、英文跟數字之間（iPhone 15）拿掉空白還是排版，不算。
+    private static func joinsEnglishWord(_ hunk: EditHunk) -> Bool {
+        guard hasSplitEnglishWord(hunk.before), !hasSplitEnglishWord(hunk.after) else {
+            return false
+        }
+        return hunk.before.filter { !$0.isWhitespace } == hunk.after.filter { !$0.isWhitespace }
+    }
+
+    private static func hasSplitEnglishWord(_ text: String) -> Bool {
+        let characters = Array(text)
+        let inner = characters.indices.dropFirst().dropLast()
+        return inner.contains { isSplit(at: $0, in: characters) }
+    }
+
+    private static func isSplit(at index: Int, in characters: [Character]) -> Bool {
+        guard characters[index].isWhitespace else {
+            return false
+        }
+        return isEnglishLetter(characters[index - 1]) && isEnglishLetter(characters[index + 1])
+    }
+
+    private static func isEnglishLetter(_ character: Character) -> Bool {
+        character.isASCII && character.isLetter
     }
 
     private static func stripped(_ text: String) -> String {
