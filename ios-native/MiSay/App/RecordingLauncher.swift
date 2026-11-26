@@ -1,7 +1,8 @@
 import Foundation
 import Observation
 
-/// 「要開錄」的請求（K1、K3）：捷徑、Siri、動作按鈕要開一段新的；詳情頁「接著錄」要接在某一篇後面。
+/// 「要開錄」的請求（K1）：捷徑、Siri、動作按鈕、控制中心要開一段新的。
+/// K3 接著錄（「⋯ → 接著錄」與打字時「在這裡接著錄」）2026-11-24 Y4 起走文字稿頁自己的錄音面板，不經過這裡。
 /// 請求丟到這裡，分頁列切到錄音頁，由首頁打開同一個錄音面板，錄音只有一個入口。
 /// 上一段的面板還開著時先留著，收掉才開；留太久就算了，免得忽然開始錄。
 @MainActor
@@ -9,8 +10,6 @@ import Observation
 final class RecordingLauncher {
     enum Request: Equatable {
         case new
-        /// `insertion` 是打字時按麥克風記下的游標位置（2026-11-09）；「⋯ → 接著錄」是 nil，接在最後面。
-        case append(target: UUID, insertion: InsertionPoint?)
     }
 
     /// 現在拿這個請求怎麼辦。

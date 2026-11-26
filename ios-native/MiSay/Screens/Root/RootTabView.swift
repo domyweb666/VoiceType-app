@@ -97,7 +97,7 @@ struct RootTabView: View {
         ) {
             Button("好") {}
         }
-        // K1、K3：有人要開錄，先切到錄音頁；面板由首頁打開。正在錄、錄音面板還開著（可能在編輯頁上）就不動。
+        // K1：有人要開錄，先切到錄音頁；面板由首頁打開。正在錄、錄音面板還開著（可能在編輯頁上）就不動。
         .onChange(of: RecordingLauncher.shared.request) { _, _ in showHomeIfRequested() }
         .onChange(of: RecordingLauncher.shared.hasOpenPanel) { _, _ in showHomeIfRequested() }
         // 面板剛升起、還沒錄到時又按一次：那次的意思已經做到了，不要等錄完又開一段。

@@ -22,10 +22,6 @@ struct HomeView: View {
     @Environment(TranscriptionQueue.self) private var queue
     @Environment(Recorder.self) private var recorder
     @State private var isRecordingSheetShown = false
-    /// K3：這次打開面板是要接在哪一篇後面。
-    @State private var appendTarget: UUID?
-    /// 要插在那篇的哪裡；nil 是接在最後面。
-    @State private var appendInsertion: InsertionPoint?
     @State private var pendingCount = 0
     @State private var hasAPIKey = true
 
@@ -55,14 +51,12 @@ struct HomeView: View {
                 queue: queue,
                 recorder: recorder,
                 onOpenTranscript: openFromSheet,
-                onOpenSettings: openSettingsFromSheet,
-                appendingTo: appendTarget,
-                insertingAt: appendInsertion
+                onOpenSettings: openSettingsFromSheet
             )
             .presentationDetents([.medium])
             .presentationCornerRadius(Token.Shape.radiusSheet)
         }
-        // K1、K3：捷徑或「接著錄」丟來的開錄請求。冷啟動時請求在畫面出來前就到了，onAppear 補。
+        // K1：捷徑、Siri、控制中心丟來的開錄請求（接著錄走文字稿頁自己的面板）。冷啟動時請求在畫面出來前就到了，onAppear 補。
         .onAppear { takeRecordingRequest() }
         .onChange(of: RecordingLauncher.shared.request) { _, _ in takeRecordingRequest() }
         // 留著的請求，等開著的錄音面板（首頁的、文字稿頁的）收掉才開。
@@ -90,8 +84,6 @@ struct HomeView: View {
         }
         .onChange(of: isRecordingSheetShown) { _, shown in
             if !shown {
-                appendTarget = nil
-                appendInsertion = nil
                 reloadPending()
                 reloadKey()
                 takeRecordingRequest()
@@ -111,14 +103,10 @@ struct HomeView: View {
             isRecording: recorder.isRecording,
             isPanelOpening: isRecordingSheetShown
         )
-        guard let request = taken else {
+        guard taken != nil else {
             return
         }
         onShowHome()
-        if case let .append(target, insertion) = request {
-            appendTarget = target
-            appendInsertion = insertion
-        }
         isRecordingSheetShown = true
     }
 
