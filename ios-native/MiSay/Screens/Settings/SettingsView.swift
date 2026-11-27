@@ -48,8 +48,6 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         // 米 2026-11-27：卡片離螢幕邊太近，拉到畫面邊距 20。
         .contentMargins(.horizontal, Token.Space.screen, for: .scrollContent)
-        // 米 2026-11-27：滑不到最底，頁尾那排連結被懸浮分頁列蓋住。外框墊的那塊傳不進 Form，這裡自己留。
-        .contentMargins(.bottom, Token.Shape.tabClearance, for: .scrollContent)
         .background(Token.Colors.groupedBackground)
         .navigationTitle("設定")
         // 切到這個分頁、從子頁返回都會跑：剛存好金鑰、剛錄完一篇，回來就看得到。

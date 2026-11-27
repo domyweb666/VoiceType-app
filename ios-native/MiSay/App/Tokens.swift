@@ -126,13 +126,6 @@ enum Token {
         static let soundWaveLine: CGFloat = 2
         static let cornWidth: CGFloat = 88 // 空清單那根玉米
         static let cornHeight: CGFloat = 112
-        /// 自畫的懸浮分頁列（2026-11-26 米 QC-0014：原生的太低，改照 domy／番茄帳的膠囊）
-        static let tabBar = DomyTokens.Size.tabBar // 64
-        static let tabBarWidth = DomyTokens.Size.tabBarWidth // 300
-        static let tabBarBottom = DomyTokens.Size.tabBarBottom // 12：離安全區底緣
-        static let tabBarInset: CGFloat = 6 // 選中那格的淡金底離膠囊邊
-        /// 每頁底下讓出的高度：分頁列本身＋離底那段＋一點喘息，捲到底看得到最後一筆。
-        static let tabClearance = tabBarBottom + tabBar + DomyTokens.Space.s2
     }
 
     /// 陰影：domy 兩級。錄音大鈕與浮在清單上的狀態條用第 2 級，導覽列的白圓鈕用第 1 級
@@ -143,7 +136,6 @@ enum Token {
         static let stripShadowOpacity = DomyTokens.Elevation.level2.opacity
         static let stripShadowRadius = DomyTokens.Elevation.level2.radius
         static let stripShadowY = DomyTokens.Elevation.level2.y
-        static let tabBarShadow = DomyTokens.Elevation.level2
     }
 
     /// 動態（事件命名；每個都有減少動態版，是替換不是關掉）
