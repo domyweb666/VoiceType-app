@@ -126,11 +126,11 @@ struct BackupSection: View {
     static func message(for failure: Backup.Failure) -> String {
         switch failure {
         case .tooLarge:
-            "沒有匯入：這個檔超過 50 MB，不像米說的備份。"
+            "沒有匯入：這個檔超過 50 MB，不像芋音的備份。"
         case .notABackup:
-            "沒有匯入：這不是米說的備份檔。"
+            "沒有匯入：這不是芋音的備份檔。"
         case .newerVersion:
-            "沒有匯入：這個備份是新版米說做的，先更新米說。"
+            "沒有匯入：這個備份是新版芋音做的，先更新芋音。"
         case .unreadable:
             "沒有匯入：備份檔裡面壞了，讀不出文字稿。"
         }

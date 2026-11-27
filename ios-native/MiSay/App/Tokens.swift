@@ -89,6 +89,8 @@ enum Token {
         static let screen = DomyTokens.Size.screenMargin // 20：畫面左右邊距、統計卡內距
         static let xl = DomyTokens.Space.s6 // 24：面板左右內距
         static let xxl = DomyTokens.Space.s8 // 32
+        /// 編輯框左右外距：框裡自己還有約 5 點內距，加起來字離螢幕邊約 21 點，跟標題的 20 點對齊（米 2026-11-27：太貼邊）。
+        static let editorSide = DomyTokens.Space.s4 // 16
         static let editorBottom = DomyTokens.Space.s12 // 48：文字稿最後一行底下留的白，不貼著鍵盤那一排
         static let lineSpacing = DomyTokens.TypeScale.body.lineSpacing // 正文行高 26
     }

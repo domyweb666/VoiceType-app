@@ -3,7 +3,7 @@ import AppIntents
 /// K1 一鍵開錄：捷徑、Siri、動作按鈕都叫這個。打開米說、直接開始錄。
 struct StartRecordingIntent: AppIntent {
     static let title: LocalizedStringResource = "開始錄音"
-    static let description = IntentDescription("打開米說，直接開始錄。")
+    static let description = IntentDescription("打開芋音，直接開始錄。")
     static let openAppWhenRun = true
 
     @MainActor

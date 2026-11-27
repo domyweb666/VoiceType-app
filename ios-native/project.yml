@@ -34,7 +34,7 @@ targets:
     info:
       path: MiSay/Info.plist
       properties:
-        CFBundleDisplayName: 米說
+        CFBundleDisplayName: 芋音
         # 2026-11-02 米真機截圖：日期顯示成「Nov 2, 2026 at 1:26 AM」。沒宣告語言時 App 用英文格式與系統按鈕字。
         CFBundleDevelopmentRegion: zh-Hant
         CFBundleLocalizations:
@@ -49,7 +49,7 @@ targets:
           - UIInterfaceOrientationPortrait
         UILaunchScreen: {}
         # 片 C1：沒有這一句，第一次收音 iOS 會直接把 App 殺掉。文字照 .uiux/06-首次體驗.md 權限時刻表。
-        NSMicrophoneUsageDescription: 米說需要用麥克風，把你說的話變成文字。
+        NSMicrophoneUsageDescription: 芋音需要用麥克風，把你說的話變成文字。
         # 片 C3：鎖屏、切 App 照樣在錄（PRD「不弄丟剛講的話」）。只有 audio，沒有別的背景模式。
         UIBackgroundModes:
           - audio
@@ -84,7 +84,7 @@ targets:
     info:
       path: MiSayWidgets/Info.plist
       properties:
-        CFBundleDisplayName: 米說
+        CFBundleDisplayName: 芋音
         CFBundleDevelopmentRegion: zh-Hant
         CFBundleLocalizations:
           - zh-Hant

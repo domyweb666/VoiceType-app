@@ -6,7 +6,7 @@ import AppIntents
 /// 不用 `StartRecordingIntent`：它靠 `openAppWhenRun`，Apple 文件說那個在擴充裡會出錯。
 struct OpenRecordingIntent: OpenIntent {
     static let title: LocalizedStringResource = "開始錄音"
-    static let description = IntentDescription("打開米說，直接開始錄。")
+    static let description = IntentDescription("打開芋音，直接開始錄。")
     /// 捷徑裡已經有 K1 的「開始錄音」，不要出現兩個同名的。
     static let isDiscoverable = false
 

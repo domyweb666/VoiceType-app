@@ -6,8 +6,8 @@ import UserNotifications
 struct RecordingAlarm {
     static let identifier = "org.domyweb.misay.recording-alarm"
     static let fireAfterSeconds: TimeInterval = 90
-    static let title = "米說沒在錄了"
-    static let body = "已錄到的都在。打開米說看看。"
+    static let title = "芋音沒在錄了"
+    static let body = "已錄到的都在。打開芋音看看。"
 
     /// 同一個 identifier 會蓋掉還沒發出去的那一則，等於往後推；已經響過的那則也收掉，聲音回來了。
     func pushBack() {

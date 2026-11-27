@@ -25,9 +25,9 @@ extension SettingsView {
             message: "先存起來了，OpenAI 現在忙，下次整理時會再試。",
             isGood: false
         )
-        static let saveFailed = KeyStatus(message: "金鑰沒存好，重開米說再試一次。", isGood: false)
-        static let deleteFailed = KeyStatus(message: "金鑰沒刪掉，重開米說再試一次。", isGood: false)
-        static let loadFailed = KeyStatus(message: "讀不到存好的金鑰，重開米說再試一次。", isGood: false)
+        static let saveFailed = KeyStatus(message: "金鑰沒存好，重開芋音再試一次。", isGood: false)
+        static let deleteFailed = KeyStatus(message: "金鑰沒刪掉，重開芋音再試一次。", isGood: false)
+        static let loadFailed = KeyStatus(message: "讀不到存好的金鑰，重開芋音再試一次。", isGood: false)
 
         /// M11 的兩堆錯誤翻成給人看的一句：金鑰本身的問題講金鑰，線路的問題講「先存起來了」。
         init(verifyFailure: OpenAIClient.Failure) {

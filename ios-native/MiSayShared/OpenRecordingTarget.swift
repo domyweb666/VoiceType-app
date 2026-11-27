@@ -4,7 +4,7 @@ import AppIntents
 enum OpenRecordingTarget: String, AppEnum {
     case recording
 
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "米說的畫面"
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "芋音的畫面"
     static let caseDisplayRepresentations: [OpenRecordingTarget: DisplayRepresentation] = [
         .recording: "錄音",
     ]

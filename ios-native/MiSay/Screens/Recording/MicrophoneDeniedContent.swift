@@ -10,10 +10,10 @@ struct MicrophoneDeniedContent: View {
     var body: some View {
         VStack(spacing: Token.Space.m) {
             IconCircle(systemName: "mic.slash.fill")
-            Text("米說聽不到你的聲音")
+            Text("芋音聽不到你的聲音")
                 .font(Token.Fonts.sectionTitle)
                 .foregroundStyle(Token.Colors.textPrimary)
-            Text("麥克風權限是關的。到『設定』打開米說的麥克風，回來就能錄。")
+            Text("麥克風權限是關的。到『設定』打開芋音的麥克風，回來就能錄。")
                 .font(Token.Fonts.secondary)
                 .foregroundStyle(Token.Colors.textPrimary)
                 .multilineTextAlignment(.center)

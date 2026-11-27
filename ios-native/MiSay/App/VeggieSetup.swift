@@ -6,7 +6,7 @@ import VeggieKit
 
 extension VeggieConfig {
     static let misay = VeggieConfig(
-        name: "米說",
+        name: "芋音",
         slug: "misay",
         // 分享給朋友時跟著送出。照核心動作卡的一句話任務縮短，米還沒定（App Store 副標定了再換成同一句）
         tagline: "說一段話，得到可以直接貼的乾淨文字",

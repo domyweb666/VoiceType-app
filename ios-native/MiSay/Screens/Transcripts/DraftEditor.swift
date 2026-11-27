@@ -31,7 +31,7 @@ struct DraftEditor: View {
         TextEditor(text: $text, selection: $selection)
             .accessibilityLabel("文字稿正文")
             // 只縮字，底下的格式列要滿版（跟 `PlainDraftEditor` 一樣）。
-            .padding(.horizontal, Token.Space.m)
+            .padding(.horizontal, Token.Space.editorSide)
             .safeAreaInset(edge: .bottom) {
                 if isEditing {
                     FormatBar(

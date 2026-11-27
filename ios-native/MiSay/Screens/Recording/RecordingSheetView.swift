@@ -186,7 +186,7 @@ struct RecordingSheetView: View {
             recordedURL = try recorder.stop()
         } catch {
             Task { await queue.finishLive() }
-            phase = .failed("錄音停不下來或存不進去，檔案還在，重開米說會撿回來。")
+            phase = .failed("錄音停不下來或存不進去，檔案還在，重開芋音會撿回來。")
             return
         }
         Task {
@@ -195,7 +195,7 @@ struct RecordingSheetView: View {
                 let pendingURL = try PendingRecordings().accept(recordingAt: recordedURL)
                 phase = .processing(pendingURL)
             } catch {
-                phase = .failed("錄音停不下來或存不進去，檔案還在，重開米說會撿回來。")
+                phase = .failed("錄音停不下來或存不進去，檔案還在，重開芋音會撿回來。")
             }
         }
     }

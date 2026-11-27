@@ -136,11 +136,11 @@ final class RecordingActivityTests: XCTestCase {
         let state = Plan.state(for: status(elapsed: 30), after: nil, now: start)
         let stale = display(state, isStale: true)
         XCTAssertEqual(stale.title, "狀態沒更新")
-        XCTAssertEqual(stale.hint, "打開米說看看")
-        XCTAssertEqual(stale.spokenSummary, "米說狀態沒更新，打開米說看看")
+        XCTAssertEqual(stale.hint, "打開芋音看看")
+        XCTAssertEqual(stale.spokenSummary, "芋音狀態沒更新，打開芋音看看")
         XCTAssertFalse(stale.showsTimer)
         XCTAssertTrue(display(state).showsTimer)
-        XCTAssertEqual(display(state).spokenSummary, "米說錄音中")
+        XCTAssertEqual(display(state).spokenSummary, "芋音錄音中")
     }
 
     func test即時動態沒續到期計時也不停在半路() throws {

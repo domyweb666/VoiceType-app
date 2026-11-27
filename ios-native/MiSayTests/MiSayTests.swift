@@ -7,6 +7,6 @@ final class MiSayTests: XCTestCase {
         XCTAssertEqual(hostApp.bundleIdentifier, "org.domyweb.misay")
 
         let displayName = hostApp.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
-        XCTAssertEqual(displayName, "米說")
+        XCTAssertEqual(displayName, "芋音")
     }
 }

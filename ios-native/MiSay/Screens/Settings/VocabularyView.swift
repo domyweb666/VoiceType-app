@@ -172,7 +172,7 @@ private extension VocabularyView {
             ContentUnavailableView(
                 "還沒有自動加的詞",
                 systemImage: "sparkles",
-                description: Text("你在文字稿把聽錯的詞改對，米說會自己記下來。")
+                description: Text("你在文字稿把聽錯的詞改對，芋音會自己記下來。")
             )
         } else {
             ContentUnavailableView(

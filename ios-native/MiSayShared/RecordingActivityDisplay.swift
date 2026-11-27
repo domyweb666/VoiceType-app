@@ -27,7 +27,7 @@ struct RecordingActivityDisplay: Equatable {
         timerTemplate = Self.template(for: state, now: now)
         guard !isStale else {
             title = "狀態沒更新"
-            hint = "打開米說看看"
+            hint = "打開芋音看看"
             symbol = "questionmark"
             return
         }
@@ -47,7 +47,7 @@ struct RecordingActivityDisplay: Equatable {
 
     /// 給人聽的：靈動島上只有一個圖示，要唸得出是哪個 App。
     var spokenTitle: String {
-        "米說\(title)"
+        "芋音\(title)"
     }
 
     /// 靈動島上沒有地方放第二行，唸的時候一起講。

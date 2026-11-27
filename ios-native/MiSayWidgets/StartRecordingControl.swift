@@ -19,6 +19,6 @@ struct StartRecordingControl: ControlWidget {
             }
         }
         .displayName("開始錄音")
-        .description("打開米說，直接開始錄。")
+        .description("打開芋音，直接開始錄。")
     }
 }

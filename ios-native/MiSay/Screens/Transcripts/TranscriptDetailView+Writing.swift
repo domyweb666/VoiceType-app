@@ -64,7 +64,7 @@ extension TranscriptDetailView {
             } else {
                 TextEditor(text: $draftEdit)
                     .accessibilityLabel("文字稿正文")
-                    .padding(.horizontal, Token.Space.m)
+                    .padding(.horizontal, Token.Space.editorSide)
             }
         }
         .font(Token.Fonts.body)

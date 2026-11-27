@@ -30,7 +30,7 @@ struct PlainDraftEditor: View {
             handle: handle
         )
         // 編輯框自己裡面還有一點內距，外面補到跟清單卡片的字差不多齊。只縮字，底下的格式列要滿版。
-        .padding(.horizontal, Token.Space.m)
+        .padding(.horizontal, Token.Space.editorSide)
         .safeAreaInset(edge: .bottom) {
             if isEditing {
                 FormatBar(

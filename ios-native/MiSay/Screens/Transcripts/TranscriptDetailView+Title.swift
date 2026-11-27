@@ -25,7 +25,7 @@ extension TranscriptDetailView {
                 titleEdit = title ?? ""
             }
         }
-        .padding(.horizontal, Token.Space.l)
+        .padding(.horizontal, Token.Space.screen)
         .padding(.top, Token.Space.s)
     }
 

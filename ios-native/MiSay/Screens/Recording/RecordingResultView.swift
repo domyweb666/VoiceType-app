@@ -190,7 +190,7 @@ extension RecordingResultView {
                     .multilineTextAlignment(.center)
             }
             // S2-8：原本「先放著」聽起來像放著就會好，其實鎖屏太久會停。照實講。
-            Text("收起來也會繼續整理；鎖屏太久會先停，回到米說接著做。")
+            Text("收起來也會繼續整理；鎖屏太久會先停，回到芋音接著做。")
                 .font(Token.Fonts.footnote)
                 .foregroundStyle(Token.Colors.textSecondary)
                 .multilineTextAlignment(.center)

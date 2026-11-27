@@ -44,7 +44,7 @@ enum MarkdownExport {
         header += [
             "date: \(stamp(transcript.createdAt, format: "yyyy-MM-dd HH:mm"))",
             "length: \(minutes) 分鐘",
-            "source: 米說",
+            "source: 芋音",
             "---",
         ]
         return header.joined(separator: "\n") + "\n\n" + transcript.displayText + "\n"
