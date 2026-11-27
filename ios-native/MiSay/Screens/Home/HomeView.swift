@@ -11,6 +11,8 @@ import SwiftUI
 /// 2026-11-24 主力編輯器：上緣那行口述統計拿掉，只留在設定頁。
 /// 2026-11-26 米：錄音不彈窗，按下去這頁原地換成錄音中（`RecordingSheetView` 傳 `onClose` 的原地版）；
 /// 待機的鈕後面加呼吸光暈（`RecordHalo`）。
+/// 2026-11-27 米選錄音畫面 B 版「上面看、下面按」：待機也照錄音中的排法，上半部大標、灰的 00:00 與平的聲波，
+/// 錄音鈕縮小收進底部托盤（`RecordingTrayLayout`）；待轉錄改成大標右邊的膠囊。系統導覽列藏起來，大標自己畫。
 struct HomeView: View {
     /// 外層的三頁現在停在首頁。從設定頁滑回來時要重看金鑰在不在。
     let isCurrentPage: Bool
@@ -50,6 +52,8 @@ struct HomeView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Token.Colors.groupedBackground)
+        // 大標「錄音」和待轉錄膠囊同一行，系統的導覽列只會多空一塊；推進待轉錄清單時那頁有自己的導覽列。
+        .toolbar(.hidden, for: .navigationBar)
         // K1：捷徑、Siri、控制中心丟來的開錄請求（接著錄走文字稿頁自己的面板）。冷啟動時請求在畫面出來前就到了，onAppear 補。
         .onAppear { takeRecordingRequest() }
         .onChange(of: RecordingLauncher.shared.request) { _, _ in takeRecordingRequest() }
@@ -137,8 +141,42 @@ struct HomeView: View {
     }
 }
 
-/// 首頁的四塊：沒金鑰的卡、錄音鈕、提示、待轉錄列。
+/// 首頁待機（B1）：上半部大標與待轉錄膠囊、沒金鑰的卡、灰的計時與聲波；托盤裡是錄音鈕。
 private extension HomeView {
+    var idleContent: some View {
+        RecordingTrayLayout {
+            titleRow
+            if !hasAPIKey {
+                noKeyCard
+            }
+            VStack(alignment: .leading, spacing: Token.Space.s) {
+                RecordingTimer(recorder: nil, isDimmed: true)
+                Text("按下面的鈕開始，講多久都可以，講完會整理成文字稿。")
+                    .font(Token.Fonts.secondary)
+                    .foregroundStyle(Token.Colors.textSecondary)
+            }
+            RecordingWaveform(recorder: nil)
+        } tray: {
+            recordButton
+            Text("按一下開始講")
+                .font(Token.Fonts.footnote)
+                .foregroundStyle(Token.Colors.textSecondary)
+        }
+    }
+
+    var titleRow: some View {
+        HStack(spacing: Token.Space.s) {
+            Text("錄音")
+                .font(Token.Fonts.largeTitle)
+                .foregroundStyle(Token.Colors.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: Token.Space.s)
+            if pendingCount > 0 {
+                pendingCapsule
+            }
+        }
+    }
+
     @ViewBuilder
     var recordButton: some View {
         let button = Button {
@@ -148,8 +186,8 @@ private extension HomeView {
         }
         .accessibilityLabel("開始錄音")
 
-        ZStack {
-            RecordHalo()
+        // 光暈比鈕大一圈，當背景畫、不佔位置，托盤才不會被撐高。
+        Group {
             // 減少動態時不縮放，用系統預設的按壓回饋（變淡）。
             if reduceMotion {
                 button
@@ -157,31 +195,10 @@ private extension HomeView {
                 button.buttonStyle(RecordButtonStyle())
             }
         }
+        .background { RecordHalo() }
     }
 
-    /// 待機：大鈕、提示、金鑰卡、待轉錄列。
-    var idleContent: some View {
-        ZStack {
-            // 鈕對整個螢幕置中（米 11/08：要在正中央）。這層忽略安全區，上面的標題列、下面的分頁列都不影響它。
-            // 之前對「剩下的空間」置中：第一版被下面的 Spacer 擠到頂，第二版因為上面扣得比下面多而偏下。
-            Color.clear
-                .overlay { recordButton }
-                .overlay { hintBelowButton }
-                .ignoresSafeArea()
-            // 金鑰卡貼上緣、待轉錄列貼下緣，中間空著的地方點得到後面的鈕。
-            VStack {
-                if !hasAPIKey {
-                    noKeyCard
-                }
-                Spacer()
-                if pendingCount > 0 {
-                    pendingRow
-                }
-            }
-        }
-    }
-
-    /// 06-首次體驗：金鑰橫幅在鈕上方。整張可點，去設定頁。
+    /// 06-首次體驗：金鑰橫幅在大標下面。整張可點，去設定頁。
     var noKeyCard: some View {
         Button(action: onOpenSettings) {
             HStack(spacing: Token.Space.m) {
@@ -210,63 +227,25 @@ private extension HomeView {
             )
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, Token.Space.screen)
-        .padding(.top, Token.Space.s)
     }
 
-    /// 提示的上緣對齊正中央，再往下推半顆鈕，剛好接在鈕下方。
-    var hintBelowButton: some View {
-        firstTimeHint
-            .padding(.top, Token.Shape.recordTap / 2)
-            .alignmentGuide(VerticalAlignment.center) { $0[.top] }
-    }
-
-    var firstTimeHint: some View {
-        VStack(spacing: Token.Space.xs) {
-            Text("按中間的鈕，開始講")
-                .font(Token.Fonts.sectionTitle)
-                .foregroundStyle(Token.Colors.textPrimary)
-            Text("講多久都可以，講完會整理成文字稿。")
-                .font(Token.Fonts.secondary)
-                .foregroundStyle(Token.Colors.textSecondary)
-        }
-        .multilineTextAlignment(.center)
-        .padding(.top, Token.Space.xl)
-        .padding(.horizontal, Token.Space.xl)
-    }
-
-    /// 待轉錄列（03-線框首頁 D）：整列可點，推入待轉錄清單。
-    var pendingRow: some View {
+    /// 待轉錄（03-線框首頁 D；B1 改成大標右邊的淡金膠囊）：0 個時不出現，點了推入待轉錄清單。
+    var pendingCapsule: some View {
         NavigationLink {
             PendingListView(onChange: reloadPending)
         } label: {
-            HStack(spacing: Token.Space.m) {
-                VStack(alignment: .leading, spacing: Token.Space.xs) {
-                    Text("待轉錄 \(pendingCount) 個")
-                        .font(Token.Fonts.rowTitle)
-                        .foregroundStyle(Token.Colors.textPrimary)
-                    Text("沒網路或沒金鑰時收在這裡，不會丟")
-                        .font(Token.Fonts.secondary)
-                        .foregroundStyle(Token.Colors.textSecondary)
-                }
-                // 按鈕裡的字預設置中，第二行會跑到中間（2026-11-02 米真機截圖）。
-                .multilineTextAlignment(.leading)
-                Spacer()
+            AccentCapsule {
+                Text("待轉錄 \(pendingCount) 個")
+                    .fontWeight(.semibold)
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(Token.Colors.textSecondary)
+                    .font(Token.Fonts.footnote.weight(.semibold))
                     .accessibilityHidden(true)
             }
-            .padding(Token.Space.l)
-            .background(
-                Token.Colors.rowBackground,
-                in: RoundedRectangle(cornerRadius: Token.Shape.radiusRow, style: .continuous)
-            )
+            .frame(minHeight: Token.Shape.minTap)
+            .contentShape(Rectangle())
         }
-        // iOS 26 會替 NavigationLink 套一層灰色的系統按鈕底，比白卡片大一圈、看起來像被蓋住；
-        // 卡片自己有底，關掉系統那層（2026-11-02 米真機截圖）。
+        // iOS 26 會替 NavigationLink 套一層灰色的系統按鈕底（2026-11-02 米真機截圖），膠囊自己有底，關掉系統那層。
         .buttonStyle(.plain)
-        .padding(.horizontal, Token.Space.screen)
-        .padding(.bottom, Token.Space.l)
     }
 }
 

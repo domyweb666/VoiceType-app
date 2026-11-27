@@ -6,6 +6,8 @@ import SwiftUI
 /// 2026-11-07 統一風格：面板白底、計時 56、「正在聽」帶紅點、主要按鈕玉米黃膠囊、文字鈕金色；
 /// 給人唸的字串搬到 `RecordingSheetView+Text.swift`。
 /// 2026-11-26 米：首頁錄音不彈窗。首頁傳 `onClose` 進來就是原地版（`+Inline`），編輯頁「接著錄」照舊是半頁。
+/// 2026-11-27 米選 B 版「上面看、下面按」：每個階段都是上半部給人看、底部白色托盤放鈕（`RecordingTrayLayout`），
+/// 原地版和半頁版同一套，只差底色與聲波高度（`+Inline`）。
 struct RecordingSheetView: View {
     enum Phase: Equatable {
         case starting
@@ -79,27 +81,12 @@ struct RecordingSheetView: View {
         }
     }
 
-    private var sheetBody: some View {
-        VStack(spacing: Token.Space.xl) {
-            phaseContent
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, Token.Space.xl)
-        .padding(.vertical, Token.Space.xl)
-        .background(Token.Colors.rowBackground)
-        .interactiveDismissDisabled()
-    }
-
-    /// 各階段的內容；錄音中原地版另有長相（`+Inline`）。
+    /// 各階段的內容，每個都是上半部加底部托盤。
     @ViewBuilder
     var phaseContent: some View {
         switch phase {
         case .starting, .recording:
-            if isInline {
-                inlineRecordingContent
-            } else {
-                recordingContent
-            }
+            recordingContent
         case .interrupted:
             interruptedContent
         case .microphoneDenied:

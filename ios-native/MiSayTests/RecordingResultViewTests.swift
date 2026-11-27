@@ -54,4 +54,32 @@ final class RecordingResultViewTests: XCTestCase {
         XCTAssertNil(RecordingResultView.segmentText(for: second, recording: "other.wav"))
         XCTAssertNil(RecordingResultView.segmentText(for: .idle, recording: name))
     }
+
+    func test整理中進度條轉到第幾段前面算轉好() {
+        let name = "20261101-120000.wav"
+        let second = TranscriptionQueue.Activity.transcribing(
+            recording: name,
+            segment: 2,
+            totalSegments: 3
+        )
+        XCTAssertEqual(
+            RecordingResultView.transcriptionCells(for: second, recording: name, knownTotal: 1),
+            [.done, .working, .waiting]
+        )
+        XCTAssertEqual(RecordingResultView.segmentCount(for: second, recording: name), 3)
+        XCTAssertNil(RecordingResultView.segmentCount(for: second, recording: "other.wav"))
+
+        // 進到潤飾時不再帶段數，沿用記下的格數、全部算轉好。
+        let polishing = TranscriptionQueue.Activity.polishing(recording: name)
+        XCTAssertEqual(
+            RecordingResultView.transcriptionCells(for: polishing, recording: name, knownTotal: 3),
+            [.done, .done, .done]
+        )
+        XCTAssertTrue(RecordingResultView.isPolishing(polishing, recording: name))
+        XCTAssertFalse(RecordingResultView.isPolishing(second, recording: name))
+        XCTAssertEqual(
+            RecordingResultView.transcriptionCells(for: .idle, recording: name, knownTotal: 1),
+            [.waiting]
+        )
+    }
 }

@@ -72,9 +72,9 @@ enum Token {
         static let secondary = DomyTokens.TypeScale.subheadline.font // 說明第二行、狀態條
         static let footnote = DomyTokens.TypeScale.footnote.font // 列上面的日期、區段下方說明
         static let icon = Font.title2 // 圖示圓裡的圖示、工具列、完成那個勾
-        /// 錄音計時 48（domy 錄音畫面）：畫面用 @ScaledMetric(relativeTo: .largeTitle) 包
-        /// `timerSize` 再丟進 `timer(_:)`
-        static let timerSize: CGFloat = 48
+        /// 錄音計時：畫面用 @ScaledMetric(relativeTo: .largeTitle) 包 `timerSize` 再丟進 `timer(_:)`。
+        /// 2026-11-27 米選錄音畫面 B 版「上面看、下面按」：計時放大當主角，48 → 64。
+        static let timerSize: CGFloat = 64
         static func timer(_ size: CGFloat) -> Font {
             Font.system(size: size, weight: .bold).monospacedDigit()
         }
@@ -100,35 +100,38 @@ enum Token {
         static let radiusRow = DomyTokens.Radius.xl // 20：卡片、狀態條、統計卡
         static let radiusField = DomyTokens.Radius.md // 12：首頁統計那行、輸入框
         static let radiusSheet = DomyTokens.Radius.xxl // 24：錄音面板上緣
+        /// 錄音畫面 B 版底部那塊白色托盤（能按的都收在這裡，拇指按得到）
+        static let radiusTray = DomyTokens.Radius.xxl // 24
         static let radiusStopGlyph = DomyTokens.Radius.sm // 停止鈕中間那個方形的角
         static let hairline = DomyTokens.Size.hairline // 統計卡的細框
         static let minTap = DomyTokens.Size.touch // 44：一般點擊範圍底線、文字鈕高度
         static let primaryTap = DomyTokens.Size.button // 52：主要按鈕高度，整寬膠囊
         static let pickerHeight = DomyTokens.Size.pickerHeight // 34：潤飾方式膠囊
         static let iconCircle = DomyTokens.Size.emptyIcon // 64：面板頂上的圖示圓
-        static let stopTap: CGFloat = 80 // 錄音面板停止鈕（米說自己的，domy 沒有）
+        static let stopTap: CGFloat = 80 // 錄音停止鈕（米說自己的，domy 沒有）
         static let stopGlyph: CGFloat = 28 // 停止鈕中間的方形
-        static let recordTap = DomyTokens.Size.heroRing // 216：錄音大鈕連外環
-        static let recordDisc = DomyTokens.Size.heroButton // 180：裡面那顆玉米黃圓盤
+        /// 停止鈕外面那圈淡金線：脹到最大時的直徑是 80 + 12 × 2 = 104（B 版設計稿）
+        static let stopRingLine: CGFloat = 2
+        /// 2026-11-27 B 版：錄音鈕從畫面正中央收進底部托盤，整顆縮小（不再照 domy 的 hero 216／180）
+        static let recordTap: CGFloat = 112 // 錄音鈕連外環
+        static let recordDisc: CGFloat = 96 // 裡面那顆玉米黃圓盤
         static let recordRing = DomyTokens.Size.heroRingWidth // 3：外環線寬
-        static let recordGlyph: CGFloat = 64 // 圓盤中間的麥克風（domy 錄音畫面）
-        /// 2026-11-26 米：待機光暈的直徑，比外環大一圈，光才散得開
-        static let haloDiameter: CGFloat = 320
-        /// 首頁錄音中：圓盤中間的停止方塊（比面板的 28 大，圓盤也大）
-        static let heroStopGlyph: CGFloat = 52
-        /// 首頁錄音中：環繞圓盤的聲波整塊大小；擴散的聲波環走到這裡淡掉
-        static let soundRing: CGFloat = 320
-        static let soundBarCount = 64 // 繞一圈幾根音量條
-        static let soundBarWidth: CGFloat = 3
-        static let soundBarMin: CGFloat = 4 // 沒聲音時也留一點，看得出是一圈
-        static let soundBarMax: CGFloat = 34 // 最大聲時多長
-        static let soundWaveCount = 2 // 同時往外擴散幾圈
-        static let soundWaveLine: CGFloat = 2
+        static let recordGlyph: CGFloat = 40 // 圓盤中間的麥克風
+        /// 待機光暈的直徑，比外環大一圈，光才散得開（2026-11-26 米要光；B 版跟著鈕縮成 160）
+        static let haloDiameter: CGFloat = 160
+        /// B 版托盤左邊「標記重點」那顆淡金圓
+        static let markCircle: CGFloat = 56
+        /// B 版上半部的聲波：一排直條，高度是這塊的高（半頁面板矮，用 `primaryTap`）
+        static let stageWaveHeight: CGFloat = 140
+        static let waveBarWidth: CGFloat = 3
+        static let waveBarMin: CGFloat = 4 // 沒聲音時也留一點，看得出是一排
+        /// B 版整理中的段數進度條（每段一格）
+        static let progressBarHeight: CGFloat = 8
         static let cornWidth: CGFloat = 88 // 空清單那根玉米
         static let cornHeight: CGFloat = 112
     }
 
-    /// 陰影：domy 兩級。錄音大鈕與浮在清單上的狀態條用第 2 級，導覽列的白圓鈕用第 1 級
+    /// 陰影：domy 兩級。錄音大鈕與浮在清單上的狀態條用第 2 級，導覽列的白圓鈕與錄音托盤用第 1 級
     enum Elevation {
         static let recordShadowOpacity = DomyTokens.Elevation.level2.opacity
         static let recordShadowRadius = DomyTokens.Elevation.level2.radius
@@ -136,6 +139,10 @@ enum Token {
         static let stripShadowOpacity = DomyTokens.Elevation.level2.opacity
         static let stripShadowRadius = DomyTokens.Elevation.level2.radius
         static let stripShadowY = DomyTokens.Elevation.level2.y
+        /// B 版錄音托盤：淡淡一層，看得出浮在米白底上就好
+        static let trayShadowOpacity = DomyTokens.Elevation.level1.opacity
+        static let trayShadowRadius = DomyTokens.Elevation.level1.radius
+        static let trayShadowY = DomyTokens.Elevation.level1.y
     }
 
     /// 動態（事件命名；每個都有減少動態版，是替換不是關掉）
@@ -157,7 +164,6 @@ enum Token {
         static let haloBreath: Double = 3.6
         static let haloRingScale: CGFloat = 1.08 // 外圈光圈脹到多大
         static let haloInnerScale: CGFloat = 1.04 // 內圈脹得少一點，兩圈才有層次
-        static let soundWaveSeconds: Double = 2.4 // 聲波環從圓盤走到外緣要幾秒
         static let modeSwitch: Double = 0.25 // 首頁待機與錄音中互換的淡入淡出
         static let pressedOpacity = DomyTokens.Motion.pressedOpacity // 膠囊與文字鈕按下去變淡
         static let disabledOpacity: Double = 0.4 // 停用的鈕
@@ -171,12 +177,15 @@ enum Token {
     }
 
     /// 觸覺（事件命名；每種事件只對應一種）
-    /// 首頁大鈕的光暈與聲波透明度（2026-11-26 米：鈕要讓人想按、錄音時看得出在收聲音）。裝飾，不入對比表。
+    /// 錄音鈕的光暈與聲波透明度（2026-11-26 米：鈕要讓人想按、錄音時看得出在收聲音）。裝飾，不入對比表。
     enum Halo {
         static let glowOpacity: Double = 0.55 // 圓盤後面那團光最亮處
         static let ringOpacity: Double = 0.22 // 外面兩圈光圈
-        static let waveBase: Double = 0.25 // 聲波環沒聲音時的濃度
-        static let waveLevel: Double = 0.45 // 越大聲越濃，加在 waveBase 上
+        static let stopRingOpacity: Double = 0.35 // B 版停止鈕外圈的淡金線
+        /// B 版聲波：最舊那根的濃度，越新越濃，看得出聲音從右邊進來
+        static let waveOldestOpacity: Double = 0.3
+        /// B 版整理中：正在轉的那一格（轉好的是實心金棕，還沒輪到的是灰）
+        static let workingCellOpacity: Double = 0.45
     }
 
     enum Haptics {

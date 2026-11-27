@@ -35,49 +35,15 @@ struct RecordingResultView: View {
     @State private var hasStarted = false
     @State private var isShown = true
     /// 第一次整理才出現的費用說明；開始時記下來，不然一設成看過就馬上消失。
-    @State private var showsCostNotice = !AppSettings.shared.hasSeenCostNotice
+    @State var showsCostNotice = !AppSettings.shared.hasSeenCostNotice
+    /// 整理中進度條要畫幾格（這段錄音切成幾段）。
+    @State var segmentTotal = 1
 
     var body: some View {
-        VStack(spacing: Token.Space.m) {
-            if let gapText = RecordingSheetView.gapText(for: captureGaps) {
-                message(gapText)
-            }
-            switch status {
-            case .processing:
-                processingContent
-            case .noAPIKey:
-                noAPIKeyContent
-            case let .transcriptionFailed(reason, needsNewKey):
-                failedContent(
-                    lead: "錄音還在待轉錄，沒有被扣款。",
-                    reason: reason,
-                    needsNewKey: needsNewKey
-                )
-            case .storageFailed:
-                // 這時已經轉好、已經扣款，所以不說「沒有被扣款」。
-                failedContent(
-                    lead: "錄音還在待轉錄。",
-                    reason: "口語稿存不進去，再試一次。",
-                    needsNewKey: false
-                )
-            case .progressUnreadable:
-                failedContent(
-                    lead: "轉錄進度一時讀不到，錄音還在。",
-                    reason: "等一下再按重試。",
-                    needsNewKey: false
-                )
-            case let .polishFailed(transcript):
-                polishFailedContent(transcript, message: "口語稿已經存好，潤飾沒有成功。")
-            case let .draftNotSaved(transcript):
-                polishFailedContent(
-                    transcript,
-                    message: "口語稿已經存好，文字稿存不進去。再試一次會重新潤飾。"
-                )
-            case let .recordingNotDeleted(transcript):
-                recordingNotDeletedContent(transcript)
-            case let .finished(transcript, isCopied):
-                finishedContent(transcript, isCopied: isCopied)
-            }
+        RecordingTrayLayout {
+            stage
+        } tray: {
+            tray
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sensoryFeedbackIfEnabled(trigger: status) { _, new in
@@ -93,6 +59,13 @@ struct RecordingResultView: View {
         // 原地版切到別的分頁再回來會再出現一次：看得到就照常複製、照常收。
         .onAppear { isShown = true }
         .onDisappear { isShown = false }
+        // 進到潤飾時 activity 就不再帶段數，先記住切成幾段，進度條才不會從三格變一格。
+        .onChange(of: queue.activity, initial: true) { _, activity in
+            let name = recordingURL.lastPathComponent
+            if let total = Self.segmentCount(for: activity, recording: name) {
+                segmentTotal = total
+            }
+        }
     }
 
     /// 收起來：原地版回到待機，半頁面板收下去。
@@ -104,7 +77,7 @@ struct RecordingResultView: View {
         }
     }
 
-    private func process() {
+    func process() {
         status = .processing
         Task { @MainActor in
             let outcome = await queue.process(recordingAt: recordingURL)
@@ -112,7 +85,7 @@ struct RecordingResultView: View {
         }
     }
 
-    private func retryPolish(_ transcript: Transcript) {
+    func retryPolish(_ transcript: Transcript) {
         status = .processing
         Task { @MainActor in
             let outcome = await queue.retryPolish(transcript)
@@ -167,108 +140,76 @@ struct RecordingResultView: View {
     }
 }
 
-/// 各狀態的內容。主要動作玉米黃膠囊、其他文字鈕金色（使用規則第 2、11 條）。
+/// 各狀態的內容，照 B 版拆成上半部（給人看）和托盤（給人按）。
+/// 主要動作金棕膠囊、其他文字鈕深金（使用規則第 2、11 條）。失敗的原因用狀態條講（使用規則第 13 條）。
 extension RecordingResultView {
-    var processingContent: some View {
-        VStack(spacing: Token.Space.m) {
-            spinner
-            Text("整理中…")
-                .font(Token.Fonts.rowTitle)
-                .foregroundStyle(Token.Colors.textPrimary)
-            if let segment = Self.segmentText(
-                for: queue.activity,
-                recording: recordingURL.lastPathComponent
-            ) {
-                Text(segment)
-                    .font(Token.Fonts.secondary)
-                    .foregroundStyle(Token.Colors.textSecondary)
-            }
-            if showsCostNotice {
-                Text("錄音會送到 OpenAI 轉成文字，費用算在你的金鑰上")
-                    .font(Token.Fonts.footnote)
-                    .foregroundStyle(Token.Colors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-            // S2-8：原本「先放著」聽起來像放著就會好，其實鎖屏太久會停。照實講。
-            Text("收起來也會繼續整理；鎖屏太久會先停，回到芋音接著做。")
-                .font(Token.Fonts.footnote)
-                .foregroundStyle(Token.Colors.textSecondary)
-                .multilineTextAlignment(.center)
-            Spacer(minLength: Token.Space.s)
+    @ViewBuilder
+    var stage: some View {
+        switch status {
+        case .processing:
+            processingStage
+        case .noAPIKey:
+            noAPIKeyStage
+        case let .transcriptionFailed(reason, _):
+            failedStage(lead: "錄音還在待轉錄，沒有被扣款。", reason: reason)
+        case .storageFailed:
+            // 這時已經轉好、已經扣款，所以不說「沒有被扣款」。
+            failedStage(lead: "錄音還在待轉錄。", reason: "口語稿存不進去，再試一次。")
+        case .progressUnreadable:
+            failedStage(lead: "轉錄進度一時讀不到，錄音還在。", reason: "等一下再按重試。")
+        case .polishFailed:
+            failedStage(lead: nil, reason: "口語稿已經存好，潤飾沒有成功。")
+        case .draftNotSaved:
+            failedStage(lead: nil, reason: "口語稿已經存好，文字稿存不進去。再試一次會重新潤飾。")
+        case .recordingNotDeleted:
+            failedStage(
+                lead: nil,
+                reason: "口語稿已經存好，但錄音檔刪不掉，還在待轉錄。到待轉錄把它刪掉，不然會再整理一次。"
+            )
+        case let .finished(transcript, isCopied):
+            finishedStage(transcript, isCopied: isCopied)
+        }
+    }
+
+    @ViewBuilder
+    var tray: some View {
+        switch status {
+        case .processing:
             Button("收起來") { close() }
                 .buttonStyle(TextButtonStyle())
+        case .noAPIKey:
+            noAPIKeyTray
+        case let .transcriptionFailed(_, needsNewKey):
+            retryTray(needsNewKey: needsNewKey)
+        case .storageFailed, .progressUnreadable:
+            retryTray(needsNewKey: false)
+        case let .polishFailed(transcript), let .draftNotSaved(transcript):
+            polishFailedTray(transcript)
+        case let .recordingNotDeleted(transcript):
+            recordingNotDeletedTray(transcript)
+        case let .finished(transcript, _):
+            finishedTray(transcript)
         }
     }
 
-    var noAPIKeyContent: some View {
-        VStack(spacing: Token.Space.m) {
-            IconCircle(systemName: "key.fill", tint: Token.Colors.link)
-            Text("錄音收好了，在待轉錄。")
-                .font(Token.Fonts.rowTitle)
-                .foregroundStyle(Token.Colors.textPrimary)
-            message("設定金鑰後會自動整理。")
-            Spacer(minLength: Token.Space.s)
-            if returningTo == nil {
-                Button("去設定金鑰") { onOpenSettings() }
-                    .buttonStyle(PrimaryButtonStyle())
-            }
-            Button("完成") { close() }
-                .buttonStyle(TextButtonStyle())
+    /// 大標：首頁原地版照 B 版用大標；半頁面板只有半個螢幕高，小一級。
+    var titleFont: Font {
+        onClose == nil ? Token.Fonts.sectionTitle : Token.Fonts.largeTitle
+    }
+
+    /// 錄音中途斷過的那一行（B4），每個結局都放在大標下面。
+    @ViewBuilder
+    var gapLine: some View {
+        if let gapText = RecordingSheetView.gapText(for: captureGaps) {
+            Text(gapText)
+                .font(Token.Fonts.secondary)
+                .foregroundStyle(Token.Colors.textSecondary)
         }
-    }
-
-    func failedContent(lead: String, reason: String, needsNewKey: Bool) -> some View {
-        VStack(spacing: Token.Space.m) {
-            failureIcon
-            Text(lead)
-                .font(Token.Fonts.rowTitle)
-                .foregroundStyle(Token.Colors.textPrimary)
-                .multilineTextAlignment(.center)
-            message(reason)
-            Spacer(minLength: Token.Space.s)
-            Button("重試") { process() }
-                .buttonStyle(PrimaryButtonStyle())
-            if needsNewKey, returningTo == nil {
-                Button("去設定") { onOpenSettings() }
-                    .buttonStyle(TextButtonStyle())
-            }
-            Button("完成") { close() }
-                .buttonStyle(TextButtonStyle())
-        }
-    }
-
-    func polishFailedContent(_ transcript: Transcript, message text: String) -> some View {
-        VStack(spacing: Token.Space.m) {
-            failureIcon
-            message(text)
-            Spacer(minLength: Token.Space.s)
-            Button("再試一次") { retryPolish(transcript) }
-                .buttonStyle(PrimaryButtonStyle())
-            if returningTo == nil {
-                Button("打開這篇") { onOpenTranscript(transcript) }
-                    .buttonStyle(TextButtonStyle())
-            }
-            Button("完成") { close() }
-                .buttonStyle(TextButtonStyle())
-        }
-    }
-
-    /// 跟 `IconCircle` 同一個淡金圓（domy 的空狀態圖示），裡面轉圈。
-    var spinner: some View {
-        ProgressView()
-            .tint(Token.Colors.accent)
-            .frame(width: Token.Shape.iconCircle, height: Token.Shape.iconCircle)
-            .background(Token.Colors.accentSoft, in: Circle())
-    }
-
-    var failureIcon: some View {
-        IconCircle.failure
     }
 
     func message(_ text: String) -> some View {
         Text(text)
             .font(Token.Fonts.secondary)
             .foregroundStyle(Token.Colors.textPrimary)
-            .multilineTextAlignment(.center)
     }
 }

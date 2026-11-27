@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 待機錄音鈕後面的呼吸光暈（2026-11-26 米：鈕不吸引人，要像參考圖那樣有光，外圈慢慢脹縮，
 /// 讓人覺得麥克風在等他開口）。只是裝飾：點不到、讀屏不唸。減少動態時光暈留著、不脹縮。
+/// 2026-11-27 B 版：跟著鈕縮小，當托盤裡錄音鈕的背景畫，不佔版面。
 struct RecordHalo: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isBreathing = false

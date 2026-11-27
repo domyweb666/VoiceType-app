@@ -1,24 +1,49 @@
 import SwiftUI
 
-/// 錄音中的內容（半頁面板版；首頁原地版在 `+Inline`）。被打斷、失敗在 `RecordingSheetView+Stopped.swift`。
-/// 2026-11-26 從主檔搬出來，讓它留在 300 行內。
+/// 錄音中的內容（B 版：上面看、下面按）。被打斷、失敗在 `RecordingSheetView+Stopped.swift`。
+/// 上半部：「正在聽」膠囊、放大的計時、一排聲波；托盤：左「標記重點」、中停止鈕、右已標幾個。
+/// 2026-11-26 從主檔搬出來，讓它留在 300 行內；2026-11-27 首頁原地版與半頁版改成同一套。
 extension RecordingSheetView {
     var recordingContent: some View {
-        VStack(spacing: Token.Space.m) {
+        RecordingTrayLayout {
+            statusRow
             RecordingTimer(recorder: recorder)
-            listeningLine
-            Spacer(minLength: Token.Space.s)
-            RecordingWaveform(recorder: recorder)
-            Spacer(minLength: Token.Space.s)
-            stopButton
-            markButton
-            spaceNote
+            RecordingWaveform(recorder: recorder, height: waveHeight)
+        } tray: {
+            HStack(spacing: Token.Space.s) {
+                markButton
+                    .frame(maxWidth: .infinity)
+                stopButton
+                markCountLabel
+                    .frame(maxWidth: .infinity)
+            }
+            Text("按方塊結束")
+                .font(Token.Fonts.footnote)
+                .foregroundStyle(Token.Colors.textSecondary)
         }
     }
 
+    /// 左「正在聽」，右邊一句小字：平常講鎖屏也會錄，空間快不夠時換成紅字剩幾分鐘。
+    private var statusRow: some View {
+        HStack(spacing: Token.Space.s) {
+            listeningLine
+            Spacer(minLength: Token.Space.s)
+            spaceNote
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private var canMark: Bool {
+        guard phase == .recording else {
+            return false
+        }
+        return !isStopping
+    }
+
     /// K6：講到重點按一下，記下第幾秒；整理完在詳情頁「⋯ → 錄音與原稿」看得到。
+    /// B 版：淡金圓裡一支旗子，字在圓下面；已標幾個搬到托盤右邊（`markCountLabel`）。
     var markButton: some View {
-        Button(markCount == 0 ? "標記重點" : "標記重點（已標 \(markCount) 個）") {
+        Button {
             guard let name = recorder.liveRecordingURL?.lastPathComponent else {
                 return
             }
@@ -27,10 +52,37 @@ extension RecordingSheetView {
             if (try? RecordingMarks().add(seconds, forRecordingNamed: name)) != nil {
                 markCount += 1
             }
+        } label: {
+            VStack(spacing: Token.Space.xs) {
+                Image(systemName: "flag")
+                    .font(Token.Fonts.icon)
+                    .frame(width: Token.Shape.markCircle, height: Token.Shape.markCircle)
+                    .background(Token.Colors.accentSoft, in: Circle())
+                Text("標記重點")
+                    .font(Token.Fonts.footnote.weight(.semibold))
+            }
+            .foregroundStyle(Token.Colors.link)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(TextButtonStyle())
-        .disabled(phase != .recording || isStopping)
+        .buttonStyle(.plain)
+        .opacity(canMark ? 1 : Token.Motion.disabledOpacity)
+        .disabled(!canMark)
+        .accessibilityLabel(markCount == 0 ? "標記重點" : "標記重點，已標 \(markCount) 個")
         .sensoryFeedbackIfEnabled(Token.Haptics.copied, trigger: markCount)
+    }
+
+    /// 托盤右邊：已經標了幾個重點。讀屏從標記鈕就聽得到，這裡不再唸一次。
+    private var markCountLabel: some View {
+        VStack(spacing: Token.Space.xs) {
+            Text("\(markCount)")
+                .font(Token.Fonts.sectionTitle.weight(.bold))
+                .foregroundStyle(Token.Colors.textPrimary)
+            Text("已標重點")
+                .font(Token.Fonts.footnote)
+                .foregroundStyle(Token.Colors.textSecondary)
+        }
+        .multilineTextAlignment(.center)
+        .accessibilityHidden(true)
     }
 
     /// 錄音中＝圓點＋計時在跳＋「正在聽」三樣一起（使用規則第 4 條）。
@@ -58,8 +110,8 @@ extension RecordingSheetView {
         }
     }
 
-    /// 80pt 金棕鈕（domy：進行中用產品色實心＋方塊）；外圈 1.4 秒呼吸一次（4pt → 12pt）。
-    /// 減少動態時不呼吸，圓點本來就在「正在聽」旁邊。
+    /// 80pt 金棕鈕（domy：進行中用產品色實心＋方塊）；外圈淡金線 1.4 秒呼吸一次（88 → 104）。
+    /// 減少動態時外圈停在 104 不動，圓點本來就在「正在聽」旁邊。
     var stopButton: some View {
         Button {
             stopRecording()
@@ -70,13 +122,16 @@ extension RecordingSheetView {
                 .frame(width: Token.Shape.stopTap, height: Token.Shape.stopTap)
                 .background(Token.Colors.recordingFill, in: Circle())
                 .background {
-                    if !reduceMotion {
-                        Circle()
-                            .stroke(Token.Colors.recordingFill)
-                            .padding(isPulsing ? -Token.Space.m : -Token.Space.xs)
-                    }
+                    Circle()
+                        .stroke(
+                            Token.Colors.recordingFill.opacity(Token.Halo.stopRingOpacity),
+                            lineWidth: Token.Shape.stopRingLine
+                        )
+                        .padding(isPulsing || reduceMotion ? -Token.Space.m : -Token.Space.xs)
                 }
+                .contentShape(Circle())
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("停止錄音")
         .disabled(phase != .recording || isStopping)
         .onAppear {

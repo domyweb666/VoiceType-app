@@ -1,22 +1,27 @@
 import SwiftUI
 import UserNotifications
 
-/// 完成面板下方一行（06-首次體驗權限時刻表：第一次完成之後才問，不先跳說明框）。
+/// 完成畫面預覽下方一行（06-首次體驗權限時刻表：第一次完成之後才問，不先跳說明框）。
 /// 還沒問過才出現；不按也照常，只是錄音中途停了手機不會響。
 struct RecordingAlarmPrompt: View {
     @State private var isAsking = false
 
     var body: some View {
         if isAsking {
-            VStack(spacing: Token.Space.xs) {
-                Text("錄音如果中途停了，要發通知給你嗎？")
-                    .font(Token.Fonts.footnote)
+            // B4：左邊一個鈴鐺，右邊問句與文字鈕靠左。
+            HStack(alignment: .firstTextBaseline, spacing: Token.Space.m) {
+                Image(systemName: "bell")
                     .foregroundStyle(Token.Colors.textSecondary)
-                    .multilineTextAlignment(.center)
-                Button("要，發通知給我") {
-                    Task { await requestPermission() }
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: Token.Space.xs) {
+                    Text("錄音如果中途停了，要發通知給你嗎？")
+                        .font(Token.Fonts.footnote)
+                        .foregroundStyle(Token.Colors.textSecondary)
+                    Button("要，發通知給我") {
+                        Task { await requestPermission() }
+                    }
+                    .buttonStyle(TextButtonStyle())
                 }
-                .buttonStyle(TextButtonStyle())
             }
         } else {
             // 要有一個真的東西在畫面上，.task 才會跑。
