@@ -73,16 +73,16 @@ extension RecordingResultView {
     ) -> [ProgressCell] {
         switch activity {
         case let .transcribing(name, segment, total) where name == recording:
-            return (1 ... max(total, 1)).map { index -> ProgressCell in
+            (1 ... max(total, 1)).map { index -> ProgressCell in
                 if index < segment {
                     return .done
                 }
                 return index == segment ? .working : .waiting
             }
         case let .polishing(name) where name == recording:
-            return Array(repeating: .done, count: max(knownTotal, 1))
+            Array(repeating: .done, count: max(knownTotal, 1))
         default:
-            return Array(repeating: .waiting, count: max(knownTotal, 1))
+            Array(repeating: .waiting, count: max(knownTotal, 1))
         }
     }
 
