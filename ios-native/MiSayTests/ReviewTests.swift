@@ -104,6 +104,20 @@ final class ReviewTests: XCTestCase {
         XCTAssertNil(ReviewResult.range(of: "", in: "前面後面"))
     }
 
+    func test卡點找得到的照原順序在前_找不到的排最後() {
+        let text = "第一句。第二句。第三句。"
+        let points = [
+            StuckPoint(quote: "已經改掉的", reason: "甲"),
+            StuckPoint(quote: "第三句", reason: "乙"),
+            StuckPoint(quote: "也找不到", reason: "丙"),
+            StuckPoint(quote: "第一句", reason: "丁"),
+        ]
+        let located = ReviewResult.locate(points, in: text)
+        XCTAssertEqual(located.map(\.point.reason), ["乙", "丁", "甲", "丙"])
+        XCTAssertEqual(located.map(\.range), [8 ..< 11, 0 ..< 3, nil, nil])
+        XCTAssertEqual(ReviewResult.locate([], in: text), [])
+    }
+
     func test同一種只留最近一次_最近問的在前() {
         var session = ReviewSheet.Session()
         session.add(.titles(["舊"]))

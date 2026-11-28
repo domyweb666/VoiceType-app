@@ -41,6 +41,15 @@ enum ReviewResult: Equatable, Identifiable {
         return start ..< start + text.distance(from: found.lowerBound, to: found.upperBound)
     }
 
+    /// 「請 AI 看整篇」R-C 的翻頁順序：找得到位置的照 AI 排的順序在前，找不到的排最後。
+    /// 找不到的不標在稿子上、不給跳（設計稿 R-C5「翻到最後會看到」），編號跟著這個順序。
+    static func locate(_ points: [StuckPoint], in text: String) -> [LocatedStuckPoint] {
+        let located = points.map {
+            LocatedStuckPoint(point: $0, range: range(of: $0.quote, in: text))
+        }
+        return located.filter { $0.range != nil } + located.filter { $0.range == nil }
+    }
+
     private static func cleanedTitles(from content: String) throws -> [String] {
         let payload = try decode(TitlesPayload.self, from: content)
         var seen = Set<String>()
@@ -112,6 +121,12 @@ struct OpeningPoint: Decodable, Equatable {
 struct StuckPoint: Decodable, Equatable {
     let quote: String
     let reason: String
+}
+
+/// 一處卡點加上它在現在的稿子裡是第幾個字到第幾個字；改掉了、或模型沒照抄，就是 nil。
+struct LocatedStuckPoint: Equatable {
+    let point: StuckPoint
+    let range: Range<Int>?
 }
 
 private struct TitlesPayload: Decodable {

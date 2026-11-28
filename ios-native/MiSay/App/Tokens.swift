@@ -59,6 +59,10 @@ enum Token {
         static let halo = Color("動作-底玉米")
         /// 0E2206，底是 9CC46A→6E9C3E 漸層（白字只有 2.00:1）
         static let pendingTileInk = Color("方塊-待轉字")
+        /// 請 AI 看整篇 R-C（2026-11-28）：托盤正在講的那一處卡點，塗玉米黃配深字（設計稿 R-C5）。
+        /// 錄音大鈕以外第二個用玉米黃的地方；淺深色同一組，深字壓玉米黃兩邊都讀得清楚。其他卡點用 `accentSoft`
+        static let reviewMarkCurrent = Color("動作-底玉米")
+        static let reviewMarkCurrentInk = Color("動作-字玉米")
     }
 
     /// 文字（domy 的字級，全部是系統文字樣式，跟著動態字級走；不寫死字級）
@@ -72,6 +76,8 @@ enum Token {
         static let secondary = DomyTokens.TypeScale.subheadline.font // 說明第二行、狀態條
         static let footnote = DomyTokens.TypeScale.footnote.font // 列上面的日期、區段下方說明
         static let icon = Font.title2 // 圖示圓裡的圖示、工具列、完成那個勾
+        /// 請 AI 看整篇 R-C：唯讀稿子最上面那行標題（設計稿 22 粗體）
+        static let reviewTitle = DomyTokens.TypeScale.title2.font
         /// 錄音計時：畫面用 @ScaledMetric(relativeTo: .largeTitle) 包 `timerSize` 再丟進 `timer(_:)`。
         /// 2026-11-27 米選錄音畫面 B 版「上面看、下面按」：計時放大當主角，48 → 64。
         static let timerSize: CGFloat = 64
@@ -129,6 +135,12 @@ enum Token {
         static let progressBarHeight: CGFloat = 8
         static let cornWidth: CGFloat = 88 // 空清單那根玉米
         static let cornHeight: CGFloat = 112
+        /// 請 AI 看整篇 R-C：托盤「要 AI 看哪一樣？」三列左邊的淡金小圓（設計稿 36）
+        static let reviewKindCircle = DomyTokens.Size.buttonCompact // 36
+        /// R-C 三種切換膠囊上「這種有結果了」那個小點
+        static let reviewDot: CGFloat = 6
+        /// R-C 稿子上「AI 看的開頭」「標題換成」那圈虛線：畫 4、空 3（線寬用 `hairline`）
+        static let reviewFrameDash: [CGFloat] = [4, 3]
     }
 
     /// 陰影：domy 兩級。錄音大鈕與浮在清單上的狀態條用第 2 級，導覽列的白圓鈕與錄音托盤用第 1 級
@@ -167,6 +179,8 @@ enum Token {
         static let modeSwitch: Double = 0.25 // 首頁待機與錄音中互換的淡入淡出
         static let pressedOpacity = DomyTokens.Motion.pressedOpacity // 膠囊與文字鈕按下去變淡
         static let disabledOpacity: Double = 0.4 // 停用的鈕
+        /// 請 AI 看整篇 R-C：AI 看稿的時候上面的稿子淡下去，看得出在等（設計稿 R-C2）。不是動畫，減少動態照用
+        static let reviewRunningOpacity: Double = 0.45
         /// 按鈕樣式共用：停用最淡，按下次之，平常不透明
         static func buttonOpacity(isEnabled: Bool, isPressed: Bool) -> Double {
             if !isEnabled {

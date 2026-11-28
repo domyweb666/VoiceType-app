@@ -10,6 +10,8 @@ enum ReviewKind: String, CaseIterable, Identifiable {
     static let maxTitles = 5
     static let maxOpeningPoints = 4
     static let maxStuckPoints = 8
+    /// 開頭看多長。提示詞跟「請 AI 看整篇」稿子上框起來的那段都用它，兩邊才對得上。
+    static let openingCharacters = 300
 
     var id: String {
         rawValue
@@ -82,7 +84,7 @@ enum ReviewKind: String, CaseIterable, Identifiable {
             """
         case .opening:
             """
-            看這篇的開頭（大約前 300 字），讀者會不會想讀下去：
+            看這篇的開頭（大約前 \(Self.openingCharacters) 字），讀者會不會想讀下去：
             - summary 用一兩句話直接說夠不夠力，原因是什麼。
             - points 最多 \(Self.maxOpeningPoints) 個。problem 講哪一句、哪裡沒力；\
             direction 講可以往哪個方向改，例如文字稿後面哪個例子可以提到前面。
